@@ -1,7 +1,7 @@
-import { publicProcedure, router } from '@/server/trpc';
+import { ownerProcedure, router } from '@/server/trpc';
 
 export const ownerRouter = router({
-  healthCheck: publicProcedure.query(() => {
+  healthCheck: ownerProcedure.query(() => {
     return { status: 'ok' as const, router: 'owner' };
   }),
 });

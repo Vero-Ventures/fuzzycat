@@ -7,6 +7,13 @@ const CLINIC_2_ID = '00000000-0000-4000-a000-000000000002';
 const OWNER_1_ID = '00000000-0000-4000-b000-000000000001';
 const OWNER_2_ID = '00000000-0000-4000-b000-000000000002';
 const OWNER_3_ID = '00000000-0000-4000-b000-000000000003';
+
+// Deterministic auth IDs for seed data (not real Supabase user IDs)
+const CLINIC_1_AUTH_ID = '00000000-0000-4000-f000-000000000001';
+const CLINIC_2_AUTH_ID = '00000000-0000-4000-f000-000000000002';
+const OWNER_1_AUTH_ID = '00000000-0000-4000-f000-000000000011';
+const OWNER_2_AUTH_ID = '00000000-0000-4000-f000-000000000012';
+const OWNER_3_AUTH_ID = '00000000-0000-4000-f000-000000000013';
 const PLAN_1_ID = '00000000-0000-4000-c000-000000000001';
 const PLAN_2_ID = '00000000-0000-4000-c000-000000000002';
 const PLAN_3_ID = '00000000-0000-4000-c000-000000000003';
@@ -63,6 +70,7 @@ async function seed() {
     await tx.insert(clinics).values([
       {
         id: CLINIC_1_ID,
+        authId: CLINIC_1_AUTH_ID,
         name: 'Sunset Veterinary Hospital',
         phone: '(415) 555-0101',
         email: 'admin@sunsetvet.example.com',
@@ -75,6 +83,7 @@ async function seed() {
       },
       {
         id: CLINIC_2_ID,
+        authId: CLINIC_2_AUTH_ID,
         name: 'Pacific Paws Animal Clinic',
         phone: '(310) 555-0202',
         email: 'front@pacificpaws.example.com',
@@ -91,6 +100,7 @@ async function seed() {
     await tx.insert(owners).values([
       {
         id: OWNER_1_ID,
+        authId: OWNER_1_AUTH_ID,
         clinicId: CLINIC_1_ID,
         name: 'Alice Johnson',
         email: 'alice@example.com',
@@ -105,6 +115,7 @@ async function seed() {
       },
       {
         id: OWNER_2_ID,
+        authId: OWNER_2_AUTH_ID,
         clinicId: CLINIC_1_ID,
         name: 'Bob Martinez',
         email: 'bob@example.com',
@@ -119,6 +130,7 @@ async function seed() {
       },
       {
         id: OWNER_3_ID,
+        authId: OWNER_3_AUTH_ID,
         clinicId: CLINIC_2_ID,
         name: 'Carol Chen',
         email: 'carol@example.com',

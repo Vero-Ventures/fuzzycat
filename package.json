@@ -28,6 +28,10 @@
     "db:seed": "bun run scripts/seed.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
+    "@trpc/client": "^11.10.0",
+    "@trpc/server": "^11.10.0",
+    "@trpc/tanstack-react-query": "^11.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
@@ -37,14 +41,16 @@
     "radix-ui": "^1.4.3",
     "react": "^19",
     "react-dom": "^19",
-    "tailwind-merge": "^3.4.0"
+    "superjson": "^2.2.6",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^2",
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^22",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.9",

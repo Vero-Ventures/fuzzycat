@@ -3,7 +3,7 @@
   "entry": ["app/**/*.{ts,tsx}", "lib/**/*.ts", "server/**/*.ts", "types/**/*.ts"],
   "project": ["**/*.{ts,tsx}"],
   "ignore": ["drizzle/**"],
-  "ignoreBinaries": ["gitleaks", "semgrep", "playwright", "drizzle-kit"],
+  "ignoreBinaries": ["gitleaks", "semgrep", "playwright"],
   "ignoreDependencies": [
     "@commitlint/cli",
     "class-variance-authority",

@@ -1,3 +1,319 @@
-// TODO: Database seeder script (#10)
-// Run with: bun run db:seed
-console.log('Seed script not yet implemented. See issue #10.');
+import { db } from '@/server/db';
+import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+
+// ── Deterministic UUIDs for seed data ───────────────────────────────
+const CLINIC_1_ID = '00000000-0000-4000-a000-000000000001';
+const CLINIC_2_ID = '00000000-0000-4000-a000-000000000002';
+const OWNER_1_ID = '00000000-0000-4000-b000-000000000001';
+const OWNER_2_ID = '00000000-0000-4000-b000-000000000002';
+const OWNER_3_ID = '00000000-0000-4000-b000-000000000003';
+const PLAN_1_ID = '00000000-0000-4000-c000-000000000001';
+const PLAN_2_ID = '00000000-0000-4000-c000-000000000002';
+const PLAN_3_ID = '00000000-0000-4000-c000-000000000003';
+const PAYMENT_1_DEPOSIT_ID = '00000000-0000-4000-d000-000000000001';
+const PAYMENT_1_INST_1_ID = '00000000-0000-4000-d000-000000000002';
+const PAYMENT_1_INST_2_ID = '00000000-0000-4000-d000-000000000003';
+const PAYMENT_1_INST_3_ID = '00000000-0000-4000-d000-000000000004';
+const PAYMENT_1_INST_4_ID = '00000000-0000-4000-d000-000000000005';
+const PAYMENT_1_INST_5_ID = '00000000-0000-4000-d000-000000000006';
+const PAYMENT_1_INST_6_ID = '00000000-0000-4000-d000-000000000007';
+const PAYOUT_1_ID = '00000000-0000-4000-e000-000000000001';
+const PAYOUT_2_ID = '00000000-0000-4000-e000-000000000002';
+const PAYOUT_3_ID = '00000000-0000-4000-e000-000000000003';
+
+// ── Payment calculation helpers (mirrors FuzzyCat formula) ──────────
+// Fee: 6% of bill. Total = bill + fee. Deposit = 25% of total. Remaining split into 6 installments.
+function calculatePlan(billCents: number) {
+  const feeCents = Math.round(billCents * 0.06);
+  const totalWithFeeCents = billCents + feeCents;
+  const depositCents = Math.round(totalWithFeeCents * 0.25);
+  const remainingCents = totalWithFeeCents - depositCents;
+  const installmentCents = Math.round(remainingCents / 6);
+  return { feeCents, totalWithFeeCents, depositCents, remainingCents, installmentCents };
+}
+
+const plan1Calc = calculatePlan(120_000); // $1,200 bill
+const plan2Calc = calculatePlan(80_000); // $800 bill
+const plan3Calc = calculatePlan(250_000); // $2,500 bill
+
+const now = new Date();
+const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+
+async function seed() {
+  console.log('Cleaning existing seed data...');
+
+  // Delete in reverse FK order to avoid constraint violations
+  await db.delete(auditLog);
+  await db.delete(riskPool);
+  await db.delete(payouts);
+  await db.delete(payments);
+  await db.delete(plans);
+  await db.delete(owners);
+  await db.delete(clinics);
+
+  console.log('Seeding clinics...');
+  await db.insert(clinics).values([
+    {
+      id: CLINIC_1_ID,
+      name: 'Sunset Veterinary Hospital',
+      phone: '(415) 555-0101',
+      email: 'admin@sunsetvet.example.com',
+      addressLine1: '1234 Sunset Blvd',
+      addressCity: 'San Francisco',
+      addressState: 'CA',
+      addressZip: '94122',
+      stripeAccountId: 'acct_test_sunset',
+      status: 'active',
+    },
+    {
+      id: CLINIC_2_ID,
+      name: 'Pacific Paws Animal Clinic',
+      phone: '(310) 555-0202',
+      email: 'front@pacificpaws.example.com',
+      addressLine1: '5678 Pacific Ave',
+      addressCity: 'Los Angeles',
+      addressState: 'CA',
+      addressZip: '90291',
+      stripeAccountId: 'acct_test_pacific',
+      status: 'active',
+    },
+  ]);
+
+  console.log('Seeding owners...');
+  await db.insert(owners).values([
+    {
+      id: OWNER_1_ID,
+      clinicId: CLINIC_1_ID,
+      name: 'Alice Johnson',
+      email: 'alice@example.com',
+      phone: '(415) 555-1001',
+      addressLine1: '100 Market St',
+      addressCity: 'San Francisco',
+      addressState: 'CA',
+      addressZip: '94105',
+      petName: 'Whiskers',
+      stripeCustomerId: 'cus_test_alice',
+      paymentMethod: 'debit_card',
+    },
+    {
+      id: OWNER_2_ID,
+      clinicId: CLINIC_1_ID,
+      name: 'Bob Martinez',
+      email: 'bob@example.com',
+      phone: '(415) 555-1002',
+      addressLine1: '200 Mission St',
+      addressCity: 'San Francisco',
+      addressState: 'CA',
+      addressZip: '94105',
+      petName: 'Mittens',
+      stripeCustomerId: 'cus_test_bob',
+      paymentMethod: 'bank_account',
+    },
+    {
+      id: OWNER_3_ID,
+      clinicId: CLINIC_2_ID,
+      name: 'Carol Chen',
+      email: 'carol@example.com',
+      phone: '(310) 555-2001',
+      addressLine1: '300 Venice Blvd',
+      addressCity: 'Los Angeles',
+      addressState: 'CA',
+      addressZip: '90291',
+      petName: 'Luna',
+      stripeCustomerId: 'cus_test_carol',
+      paymentMethod: 'debit_card',
+    },
+  ]);
+
+  console.log('Seeding plans...');
+  const plan1Start = new Date(now.getTime() - 4 * twoWeeksMs); // Started 8 weeks ago
+  await db.insert(plans).values([
+    {
+      id: PLAN_1_ID,
+      ownerId: OWNER_1_ID,
+      clinicId: CLINIC_1_ID,
+      totalBillCents: 120_000,
+      ...plan1Calc,
+      numInstallments: 6,
+      status: 'active',
+      depositPaidAt: plan1Start,
+      nextPaymentAt: new Date(plan1Start.getTime() + 3 * twoWeeksMs),
+    },
+    {
+      id: PLAN_2_ID,
+      ownerId: OWNER_2_ID,
+      clinicId: CLINIC_1_ID,
+      totalBillCents: 80_000,
+      ...plan2Calc,
+      numInstallments: 6,
+      status: 'pending',
+    },
+    {
+      id: PLAN_3_ID,
+      ownerId: OWNER_3_ID,
+      clinicId: CLINIC_2_ID,
+      totalBillCents: 250_000,
+      ...plan3Calc,
+      numInstallments: 6,
+      status: 'completed',
+      depositPaidAt: new Date(now.getTime() - 7 * twoWeeksMs),
+      completedAt: new Date(now.getTime() - twoWeeksMs),
+    },
+  ]);
+
+  console.log('Seeding payments for plan 1...');
+  // Plan 1: deposit succeeded, installments 1-2 succeeded, 3-6 pending
+  await db.insert(payments).values([
+    {
+      id: PAYMENT_1_DEPOSIT_ID,
+      planId: PLAN_1_ID,
+      type: 'deposit',
+      sequenceNum: 0,
+      amountCents: plan1Calc.depositCents,
+      status: 'succeeded',
+      stripePaymentIntentId: 'pi_test_dep_001',
+      scheduledAt: plan1Start,
+      processedAt: plan1Start,
+    },
+    {
+      id: PAYMENT_1_INST_1_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 1,
+      amountCents: plan1Calc.installmentCents,
+      status: 'succeeded',
+      stripePaymentIntentId: 'pi_test_inst_001',
+      scheduledAt: new Date(plan1Start.getTime() + twoWeeksMs),
+      processedAt: new Date(plan1Start.getTime() + twoWeeksMs),
+    },
+    {
+      id: PAYMENT_1_INST_2_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 2,
+      amountCents: plan1Calc.installmentCents,
+      status: 'succeeded',
+      stripePaymentIntentId: 'pi_test_inst_002',
+      scheduledAt: new Date(plan1Start.getTime() + 2 * twoWeeksMs),
+      processedAt: new Date(plan1Start.getTime() + 2 * twoWeeksMs),
+    },
+    {
+      id: PAYMENT_1_INST_3_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 3,
+      amountCents: plan1Calc.installmentCents,
+      status: 'pending',
+      scheduledAt: new Date(plan1Start.getTime() + 3 * twoWeeksMs),
+    },
+    {
+      id: PAYMENT_1_INST_4_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 4,
+      amountCents: plan1Calc.installmentCents,
+      status: 'pending',
+      scheduledAt: new Date(plan1Start.getTime() + 4 * twoWeeksMs),
+    },
+    {
+      id: PAYMENT_1_INST_5_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 5,
+      amountCents: plan1Calc.installmentCents,
+      status: 'pending',
+      scheduledAt: new Date(plan1Start.getTime() + 5 * twoWeeksMs),
+    },
+    {
+      id: PAYMENT_1_INST_6_ID,
+      planId: PLAN_1_ID,
+      type: 'installment',
+      sequenceNum: 6,
+      amountCents: plan1Calc.installmentCents,
+      status: 'pending',
+      scheduledAt: new Date(plan1Start.getTime() + 6 * twoWeeksMs),
+    },
+  ]);
+
+  console.log('Seeding payouts...');
+  // Payouts for the 3 succeeded payments (deposit + installments 1-2)
+  await db.insert(payouts).values([
+    {
+      id: PAYOUT_1_ID,
+      clinicId: CLINIC_1_ID,
+      planId: PLAN_1_ID,
+      paymentId: PAYMENT_1_DEPOSIT_ID,
+      amountCents: plan1Calc.depositCents,
+      clinicShareCents: Math.round(
+        120_000 * 0.03 * (plan1Calc.depositCents / plan1Calc.totalWithFeeCents),
+      ),
+      stripeTransferId: 'tr_test_001',
+      status: 'succeeded',
+    },
+    {
+      id: PAYOUT_2_ID,
+      clinicId: CLINIC_1_ID,
+      planId: PLAN_1_ID,
+      paymentId: PAYMENT_1_INST_1_ID,
+      amountCents: plan1Calc.installmentCents,
+      clinicShareCents: Math.round(
+        120_000 * 0.03 * (plan1Calc.installmentCents / plan1Calc.totalWithFeeCents),
+      ),
+      stripeTransferId: 'tr_test_002',
+      status: 'succeeded',
+    },
+    {
+      id: PAYOUT_3_ID,
+      clinicId: CLINIC_1_ID,
+      planId: PLAN_1_ID,
+      paymentId: PAYMENT_1_INST_2_ID,
+      amountCents: plan1Calc.installmentCents,
+      clinicShareCents: Math.round(
+        120_000 * 0.03 * (plan1Calc.installmentCents / plan1Calc.totalWithFeeCents),
+      ),
+      stripeTransferId: 'tr_test_003',
+      status: 'succeeded',
+    },
+  ]);
+
+  console.log('Seeding risk pool...');
+  // 1% of plan 1 total bill contributes to risk pool
+  await db.insert(riskPool).values({
+    planId: PLAN_1_ID,
+    contributionCents: Math.round(120_000 * 0.01),
+    type: 'contribution',
+  });
+
+  console.log('Seeding audit log...');
+  await db.insert(auditLog).values([
+    {
+      entityType: 'plan',
+      entityId: PLAN_1_ID,
+      action: 'created',
+      oldValue: null,
+      newValue: { status: 'pending', totalBillCents: 120_000 },
+      actorType: 'system',
+      actorId: null,
+      ipAddress: '127.0.0.1',
+    },
+    {
+      entityType: 'plan',
+      entityId: PLAN_1_ID,
+      action: 'status_changed',
+      oldValue: { status: 'pending' },
+      newValue: { status: 'active' },
+      actorType: 'system',
+      actorId: null,
+      ipAddress: '127.0.0.1',
+    },
+  ]);
+
+  console.log('Seed complete.');
+}
+
+seed()
+  .then(() => process.exit(0))
+  .catch((error: unknown) => {
+    console.error('Seed failed:', error);
+    process.exit(1);
+  });

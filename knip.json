@@ -2,8 +2,9 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": ["app/**/*.{ts,tsx}", "lib/**/*.ts", "server/**/*.ts", "types/**/*.ts"],
   "project": ["**/*.{ts,tsx}"],
-  "ignore": ["drizzle/**"],
-  "ignoreBinaries": ["gitleaks", "semgrep", "playwright", "drizzle-kit"],
+  "ignore": ["drizzle/**", "drizzle.config.ts"],
+  "ignoreBinaries": ["gitleaks", "semgrep", "playwright"],
+  "drizzle": false,
   "ignoreDependencies": [
     "@commitlint/cli",
     "class-variance-authority",

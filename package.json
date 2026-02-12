@@ -30,8 +30,10 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.563.0",
     "next": "^15",
+    "postgres": "^3.4.8",
     "radix-ui": "^1.4.3",
     "react": "^19",
     "react-dom": "^19",
@@ -45,6 +47,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.9",
     "knip": "^5.83.1",
     "license-checker-rseidelsohn": "^4.4.2",
     "madge": "^8.0.0",

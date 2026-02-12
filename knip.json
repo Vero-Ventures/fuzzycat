@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["app/**/*.{ts,tsx}", "lib/**/*.ts", "server/**/*.ts", "types/**/*.ts"],
+  "entry": ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}", "server/**/*.ts", "types/**/*.ts"],
   "project": ["**/*.{ts,tsx}"],
   "ignore": ["drizzle/**", "drizzle.config.ts"],
   "ignoreBinaries": ["gitleaks", "semgrep", "playwright"],
@@ -12,6 +12,7 @@
     "postcss",
     "radix-ui",
     "shadcn",
-    "tw-animate-css"
+    "tw-animate-css",
+    "zod"
   ]
 }

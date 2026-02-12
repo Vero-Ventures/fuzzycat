@@ -38,6 +38,7 @@ export const actorTypeEnum = pgEnum('actor_type', ['system', 'admin', 'owner', '
 // ── Veterinary clinics ──────────────────────────────────────────────
 export const clinics = pgTable('clinics', {
   id: uuid('id').primaryKey().defaultRandom(),
+  authId: text('auth_id').unique(),
   name: text('name').notNull(),
   phone: text('phone').notNull(),
   email: text('email').notNull(),
@@ -54,6 +55,7 @@ export const clinics = pgTable('clinics', {
 // ── Pet owners ──────────────────────────────────────────────────────
 export const owners = pgTable('owners', {
   id: uuid('id').primaryKey().defaultRandom(),
+  authId: text('auth_id').unique(),
   clinicId: uuid('clinic_id').references(() => clinics.id),
   name: text('name').notNull(),
   email: text('email').notNull(),

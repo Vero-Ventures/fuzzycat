@@ -1,5 +1,39 @@
 import { relations } from 'drizzle-orm';
-import { index, inet, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  index,
+  inet,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
+
+// ── Enums ───────────────────────────────────────────────────────────
+export const clinicStatusEnum = pgEnum('clinic_status', ['pending', 'active', 'suspended']);
+export const paymentMethodEnum = pgEnum('payment_method', ['debit_card', 'bank_account']);
+export const planStatusEnum = pgEnum('plan_status', [
+  'pending',
+  'deposit_paid',
+  'active',
+  'completed',
+  'defaulted',
+  'cancelled',
+]);
+export const paymentTypeEnum = pgEnum('payment_type', ['deposit', 'installment']);
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
+  'retried',
+  'written_off',
+]);
+export const payoutStatusEnum = pgEnum('payout_status', ['pending', 'succeeded', 'failed']);
+export const riskPoolTypeEnum = pgEnum('risk_pool_type', ['contribution', 'claim', 'recovery']);
+export const actorTypeEnum = pgEnum('actor_type', ['system', 'admin', 'owner', 'clinic']);
 
 // ── Veterinary clinics ──────────────────────────────────────────────
 export const clinics = pgTable('clinics', {
@@ -12,7 +46,7 @@ export const clinics = pgTable('clinics', {
   addressState: text('address_state').notNull(),
   addressZip: text('address_zip').notNull(),
   stripeAccountId: text('stripe_account_id'),
-  status: text('status').notNull().default('pending'),
+  status: clinicStatusEnum('status').notNull().default('pending'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
@@ -31,8 +65,9 @@ export const owners = pgTable('owners', {
   petName: text('pet_name').notNull(),
   stripeCustomerId: text('stripe_customer_id'),
   plaidAccessToken: text('plaid_access_token'),
-  paymentMethod: text('payment_method').notNull(),
+  paymentMethod: paymentMethodEnum('payment_method').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 // ── Payment plans (one per enrollment) ──────────────────────────────
@@ -49,7 +84,7 @@ export const plans = pgTable(
     remainingCents: integer('remaining_cents').notNull(),
     installmentCents: integer('installment_cents').notNull(),
     numInstallments: integer('num_installments').notNull().default(6),
-    status: text('status').notNull().default('pending'),
+    status: planStatusEnum('status').notNull().default('pending'),
     depositPaidAt: timestamp('deposit_paid_at', { withTimezone: true }),
     nextPaymentAt: timestamp('next_payment_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -68,10 +103,10 @@ export const payments = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     planId: uuid('plan_id').references(() => plans.id),
-    type: text('type').notNull(),
+    type: paymentTypeEnum('type').notNull(),
     sequenceNum: integer('sequence_num'),
     amountCents: integer('amount_cents').notNull(),
-    status: text('status').notNull().default('pending'),
+    status: paymentStatusEnum('status').notNull().default('pending'),
     stripePaymentIntentId: text('stripe_payment_intent_id'),
     failureReason: text('failure_reason'),
     retryCount: integer('retry_count').default(0),
@@ -97,7 +132,7 @@ export const payouts = pgTable(
     amountCents: integer('amount_cents').notNull(),
     clinicShareCents: integer('clinic_share_cents').notNull(),
     stripeTransferId: text('stripe_transfer_id'),
-    status: text('status').notNull().default('pending'),
+    status: payoutStatusEnum('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [index('idx_payouts_clinic').on(table.clinicId)],
@@ -108,7 +143,7 @@ export const riskPool = pgTable('risk_pool', {
   id: uuid('id').primaryKey().defaultRandom(),
   planId: uuid('plan_id').references(() => plans.id),
   contributionCents: integer('contribution_cents').notNull(),
-  type: text('type').notNull(),
+  type: riskPoolTypeEnum('type').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -122,7 +157,7 @@ export const auditLog = pgTable(
     action: text('action').notNull(),
     oldValue: jsonb('old_value'),
     newValue: jsonb('new_value'),
-    actorType: text('actor_type').notNull(),
+    actorType: actorTypeEnum('actor_type').notNull(),
     actorId: uuid('actor_id'),
     ipAddress: inet('ip_address'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

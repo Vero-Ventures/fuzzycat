@@ -1,7 +1,31 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(brew update:*)",
+      "Bash(brew upgrade:*)",
+      "Bash(bun upgrade:*)",
+      "Bash(brew install:*)",
+      "Bash(bun install:*)",
+      "Bash(source:*)",
+      "Bash(nvm ls:*)",
+      "Bash(nvm install:*)",
+      "Bash(nvm alias:*)",
+      "Bash(ln:*)",
+      "Bash(export PATH=\"/Users/yaniv/.bun/bin:$PATH\":*)",
+      "Bash(supabase --version:*)",
+      "Bash(echo:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh label create:*)",
+      "Bash(gh api:*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue list:*)",
+      "Bash(python3:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git -C /Users/yaniv/CODE/fuzzycat add lib/stripe.ts .gitignore components.json tailwind.config.ts)",
+      "Bash(git -C /Users/yaniv/CODE/fuzzycat commit -m \"$\\(cat <<''EOF''\nfix: address PR review feedback from code review\n\n- Fix invalid Stripe API version \\(use 2025-04-30.basil\\)\n- Stop ignoring drizzle migration SQL files \\(must be version-controlled\\)\n- Add tailwind.config.ts for shadcn/ui CLI compatibility\n- Point components.json config to tailwind.config.ts\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /Users/yaniv/CODE/fuzzycat push)"
     ]
   }
 }

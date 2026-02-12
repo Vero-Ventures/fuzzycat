@@ -1,0 +1,60 @@
+title = "FuzzyCat Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe Secret Key"
+regex = '''sk_live_[0-9a-zA-Z]{24,}'''
+tags = ["stripe", "secret"]
+
+[[rules]]
+id = "stripe-restricted-key"
+description = "Stripe Restricted Key"
+regex = '''rk_live_[0-9a-zA-Z]{24,}'''
+tags = ["stripe", "secret"]
+
+[[rules]]
+id = "stripe-webhook-secret"
+description = "Stripe Webhook Signing Secret"
+regex = '''whsec_[0-9a-zA-Z]{24,}'''
+tags = ["stripe", "secret"]
+
+[[rules]]
+id = "plaid-client-id"
+description = "Plaid Client ID"
+regex = '''(?i)plaid[_-]?client[_-]?id\s*[:=]\s*['"]?[0-9a-f]{24}['"]?'''
+tags = ["plaid", "secret"]
+
+[[rules]]
+id = "plaid-secret"
+description = "Plaid Secret Key"
+regex = '''(?i)plaid[_-]?secret\s*[:=]\s*['"]?[0-9a-f]{30,}['"]?'''
+tags = ["plaid", "secret"]
+
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase Service Role Key"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[0-9a-zA-Z_-]{50,}\.[0-9a-zA-Z_-]{20,}'''
+tags = ["supabase", "secret"]
+
+[[rules]]
+id = "twilio-auth-token"
+description = "Twilio Auth Token"
+regex = '''(?i)twilio[_-]?auth[_-]?token\s*[:=]\s*['"]?[0-9a-f]{32}['"]?'''
+tags = ["twilio", "secret"]
+
+[[rules]]
+id = "resend-api-key"
+description = "Resend API Key"
+regex = '''re_[0-9a-zA-Z]{20,}'''
+tags = ["resend", "secret"]
+
+[allowlist]
+paths = [
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''node_modules/''',
+  '''bun\.lockb$''',
+]

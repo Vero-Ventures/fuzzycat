@@ -72,9 +72,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - run: go install github.com/zricethezav/gitleaks/v8@latest
+      - run: gitleaks detect --source . --no-banner
 
   security:
     name: Security Scan (Semgrep)
@@ -92,8 +95,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun test --coverage --coverage-reporter=lcov
+      - name: Run tests with coverage
+        run: |
+          count=$(find . -path ./node_modules -prune -o \( -name '*.test.*' -o -name '*.spec.*' \) -print | head -1)
+          if [ -n "$count" ]; then
+            bun test --coverage --coverage-reporter=lcov
+          else
+            echo "No test files found, skipping."
+          fi
       - uses: codecov/codecov-action@v5
+        if: hashFiles('coverage/lcov.info') != ''
         with:
           files: coverage/lcov.info
           fail_ci_if_error: false

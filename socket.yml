@@ -1,0 +1,21 @@
+version: 2
+
+projectIgnorePaths:
+  - "drizzle/migrations"
+
+issueRules:
+  malware: true
+  installScripts: true
+  telemetry: true
+  troll: true
+  didYouMean: true
+  hasNativeCode: true
+  gitDependency: true
+  httpDependency: true
+  invalidPackageJSON: true
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  dependencyOverviewEnabled: true
+  projectReportsEnabled: true

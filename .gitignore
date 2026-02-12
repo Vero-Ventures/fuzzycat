@@ -42,8 +42,7 @@ next-env.d.ts
 .DS_Store
 Thumbs.db
 
-# drizzle
-drizzle/migrations/*.sql
+# drizzle (migrations are version-controlled — do NOT ignore them)
 
 # sentry
 .sentryclirc

@@ -2,13 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { getUserRole, ROLE_HOME } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
-
-const ROLE_HOME: Record<string, string> = {
-  clinic: '/clinic/dashboard',
-  admin: '/admin/dashboard',
-  owner: '/owner/payments',
-};
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
@@ -34,8 +29,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         return;
       }
 
-      const role = (data.user?.app_metadata?.role as string) ?? 'owner';
-      const destination = redirectTo ?? ROLE_HOME[role] ?? ROLE_HOME.owner;
+      const role = data.user ? getUserRole(data.user) : 'owner';
+      const destination = redirectTo ?? ROLE_HOME[role];
       router.push(destination);
       router.refresh();
     } finally {

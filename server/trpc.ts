@@ -1,9 +1,10 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
+import { getUserRole, type UserRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
 
-export type UserRole = 'owner' | 'clinic' | 'admin';
+export type { UserRole };
 
 /**
  * tRPC context — created fresh for every request.
@@ -18,7 +19,7 @@ export async function createTRPCContext(opts: { req: Request; resHeaders: Header
   const session = user
     ? {
         userId: user.id,
-        role: ((user.app_metadata?.role as string) ?? 'owner') as UserRole,
+        role: getUserRole(user),
       }
     : null;
 

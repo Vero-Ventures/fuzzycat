@@ -1,0 +1,27 @@
+import type { User } from '@supabase/supabase-js';
+
+export type UserRole = 'owner' | 'clinic' | 'admin';
+
+const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['owner', 'clinic', 'admin']);
+
+/**
+ * Extracts and validates the user role from Supabase app_metadata.
+ * Returns 'owner' as the default if no role is set or the role is invalid.
+ */
+export function getUserRole(user: User): UserRole {
+  const raw = user.app_metadata?.role;
+  if (typeof raw === 'string' && VALID_ROLES.has(raw)) {
+    return raw as UserRole;
+  }
+  return 'owner';
+}
+
+/** Maps each role to its default authenticated landing page. */
+export const ROLE_HOME: Readonly<Record<UserRole, string>> = {
+  clinic: '/clinic/dashboard',
+  admin: '/admin/dashboard',
+  owner: '/owner/payments',
+};
+
+/** Allowed path prefixes for post-auth redirects. */
+export const SAFE_REDIRECT_PREFIXES = ['/clinic', '/owner', '/admin', '/mfa'] as const;

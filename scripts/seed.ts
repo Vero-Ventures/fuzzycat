@@ -1,3 +1,10 @@
+import {
+  CLINIC_SHARE_RATE,
+  DEPOSIT_RATE,
+  NUM_INSTALLMENTS,
+  PLATFORM_FEE_RATE,
+  RISK_POOL_RATE,
+} from '@/lib/constants';
 import { db } from '@/server/db';
 import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 
@@ -32,17 +39,14 @@ const PAYOUT_3_ID = '00000000-0000-4000-e000-000000000003';
 const PLAN_1_BILL_CENTS = 120_000; // $1,200
 const PLAN_2_BILL_CENTS = 80_000; // $800
 const PLAN_3_BILL_CENTS = 250_000; // $2,500
-const CLINIC_SHARE_RATE = 0.03;
-const RISK_POOL_RATE = 0.01;
 
 // ── Payment calculation helpers (mirrors FuzzyCat formula) ──────────
-// Fee: 6% of bill. Total = bill + fee. Deposit = 25% of total. Remaining split into 6 installments.
 function calculatePlan(billCents: number) {
-  const feeCents = Math.round(billCents * 0.06);
+  const feeCents = Math.round(billCents * PLATFORM_FEE_RATE);
   const totalWithFeeCents = billCents + feeCents;
-  const depositCents = Math.round(totalWithFeeCents * 0.25);
+  const depositCents = Math.round(totalWithFeeCents * DEPOSIT_RATE);
   const remainingCents = totalWithFeeCents - depositCents;
-  const installmentCents = Math.round(remainingCents / 6);
+  const installmentCents = Math.round(remainingCents / NUM_INSTALLMENTS);
   return { feeCents, totalWithFeeCents, depositCents, remainingCents, installmentCents };
 }
 
@@ -154,7 +158,7 @@ async function seed() {
         clinicId: CLINIC_1_ID,
         totalBillCents: PLAN_1_BILL_CENTS,
         ...plan1Calc,
-        numInstallments: 6,
+        numInstallments: NUM_INSTALLMENTS,
         status: 'active',
         depositPaidAt: plan1Start,
         nextPaymentAt: new Date(plan1Start.getTime() + 3 * twoWeeksMs),
@@ -165,7 +169,7 @@ async function seed() {
         clinicId: CLINIC_1_ID,
         totalBillCents: PLAN_2_BILL_CENTS,
         ...plan2Calc,
-        numInstallments: 6,
+        numInstallments: NUM_INSTALLMENTS,
         status: 'pending',
       },
       {
@@ -174,7 +178,7 @@ async function seed() {
         clinicId: CLINIC_2_ID,
         totalBillCents: PLAN_3_BILL_CENTS,
         ...plan3Calc,
-        numInstallments: 6,
+        numInstallments: NUM_INSTALLMENTS,
         status: 'completed',
         depositPaidAt: new Date(now.getTime() - 7 * twoWeeksMs),
         completedAt: new Date(now.getTime() - twoWeeksMs),

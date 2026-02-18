@@ -17,17 +17,20 @@ export function SignupForm() {
     setError(null);
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = tab === 'owner' ? await signUpOwner(formData) : await signUpClinic(formData);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = tab === 'owner' ? await signUpOwner(formData) : await signUpClinic(formData);
 
-    if (result.error) {
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      router.push(tab === 'owner' ? '/owner/payments' : '/clinic/dashboard');
+      router.refresh();
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push(tab === 'owner' ? '/owner/payments' : '/clinic/dashboard');
-    router.refresh();
   }
 
   return (

@@ -41,31 +41,33 @@ export default function MfaSetupPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-      factorId,
-    });
+    try {
+      const supabase = createClient();
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId,
+      });
 
-    if (challengeError) {
-      setError(challengeError.message);
+      if (challengeError) {
+        setError(challengeError.message);
+        return;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: verifyCode,
+      });
+
+      if (verifyError) {
+        setError(verifyError.message);
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { error: verifyError } = await supabase.auth.mfa.verify({
-      factorId,
-      challengeId: challenge.id,
-      code: verifyCode,
-    });
-
-    if (verifyError) {
-      setError(verifyError.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push('/');
-    router.refresh();
   }
 
   return (

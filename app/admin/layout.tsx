@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -16,15 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/login');
   }
 
-  // MFA enforcement: if enrolled but not verified this session, redirect to verify
-  const { data: mfaFactors } = await supabase.auth.mfa.listFactors();
-  const hasTotp = mfaFactors?.totp?.some((f) => f.status === 'verified');
-  if (hasTotp) {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (aal?.currentLevel !== 'aal2') {
-      redirect('/mfa/verify');
-    }
-  }
+  await enforceMfa(supabase);
 
   return <>{children}</>;
 }

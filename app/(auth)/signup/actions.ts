@@ -1,5 +1,6 @@
 'use server';
 
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
@@ -7,33 +8,59 @@ import { clinics, owners } from '@/server/db/schema';
 
 type ActionResult = { error: string | null };
 
-export async function signUpOwner(formData: FormData): Promise<ActionResult> {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const name = formData.get('name') as string;
-  const phone = formData.get('phone') as string;
-  const petName = formData.get('petName') as string;
+const ownerSchema = z.object({
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
+  name: z.string().min(1, 'Name is required.'),
+  phone: z.string().min(1, 'Phone is required.'),
+  petName: z.string().min(1, 'Pet name is required.'),
+});
 
+const clinicSchema = z.object({
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
+  clinicName: z.string().min(1, 'Clinic name is required.'),
+  phone: z.string().min(1, 'Phone is required.'),
+  addressState: z.string().length(2, 'State must be a 2-letter code.'),
+  addressZip: z.string().min(5, 'ZIP code is required.'),
+});
+
+async function signUpWithRole(email: string, password: string, role: 'owner' | 'clinic') {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    return { error: error.message };
+    return { userId: null, error: error.message };
   }
 
   if (!data.user) {
-    return { error: 'Failed to create user' };
+    return { userId: null, error: 'Failed to create user' };
   }
 
-  // Set role in app_metadata via admin client (users can't modify app_metadata)
   const admin = createAdminClient();
   await admin.auth.admin.updateUserById(data.user.id, {
-    app_metadata: { role: 'owner' },
+    app_metadata: { role },
   });
 
-  // Insert owner record linked to auth user
+  return { userId: data.user.id, error: null };
+}
+
+export async function signUpOwner(formData: FormData): Promise<ActionResult> {
+  const parsed = ownerSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues.map((issue) => issue.message).join(' ') };
+  }
+
+  const { email, password, name, phone, petName } = parsed.data;
+  const { userId, error } = await signUpWithRole(email, password, 'owner');
+
+  if (error) {
+    return { error };
+  }
+
   await db.insert(owners).values({
-    authId: data.user.id,
+    authId: userId,
     name,
     email,
     phone,
@@ -45,33 +72,21 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
 }
 
 export async function signUpClinic(formData: FormData): Promise<ActionResult> {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const clinicName = formData.get('clinicName') as string;
-  const phone = formData.get('phone') as string;
-  const addressState = formData.get('addressState') as string;
-  const addressZip = formData.get('addressZip') as string;
+  const parsed = clinicSchema.safeParse(Object.fromEntries(formData.entries()));
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (!parsed.success) {
+    return { error: parsed.error.issues.map((issue) => issue.message).join(' ') };
+  }
+
+  const { email, password, clinicName, phone, addressState, addressZip } = parsed.data;
+  const { userId, error } = await signUpWithRole(email, password, 'clinic');
 
   if (error) {
-    return { error: error.message };
+    return { error };
   }
 
-  if (!data.user) {
-    return { error: 'Failed to create user' };
-  }
-
-  // Set role in app_metadata via admin client
-  const admin = createAdminClient();
-  await admin.auth.admin.updateUserById(data.user.id, {
-    app_metadata: { role: 'clinic' },
-  });
-
-  // Insert clinic record linked to auth user
   await db.insert(clinics).values({
-    authId: data.user.id,
+    authId: userId,
     name: clinicName,
     email,
     phone,

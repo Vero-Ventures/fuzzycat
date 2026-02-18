@@ -15,40 +15,41 @@ export default function MfaVerifyPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    const totpFactor = factors?.totp?.find((f) => f.status === 'verified');
+    try {
+      const supabase = createClient();
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.find((f) => f.status === 'verified');
 
-    if (!totpFactor) {
-      setError('No TOTP factor found. Please set up MFA first.');
+      if (!totpFactor) {
+        setError('No TOTP factor found. Please set up MFA first.');
+        return;
+      }
+
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: totpFactor.id,
+      });
+
+      if (challengeError) {
+        setError(challengeError.message);
+        return;
+      }
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: totpFactor.id,
+        challengeId: challenge.id,
+        code,
+      });
+
+      if (verifyError) {
+        setError(verifyError.message);
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-      factorId: totpFactor.id,
-    });
-
-    if (challengeError) {
-      setError(challengeError.message);
-      setLoading(false);
-      return;
-    }
-
-    const { error: verifyError } = await supabase.auth.mfa.verify({
-      factorId: totpFactor.id,
-      challengeId: challenge.id,
-      code,
-    });
-
-    if (verifyError) {
-      setError(verifyError.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push('/');
-    router.refresh();
   }
 
   return (

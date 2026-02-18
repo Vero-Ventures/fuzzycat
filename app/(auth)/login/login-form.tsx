@@ -22,22 +22,25 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (signInError) {
-      setError(signInError.message);
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+
+      const role = (data.user?.app_metadata?.role as string) ?? 'owner';
+      const destination = redirectTo ?? ROLE_HOME[role] ?? ROLE_HOME.owner;
+      router.push(destination);
+      router.refresh();
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const role = (data.user?.app_metadata?.role as string) ?? 'owner';
-    const destination = redirectTo ?? ROLE_HOME[role] ?? ROLE_HOME.owner;
-    router.push(destination);
-    router.refresh();
   }
 
   return (

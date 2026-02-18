@@ -25,9 +25,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "bun run scripts/seed.ts"
+    "db:seed": "bun run scripts/seed.ts",
+    "db:create-admin": "bun run scripts/create-admin.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.10.0",
     "@trpc/server": "^11.10.0",

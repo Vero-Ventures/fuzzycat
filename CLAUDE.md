@@ -111,6 +111,21 @@ FuzzyCat's **only** sustainable differentiator is the clinic revenue share model
 
 ### Setup
 
+### Infrastructure Status
+
+| Service | Status | Account/Identifier |
+|---------|--------|--------------------|
+| **Supabase** | Configured | Project: `wrqwmpptetipbccxzeai` |
+| **Sentry** | Configured | Org: `fuzzycatapp`, Project: `javascript-nextjs` |
+| **PostHog** | Configured | Project ID: `318239`, US Cloud (`us.posthog.com`) |
+| **Vercel** | Configured | Team: `fuzzy-cat-apps-projects`, Domain: `fuzzycatapp.com` |
+| **Stripe** | Not configured | — |
+| **Plaid** | Not configured | — |
+| **Resend** | Not configured | — |
+| **Twilio** | Not configured | — |
+
+All accounts use `fuzzycatapp@gmail.com`. API keys are in `.env.local` (local) and Vercel environment variables (production). Never commit secrets to git.
+
 ```bash
 # Prerequisites
 bun >= 1.2.x          # https://bun.sh/docs/installation

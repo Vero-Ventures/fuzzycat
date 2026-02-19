@@ -5,11 +5,12 @@
     "lib/**/*.{ts,tsx}",
     "server/**/*.ts",
     "types/**/*.ts",
-    "scripts/*.ts"
+    "scripts/*.ts",
+    "e2e/**/*.ts"
   ],
   "project": ["**/*.{ts,tsx}"],
   "ignore": ["drizzle/**", "drizzle.config.ts"],
-  "ignoreBinaries": ["gitleaks", "semgrep", "playwright"],
+  "ignoreBinaries": ["gitleaks", "semgrep"],
   "drizzle": false,
   "ignoreDependencies": [
     "@commitlint/cli",

@@ -18,7 +18,6 @@
     "postcss",
     "radix-ui",
     "shadcn",
-    "tw-animate-css",
-    "zod"
+    "tw-animate-css"
   ]
 }

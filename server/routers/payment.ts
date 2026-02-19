@@ -1,7 +1,7 @@
-import { publicProcedure, router } from '@/server/trpc';
+import { protectedProcedure, router } from '@/server/trpc';
 
 export const paymentRouter = router({
-  healthCheck: publicProcedure.query(() => {
+  healthCheck: protectedProcedure.query(() => {
     return { status: 'ok' as const, router: 'payment' };
   }),
 });

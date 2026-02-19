@@ -1,17 +1,26 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
+import { publicEnv } from '@/lib/env';
+
+function isSafeRedirect(path: string): boolean {
+  if (path === '/') return true;
+  return SAFE_REDIRECT_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const redirectTo = searchParams.get('redirectTo') ?? '/';
+  const rawRedirect = searchParams.get('redirectTo') ?? '/';
+  const redirectTo = isSafeRedirect(rawRedirect) ? rawRedirect : '/';
 
   if (code) {
     const cookieStore = await cookies();
+    const env = publicEnv();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
           getAll() {

@@ -1,21 +1,18 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
+import { getUserRole, ROLE_HOME } from '@/lib/auth';
+import { publicEnv } from '@/lib/env';
 
 const PROTECTED_PREFIXES = ['/clinic', '/owner', '/admin'];
 const AUTH_PAGES = ['/login', '/signup'];
 
-const ROLE_HOME: Record<string, string> = {
-  clinic: '/clinic/dashboard',
-  admin: '/admin/dashboard',
-  owner: '/owner/payments',
-};
-
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const env = publicEnv();
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -53,8 +50,8 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages to their portal
   const isAuthPage = AUTH_PAGES.some((page) => pathname.startsWith(page));
   if (isAuthPage && user) {
-    const role = (user.app_metadata?.role as string) ?? 'owner';
-    const home = ROLE_HOME[role] ?? ROLE_HOME.owner;
+    const role = getUserRole(user);
+    const home = ROLE_HOME[role];
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = home;
     return NextResponse.redirect(homeUrl);

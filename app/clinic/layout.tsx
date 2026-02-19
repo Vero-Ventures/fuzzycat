@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { getUserRole } from '@/lib/auth';
 import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 
@@ -12,7 +13,7 @@ export default async function ClinicLayout({ children }: { children: React.React
     redirect('/login');
   }
 
-  const role = (user.app_metadata?.role as string) ?? 'owner';
+  const role = getUserRole(user);
   if (role !== 'clinic' && role !== 'admin') {
     redirect('/login');
   }

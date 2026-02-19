@@ -38,11 +38,28 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   }
 
   const admin = createAdminClient();
-  await admin.auth.admin.updateUserById(data.user.id, {
+  const { error: roleError } = await admin.auth.admin.updateUserById(data.user.id, {
     app_metadata: { role },
   });
 
+  if (roleError) {
+    console.error('Failed to set user role:', { userId: data.user.id, role, roleError });
+    await admin.auth.admin.deleteUser(data.user.id);
+    return { userId: null, error: 'Failed to configure account. Please try again.' };
+  }
+
   return { userId: data.user.id, error: null };
+}
+
+/** Delete the Supabase auth user when the DB insert fails to prevent orphaned accounts. */
+async function deleteAuthUser(userId: string | null) {
+  if (!userId) return;
+  try {
+    const admin = createAdminClient();
+    await admin.auth.admin.deleteUser(userId);
+  } catch (error) {
+    console.error('Failed to delete orphaned auth user:', { userId, error });
+  }
 }
 
 export async function signUpOwner(formData: FormData): Promise<ActionResult> {
@@ -59,14 +76,20 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error };
   }
 
-  await db.insert(owners).values({
-    authId: userId,
-    name,
-    email,
-    phone,
-    petName,
-    paymentMethod: 'debit_card',
-  });
+  try {
+    await db.insert(owners).values({
+      authId: userId,
+      name,
+      email,
+      phone,
+      petName,
+      paymentMethod: 'debit_card',
+    });
+  } catch (error) {
+    console.error('Failed to insert owner into DB:', { userId, error });
+    await deleteAuthUser(userId);
+    return { error: 'Failed to create account. Please try again.' };
+  }
 
   return { error: null };
 }
@@ -85,14 +108,20 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
     return { error };
   }
 
-  await db.insert(clinics).values({
-    authId: userId,
-    name: clinicName,
-    email,
-    phone,
-    addressState: addressState.toUpperCase(),
-    addressZip,
-  });
+  try {
+    await db.insert(clinics).values({
+      authId: userId,
+      name: clinicName,
+      email,
+      phone,
+      addressState: addressState.toUpperCase(),
+      addressZip,
+    });
+  } catch (error) {
+    console.error('Failed to insert clinic into DB:', { userId, error });
+    await deleteAuthUser(userId);
+    return { error: 'Failed to create account. Please try again.' };
+  }
 
   return { error: null };
 }

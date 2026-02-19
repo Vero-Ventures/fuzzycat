@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { z } from 'zod';
+import { validateEnv } from '@/lib/env';
 
 describe('env validation', () => {
-  // We test the validation logic directly by importing the module fresh each time.
-  // Since env.ts caches results, we need to test the underlying Zod schemas instead.
-
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
-    // Ensure env vars are set for valid tests
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
@@ -15,7 +13,6 @@ describe('env validation', () => {
   });
 
   afterEach(() => {
-    // Restore original env
     for (const key of Object.keys(process.env)) {
       if (!(key in originalEnv)) {
         delete process.env[key];
@@ -25,7 +22,6 @@ describe('env validation', () => {
   });
 
   it('publicEnv() succeeds with valid env vars', async () => {
-    // Clear cached values by re-importing
     const { publicEnv } = await import('@/lib/env');
     const env = publicEnv();
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://test.supabase.co');
@@ -37,5 +33,41 @@ describe('env validation', () => {
     const env = serverEnv();
     expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe('test-service-role-key');
     expect(env.DATABASE_URL).toBe('postgresql://localhost:5432/test');
+  });
+
+  it('validateEnv throws when a required var is missing', () => {
+    const schema = z.object({
+      REQUIRED_VAR: z.string().min(1, 'REQUIRED_VAR is required'),
+    });
+
+    expect(() => validateEnv(schema, {})).toThrow('Missing or invalid environment variables');
+  });
+
+  it('validateEnv throws when a URL var is not a valid URL', () => {
+    const schema = z.object({
+      MY_URL: z.string().url('MY_URL must be a valid URL'),
+    });
+
+    expect(() => validateEnv(schema, { MY_URL: 'not-a-url' })).toThrow(
+      'Missing or invalid environment variables',
+    );
+  });
+
+  it('validateEnv error message includes the field name', () => {
+    const schema = z.object({
+      DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    });
+
+    expect(() => validateEnv(schema, {})).toThrow('DATABASE_URL');
+  });
+
+  it('validateEnv returns parsed values on success', () => {
+    const schema = z.object({
+      FOO: z.string(),
+      BAR: z.string(),
+    });
+
+    const result = validateEnv(schema, { FOO: 'hello', BAR: 'world' });
+    expect(result).toEqual({ FOO: 'hello', BAR: 'world' });
   });
 });

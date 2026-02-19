@@ -19,7 +19,8 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
 });
 
-function validateEnv<T extends z.ZodTypeAny>(
+/** @internal Exported for testing. */
+export function validateEnv<T extends z.ZodTypeAny>(
   schema: T,
   source: Record<string, unknown>,
 ): z.infer<T> {

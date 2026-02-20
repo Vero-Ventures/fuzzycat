@@ -44,12 +44,12 @@ function emit(entry: LogEntry) {
 
 export const logger = {
   info(message: string, meta?: Record<string, unknown>) {
-    emit({ level: 'info', message, ...meta });
+    emit({ ...meta, level: 'info', message });
   },
   warn(message: string, meta?: Record<string, unknown>) {
-    emit({ level: 'warn', message, ...meta });
+    emit({ ...meta, level: 'warn', message });
   },
   error(message: string, meta?: Record<string, unknown>) {
-    emit({ level: 'error', message, ...meta });
+    emit({ ...meta, level: 'error', message });
   },
 };

@@ -96,8 +96,11 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
       petName,
       paymentMethod: 'debit_card',
     });
-  } catch (_error) {
-    logger.error('Failed to insert owner into DB', { userId });
+  } catch (error) {
+    logger.error('Failed to insert owner into DB', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     await deleteAuthUser(userId);
     return { error: 'Failed to create account. Please try again.' };
   }
@@ -133,8 +136,11 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
       addressState: addressState.toUpperCase(),
       addressZip,
     });
-  } catch (_error) {
-    logger.error('Failed to insert clinic into DB', { userId });
+  } catch (error) {
+    logger.error('Failed to insert clinic into DB', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     await deleteAuthUser(userId);
     return { error: 'Failed to create account. Please try again.' };
   }

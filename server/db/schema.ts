@@ -93,7 +93,9 @@ export const plans = pgTable(
     nextPaymentAt: timestamp('next_payment_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     index('idx_plans_clinic').on(table.clinicId),
@@ -118,7 +120,9 @@ export const payments = pgTable(
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
     processedAt: timestamp('processed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [
     index('idx_payments_plan').on(table.planId),

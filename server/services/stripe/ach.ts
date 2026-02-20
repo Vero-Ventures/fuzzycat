@@ -35,7 +35,6 @@ export async function createInstallmentPaymentIntent(params: {
     .set({
       status: 'processing',
       stripePaymentIntentId: paymentIntent.id,
-      updatedAt: new Date(),
     })
     .where(eq(payments.id, params.paymentId));
 

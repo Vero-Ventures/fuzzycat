@@ -446,13 +446,18 @@ describe('Stripe webhook handler', () => {
       expect(response.status).toBe(200);
       // Verify clinic status update
       expect(mockUpdateSet).toHaveBeenCalledWith({ status: 'active' });
-      // Verify audit log
+      // Verify audit log includes both old and new values
       expect(mockInsertValues).toHaveBeenCalledWith(
         expect.objectContaining({
           entityType: 'clinic',
           entityId: 'clinic-1',
           action: 'status_changed',
           oldValue: JSON.stringify({ status: 'pending' }),
+          newValue: JSON.stringify({
+            status: 'active',
+            chargesEnabled: true,
+            payoutsEnabled: true,
+          }),
           actorType: 'system',
         }),
       );

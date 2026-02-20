@@ -8,8 +8,10 @@ describe('env validation', () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_abc123';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_abc123';
   });
 
   afterEach(() => {

@@ -57,4 +57,5 @@ paths = [
   '''\.gitleaks\.toml$''',
   '''node_modules/''',
   '''bun\.lockb$''',
+  '''__tests__/''',
 ]

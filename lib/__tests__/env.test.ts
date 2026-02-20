@@ -12,6 +12,9 @@ describe('env validation', () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
     process.env.STRIPE_SECRET_KEY = 'sk_test_abc123';
+    process.env.TWILIO_ACCOUNT_SID = 'ACtest1234567890abcdef1234567890ab';
+    process.env.TWILIO_AUTH_TOKEN = 'test-twilio-auth-token';
+    process.env.TWILIO_PHONE_NUMBER = '+15551234567';
   });
 
   afterEach(() => {

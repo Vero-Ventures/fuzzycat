@@ -71,6 +71,14 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
+      <div className="flex justify-end">
+        <a
+          href="/forgot-password"
+          className="text-sm font-medium text-blue-600 hover:text-blue-500"
+        >
+          Forgot your password?
+        </a>
+      </div>
       <button
         type="submit"
         disabled={loading}

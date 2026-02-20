@@ -55,6 +55,9 @@ const MAX_SMS_PER_DAY = 10;
 /** Time window for rate limiting (24 hours in ms). */
 const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/** TCPA-required opt-out notice appended to first message per phone number. */
+const TCPA_OPT_OUT_NOTICE = '\n\nReply STOP to opt out of FuzzyCat SMS notifications.';
+
 // ── Opt-out tracking (in-memory) ──────────────────────────────────────
 // LIMITATION: Resets on server restart. Production should use a database.
 
@@ -138,6 +141,7 @@ function maskPhone(phone: string): string {
 /** Format a Date as a short human-readable string (e.g., "Feb 20, 2026"). */
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -147,7 +151,7 @@ function formatDate(date: Date): string {
 /** Append TCPA opt-out instructions to the first message sent to a number. */
 function appendOptOutNotice(body: string, phone: string): string {
   if (isFirstMessage(phone)) {
-    return `${body}\n\nReply STOP to opt out of FuzzyCat SMS notifications.`;
+    return `${body}${TCPA_OPT_OUT_NOTICE}`;
   }
   return body;
 }

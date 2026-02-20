@@ -37,7 +37,7 @@ export function isValidUSPhone(phone: string): boolean {
  * @returns The E.164 formatted number, or `null` if it cannot be normalized
  */
 export function normalizeUSPhone(phone: string): string | null {
-  // Strip all non-digit characters except leading +
+  // Strip all non-digit characters
   const digits = phone.replace(/[^\d]/g, '');
 
   let normalized: string;

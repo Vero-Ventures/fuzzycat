@@ -72,7 +72,12 @@ mock.module('@/server/db/schema', () => ({
     retryCount: 'payments.retry_count',
   },
   payouts: { id: 'payouts.id' },
-  auditLog: { id: 'auditLog.id' },
+  auditLog: {
+    id: 'auditLog.id',
+    entityType: 'auditLog.entity_type',
+    entityId: 'auditLog.entity_id',
+    createdAt: 'auditLog.created_at',
+  },
   riskPool: { id: 'riskPool.id' },
   clinicStatusEnum: {},
   paymentMethodEnum: {},
@@ -93,6 +98,7 @@ mock.module('@/server/db/schema', () => ({
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
+  desc: (col: string) => ({ col, type: 'desc' }),
   lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
   inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({

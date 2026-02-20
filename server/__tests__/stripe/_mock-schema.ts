@@ -9,11 +9,20 @@
 export const schemaMock = {
   owners: { id: 'owners.id', stripeCustomerId: 'owners.stripe_customer_id' },
   clinics: { id: 'clinics.id' },
-  plans: { id: 'plans.id' },
+  plans: { id: 'plans.id', status: 'plans.status', remainingCents: 'plans.remaining_cents' },
   payments: { id: 'payments.id', stripePaymentIntentId: 'payments.stripe_payment_intent_id' },
   payouts: { id: 'payouts.id' },
-  auditLog: { id: 'auditLog.id' },
-  riskPool: { id: 'riskPool.id' },
+  auditLog: {
+    id: 'auditLog.id',
+    entityType: 'auditLog.entity_type',
+    entityId: 'auditLog.entity_id',
+    createdAt: 'auditLog.created_at',
+  },
+  riskPool: {
+    id: 'riskPool.id',
+    type: 'riskPool.type',
+    contributionCents: 'riskPool.contribution_cents',
+  },
   clinicStatusEnum: {},
   paymentMethodEnum: {},
   planStatusEnum: {},

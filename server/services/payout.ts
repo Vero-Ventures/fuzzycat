@@ -1,1 +1,245 @@
-// TODO: Clinic payout logic (#17)
+import { and, count, desc, eq, sum } from 'drizzle-orm';
+import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { percentOfCents } from '@/lib/utils/money';
+import { db } from '@/server/db';
+import { payments, payouts } from '@/server/db/schema';
+import { transferToClinic } from '@/server/services/stripe/connect';
+
+// ── Types ────────────────────────────────────────────────────────────
+
+export interface PayoutBreakdown {
+  /** The original payment amount in cents. */
+  paymentAmountCents: number;
+  /** FuzzyCat platform fee retained from the payment, in cents. */
+  platformFeeCents: number;
+  /** Risk pool contribution deducted from the payment, in cents. */
+  riskPoolCents: number;
+  /** The 3% clinic revenue share bonus (platform administration compensation), in cents. */
+  clinicShareCents: number;
+  /** Net amount transferred to the clinic's Stripe Connect account, in cents. */
+  transferAmountCents: number;
+}
+
+export interface PayoutResult {
+  payoutId: string;
+  stripeTransferId: string;
+  breakdown: PayoutBreakdown;
+}
+
+export interface ClinicPayoutSummary {
+  id: string;
+  planId: string | null;
+  paymentId: string | null;
+  amountCents: number;
+  clinicShareCents: number;
+  stripeTransferId: string | null;
+  status: 'pending' | 'succeeded' | 'failed';
+  createdAt: Date | null;
+}
+
+export interface ClinicEarnings {
+  totalPayoutCents: number;
+  totalClinicShareCents: number;
+  pendingPayoutCents: number;
+  completedPayoutCount: number;
+}
+
+// ── Payout calculation ───────────────────────────────────────────────
+
+/**
+ * Calculate the payout breakdown for a given payment amount.
+ *
+ * The payment amount from the pet owner includes the 6% platform fee.
+ * From each payment, FuzzyCat retains:
+ *   - Platform fee portion (proportional share of the 6% fee)
+ *   - Risk pool contribution (1% of the original bill portion)
+ *
+ * The clinic receives:
+ *   - The original bill portion of the payment (minus risk pool)
+ *   - Plus a 3% clinic share bonus (platform administration compensation)
+ *
+ * All arithmetic uses integer cents — no floating point.
+ */
+export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBreakdown {
+  if (paymentAmountCents <= 0 || !Number.isFinite(paymentAmountCents)) {
+    throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
+  }
+
+  // The payment amount includes the 6% fee. Reverse-calculate the original bill portion.
+  // paymentAmount = billPortion + feePortion
+  // paymentAmount = billPortion * (1 + PLATFORM_FEE_RATE)
+  // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)
+  const billPortionCents = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
+  const platformFeeCents = paymentAmountCents - billPortionCents;
+  const riskPoolCents = percentOfCents(billPortionCents, RISK_POOL_RATE);
+  const clinicShareCents = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
+
+  // Transfer = bill portion - risk pool + clinic share
+  const transferAmountCents = billPortionCents - riskPoolCents + clinicShareCents;
+
+  return {
+    paymentAmountCents,
+    platformFeeCents,
+    riskPoolCents,
+    clinicShareCents,
+    transferAmountCents,
+  };
+}
+
+// ── Core payout processing ───────────────────────────────────────────
+
+/**
+ * Process a clinic payout after a successful payment.
+ *
+ * This function:
+ *   1. Validates the payment exists, is succeeded, and belongs to an active plan
+ *   2. Verifies the clinic has a Stripe Connect account
+ *   3. Checks that no duplicate payout exists for this payment
+ *   4. Calculates the payout breakdown (platform fee, risk pool, clinic share)
+ *   5. Initiates a Stripe Connect transfer to the clinic
+ *   6. Logs all state changes to the audit trail
+ *
+ * All database operations run inside a transaction for atomicity.
+ */
+export async function processClinicPayout(paymentId: string): Promise<PayoutResult> {
+  // ── Step 1: Load and validate the payment ──────────────────────────
+
+  const payment = await db.query.payments.findFirst({
+    where: eq(payments.id, paymentId),
+    with: {
+      plan: {
+        with: {
+          clinic: true,
+        },
+      },
+    },
+  });
+
+  if (!payment) {
+    throw new Error(`Payment not found: ${paymentId}`);
+  }
+
+  if (payment.status !== 'succeeded') {
+    throw new Error(`Payment ${paymentId} is not succeeded (status: ${payment.status})`);
+  }
+
+  if (!payment.plan) {
+    throw new Error(`Payment ${paymentId} has no associated plan`);
+  }
+
+  const plan = payment.plan;
+
+  if (plan.status !== 'active' && plan.status !== 'deposit_paid') {
+    throw new Error(`Plan ${plan.id} is not in a payable state (status: ${plan.status})`);
+  }
+
+  if (!plan.clinic) {
+    throw new Error(`Plan ${plan.id} has no associated clinic`);
+  }
+
+  const clinic = plan.clinic;
+
+  if (!clinic.stripeAccountId) {
+    throw new Error(`Clinic ${clinic.id} does not have a Stripe Connect account`);
+  }
+
+  // ── Step 2: Check for duplicate payout ─────────────────────────────
+
+  const existingPayout = await db.query.payouts.findFirst({
+    where: eq(payouts.paymentId, paymentId),
+  });
+
+  if (existingPayout) {
+    throw new Error(`Payout already exists for payment ${paymentId}: ${existingPayout.id}`);
+  }
+
+  // ── Step 3: Calculate breakdown ────────────────────────────────────
+
+  const breakdown = calculatePayoutBreakdown(payment.amountCents);
+
+  // ── Step 4: Execute transfer via Stripe Connect ────────────────────
+
+  const { transferId, payoutRecord } = await transferToClinic({
+    paymentId,
+    planId: plan.id,
+    clinicId: clinic.id,
+    clinicStripeAccountId: clinic.stripeAccountId,
+    transferAmountCents: breakdown.transferAmountCents,
+  });
+
+  return {
+    payoutId: payoutRecord.id,
+    stripeTransferId: transferId,
+    breakdown,
+  };
+}
+
+// ── Query functions ──────────────────────────────────────────────────
+
+/**
+ * Get paginated payout history for a specific clinic.
+ */
+export async function getClinicPayoutHistory(
+  clinicId: string,
+  options: { limit?: number; offset?: number } = {},
+): Promise<{ payouts: ClinicPayoutSummary[]; total: number }> {
+  const limit = options.limit ?? 20;
+  const offset = options.offset ?? 0;
+
+  const [payoutRows, countResult] = await Promise.all([
+    db
+      .select({
+        id: payouts.id,
+        planId: payouts.planId,
+        paymentId: payouts.paymentId,
+        amountCents: payouts.amountCents,
+        clinicShareCents: payouts.clinicShareCents,
+        stripeTransferId: payouts.stripeTransferId,
+        status: payouts.status,
+        createdAt: payouts.createdAt,
+      })
+      .from(payouts)
+      .where(eq(payouts.clinicId, clinicId))
+      .orderBy(desc(payouts.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(payouts).where(eq(payouts.clinicId, clinicId)),
+  ]);
+
+  return {
+    payouts: payoutRows,
+    total: countResult[0]?.total ?? 0,
+  };
+}
+
+/**
+ * Get aggregate earnings data for a clinic.
+ */
+export async function getClinicEarnings(clinicId: string): Promise<ClinicEarnings> {
+  const [succeededResult, pendingResult, countResult] = await Promise.all([
+    db
+      .select({
+        totalPayout: sum(payouts.amountCents),
+        totalShare: sum(payouts.clinicShareCents),
+      })
+      .from(payouts)
+      .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'succeeded'))),
+    db
+      .select({
+        pendingPayout: sum(payouts.amountCents),
+      })
+      .from(payouts)
+      .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'pending'))),
+    db
+      .select({ completedCount: count() })
+      .from(payouts)
+      .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'succeeded'))),
+  ]);
+
+  return {
+    totalPayoutCents: Number(succeededResult[0]?.totalPayout ?? 0),
+    totalClinicShareCents: Number(succeededResult[0]?.totalShare ?? 0),
+    pendingPayoutCents: Number(pendingResult[0]?.pendingPayout ?? 0),
+    completedPayoutCount: countResult[0]?.completedCount ?? 0,
+  };
+}

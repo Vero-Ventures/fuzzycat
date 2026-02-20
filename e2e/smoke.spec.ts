@@ -12,17 +12,17 @@ test.describe('smoke tests', () => {
   });
 
   test('protected clinic route redirects to login', async ({ page }) => {
-    await page.goto('/clinic/dashboard');
-    await page.waitForURL('**/login');
+    await page.goto('/clinic/dashboard', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('protected owner route redirects to login', async ({ page }) => {
-    await page.goto('/owner/payments');
-    await page.waitForURL('**/login');
+    await page.goto('/owner/payments', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('protected admin route redirects to login', async ({ page }) => {
-    await page.goto('/admin/dashboard');
-    await page.waitForURL('**/login');
+    await page.goto('/admin/dashboard', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/login/);
   });
 });

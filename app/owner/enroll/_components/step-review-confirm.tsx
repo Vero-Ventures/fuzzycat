@@ -10,8 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { PLATFORM_FEE_RATE } from '@/lib/constants';
 import { formatCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
-import type { EnrollmentData } from '../page';
 import { MathCaptcha } from './math-captcha';
+import type { EnrollmentData } from './types';
 
 interface StepReviewConfirmProps {
   data: EnrollmentData;

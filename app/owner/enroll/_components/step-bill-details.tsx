@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { MIN_BILL_CENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
-import type { EnrollmentData } from '../page';
+import type { EnrollmentData } from './types';
 
 interface StepBillDetailsProps {
   data: EnrollmentData;

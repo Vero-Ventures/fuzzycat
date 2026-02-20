@@ -7,8 +7,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useTRPC } from '@/lib/trpc/client';
-import type { EnrollmentData } from '../page';
 import { PlaidLinkButton } from './plaid-link-button';
+import type { EnrollmentData } from './types';
 
 interface StepBankVerificationProps {
   data: EnrollmentData;

@@ -9,6 +9,7 @@ import { StepBillDetails } from './_components/step-bill-details';
 import { StepClinicSelection } from './_components/step-clinic-selection';
 import { StepDepositPayment } from './_components/step-deposit-payment';
 import { StepReviewConfirm } from './_components/step-review-confirm';
+import { type EnrollmentData, INITIAL_ENROLLMENT_DATA } from './_components/types';
 
 const STEPS = [
   { label: 'Select Clinic', number: 1 },
@@ -18,39 +19,9 @@ const STEPS = [
   { label: 'Pay Deposit', number: 5 },
 ] as const;
 
-export interface EnrollmentData {
-  clinicId: string;
-  clinicName: string;
-  billAmountCents: number;
-  ownerName: string;
-  ownerEmail: string;
-  ownerPhone: string;
-  petName: string;
-  paymentMethod: 'debit_card' | 'bank_account';
-  plaidPublicToken: string | null;
-  disclaimersAccepted: boolean;
-  captchaVerified: boolean;
-  planId: string | null;
-}
-
-const INITIAL_DATA: EnrollmentData = {
-  clinicId: '',
-  clinicName: '',
-  billAmountCents: 0,
-  ownerName: '',
-  ownerEmail: '',
-  ownerPhone: '',
-  petName: '',
-  paymentMethod: 'debit_card',
-  plaidPublicToken: null,
-  disclaimersAccepted: false,
-  captchaVerified: false,
-  planId: null,
-};
-
 export default function OwnerEnrollPage() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [data, setData] = useState<EnrollmentData>(INITIAL_DATA);
+  const [data, setData] = useState<EnrollmentData>(INITIAL_ENROLLMENT_DATA);
 
   const progressPercent = (currentStep / STEPS.length) * 100;
 

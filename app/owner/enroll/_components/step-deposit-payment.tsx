@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
-import type { EnrollmentData } from '../page';
+import type { EnrollmentData } from './types';
 
 interface StepDepositPaymentProps {
   data: EnrollmentData;

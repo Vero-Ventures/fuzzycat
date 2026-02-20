@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTRPC } from '@/lib/trpc/client';
-import type { EnrollmentData } from '../page';
+import type { EnrollmentData } from './types';
 
 interface StepClinicSelectionProps {
   data: EnrollmentData;

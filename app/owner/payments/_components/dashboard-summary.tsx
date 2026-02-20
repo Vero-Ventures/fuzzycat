@@ -5,29 +5,8 @@ import { CalendarDays, CreditCard, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTRPC } from '@/lib/trpc/client';
+import { daysUntil, formatCountdown, formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
-
-function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(date));
-}
-
-function daysUntil(date: Date | string): number {
-  const target = new Date(date);
-  const now = new Date();
-  const diffMs = target.getTime() - now.getTime();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-}
-
-function formatCountdown(daysLeft: number): string {
-  if (daysLeft < 0) return 'Overdue';
-  if (daysLeft === 0) return 'Today';
-  if (daysLeft === 1) return 'Tomorrow';
-  return `in ${daysLeft} days`;
-}
 
 interface NextPaymentData {
   amountCents: number;
@@ -53,7 +32,7 @@ function NextPaymentCard({ payment }: { payment: NextPaymentData | null }) {
               {formatDate(payment.scheduledAt)}
               {daysLeft !== null && (
                 <span className={daysLeft < 0 ? 'ml-1 text-destructive' : 'ml-1'}>
-                  ({formatCountdown(daysLeft)})
+                  ({formatCountdown(payment.scheduledAt)})
                 </span>
               )}
             </p>

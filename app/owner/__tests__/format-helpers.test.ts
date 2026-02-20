@@ -1,29 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-
-// ── Date formatting helper (same logic as in components) ─────────────
-
-function formatDate(date: Date | string | null): string {
-  if (!date) return '--';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(date));
-}
-
-function daysUntil(date: Date | string): number {
-  const target = new Date(date);
-  const now = new Date();
-  const diffMs = target.getTime() - now.getTime();
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-}
-
-function formatCountdown(daysLeft: number): string {
-  if (daysLeft < 0) return 'Overdue';
-  if (daysLeft === 0) return 'Today';
-  if (daysLeft === 1) return 'Tomorrow';
-  return `in ${daysLeft} days`;
-}
+import { daysUntil, formatCountdown, formatDate } from '@/lib/utils/date';
 
 // ── Status display mappings ──────────────────────────────────────────
 
@@ -62,8 +38,8 @@ describe('formatDate', () => {
     expect(result).toContain('2026');
   });
 
-  it('returns -- for null', () => {
-    expect(formatDate(null)).toBe('--');
+  it('returns em-dash for null', () => {
+    expect(formatDate(null)).toBe('\u2014');
   });
 });
 
@@ -82,20 +58,27 @@ describe('daysUntil', () => {
 });
 
 describe('formatCountdown', () => {
-  it('returns "Today" for 0 days', () => {
-    expect(formatCountdown(0)).toBe('Today');
+  it('returns "Today" for today\'s date', () => {
+    const today = new Date();
+    expect(formatCountdown(today)).toBe('Today');
   });
 
-  it('returns "Tomorrow" for 1 day', () => {
-    expect(formatCountdown(1)).toBe('Tomorrow');
+  it('returns "Tomorrow" for tomorrow\'s date', () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    expect(formatCountdown(tomorrow)).toBe('Tomorrow');
   });
 
-  it('returns "in X days" for multiple days', () => {
-    expect(formatCountdown(5)).toBe('in 5 days');
+  it('returns "In X days" for future dates', () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 5);
+    expect(formatCountdown(future)).toBe('In 5 days');
   });
 
-  it('returns "Overdue" for negative days', () => {
-    expect(formatCountdown(-2)).toBe('Overdue');
+  it('returns "Overdue" for past dates', () => {
+    const past = new Date();
+    past.setDate(past.getDate() - 2);
+    expect(formatCountdown(past)).toBe('Overdue');
   });
 });
 

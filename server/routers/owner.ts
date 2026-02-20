@@ -45,7 +45,10 @@ export const ownerRouter = router({
       z.object({
         name: z.string().min(1, 'Name is required').optional(),
         email: z.string().email('Valid email is required').optional(),
-        phone: z.string().min(1, 'Phone is required').optional(),
+        phone: z
+          .string()
+          .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format (e.g., +15551234567)')
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -98,7 +101,7 @@ export const ownerRouter = router({
       throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
     }
 
-    const ownerPlans = await ctx.db
+    const plansWithProgress = await ctx.db
       .select({
         id: plans.id,
         clinicId: plans.clinicId,
@@ -115,34 +118,23 @@ export const ownerRouter = router({
         completedAt: plans.completedAt,
         createdAt: plans.createdAt,
         clinicName: clinics.name,
+        succeededCount: sql<number>`count(${payments.id}) filter (where ${payments.status} = 'succeeded')`,
+        totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+        totalPayments: sql<number>`count(${payments.id})`,
       })
       .from(plans)
       .leftJoin(clinics, eq(plans.clinicId, clinics.id))
+      .leftJoin(payments, eq(plans.id, payments.planId))
       .where(eq(plans.ownerId, owner.id))
+      .groupBy(plans.id, clinics.id)
       .orderBy(desc(plans.createdAt));
 
-    // For each plan, get the count of succeeded payments and total paid
-    const plansWithProgress = await Promise.all(
-      ownerPlans.map(async (plan) => {
-        const [stats] = await ctx.db
-          .select({
-            succeededCount: sql<number>`count(*) filter (where ${payments.status} = 'succeeded')`,
-            totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
-            totalPayments: sql<number>`count(*)`,
-          })
-          .from(payments)
-          .where(eq(payments.planId, plan.id));
-
-        return {
-          ...plan,
-          succeededCount: Number(stats?.succeededCount ?? 0),
-          totalPaidCents: Number(stats?.totalPaidCents ?? 0),
-          totalPayments: Number(stats?.totalPayments ?? 0),
-        };
-      }),
-    );
-
-    return plansWithProgress;
+    return plansWithProgress.map((p) => ({
+      ...p,
+      succeededCount: Number(p.succeededCount),
+      totalPaidCents: Number(p.totalPaidCents),
+      totalPayments: Number(p.totalPayments),
+    }));
   }),
 
   /**

@@ -133,6 +133,7 @@ function setupSelectChainSequence(results: unknown[][]) {
     chainObj.where = chain;
     chainObj.limit = () => Promise.resolve(result) as unknown as Record<string, unknown>;
     chainObj.orderBy = chain;
+    chainObj.groupBy = chain;
     chainObj.offset = chain;
     chainObj.innerJoin = chain;
     chainObj.leftJoin = chain;
@@ -220,24 +221,30 @@ describe('owner.getPlans', () => {
   beforeEach(clearAllMocks);
   afterEach(clearAllMocks);
 
-  it('returns plans with payment progress', async () => {
-    // First call: owner lookup, second call: plans query, third call: payment stats
-    setupSelectChainSequence([
-      [{ id: OWNER_ID }],
-      [MOCK_PLAN],
-      [{ succeededCount: 3, totalPaidCents: 79500, totalPayments: 7 }],
-    ]);
+  it('returns plans with payment progress via single JOIN query', async () => {
+    const planWithStats = {
+      ...MOCK_PLAN,
+      succeededCount: 3,
+      totalPaidCents: 79500,
+      totalPayments: 7,
+    };
+
+    // First call: owner lookup, second call: plans + payments joined query
+    setupSelectChainSequence([[{ id: OWNER_ID }], [planWithStats]]);
 
     // Verify owner lookup
     const ownerChain = mockSelect();
     const ownerResult = await ownerChain.from().where().limit();
     expect(ownerResult[0].id).toBe(OWNER_ID);
 
-    // Verify plans query
+    // Verify joined plans query (single query, no N+1)
     const plansChain = mockSelect();
     const plansResult = await plansChain.from().where().limit();
     expect(plansResult[0].id).toBe(PLAN_ID);
     expect(plansResult[0].clinicName).toBe('Happy Paws Vet');
+    expect(plansResult[0].succeededCount).toBe(3);
+    expect(plansResult[0].totalPaidCents).toBe(79500);
+    expect(plansResult[0].totalPayments).toBe(7);
   });
 
   it('returns empty array when owner has no plans', async () => {

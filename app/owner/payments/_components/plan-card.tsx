@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
 import { PaymentHistoryTable } from './payment-history-table';
 
@@ -30,15 +31,6 @@ interface PlanCardProps {
     totalPaidCents: number;
     totalPayments: number;
   };
-}
-
-function formatDate(date: Date | string | null): string {
-  if (!date) return '--';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(date));
 }
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {

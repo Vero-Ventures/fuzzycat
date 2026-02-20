@@ -20,6 +20,7 @@
         "drizzle-orm": "^0.45.1",
         "lucide-react": "^0.564.0",
         "next": "^16",
+        "plaid": "^41.3.0",
         "postgres": "^3.4.8",
         "posthog-js": "^1.351.3",
         "posthog-node": "^5.24.17",
@@ -1679,6 +1680,8 @@
     "picomatch": ["picomatch@4.0.3", "", {}, "sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q=="],
 
     "pkce-challenge": ["pkce-challenge@5.0.1", "", {}, "sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ=="],
+
+    "plaid": ["plaid@41.3.0", "", { "dependencies": { "axios": "^1.7.4" } }, "sha512-P5r7YdvXYv+prYtj+s7ODPftg8rIYHPmA7NFn2a7K3B0QL8GouhbNPfa6BHU2pYBr3cKVZDVJRm4fTv+KgUUxg=="],
 
     "playwright": ["playwright@1.58.2", "", { "dependencies": { "playwright-core": "1.58.2" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A=="],
 

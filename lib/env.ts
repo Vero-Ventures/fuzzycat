@@ -13,6 +13,11 @@ const serverSchema = z.object({
     .string()
     .startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_'),
   RESEND_API_KEY: z.string().startsWith('re_', 'RESEND_API_KEY must start with re_'),
+  PLAID_CLIENT_ID: z.string().min(1, 'PLAID_CLIENT_ID is required'),
+  PLAID_SECRET: z.string().min(1, 'PLAID_SECRET is required'),
+  PLAID_ENV: z.enum(['sandbox', 'production'], {
+    error: 'PLAID_ENV must be "sandbox" or "production"',
+  }),
   TWILIO_ACCOUNT_SID: z.string().startsWith('AC', 'TWILIO_ACCOUNT_SID must start with AC'),
   TWILIO_AUTH_TOKEN: z.string().min(1, 'TWILIO_AUTH_TOKEN is required'),
   TWILIO_PHONE_NUMBER: z

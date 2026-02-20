@@ -10,7 +10,7 @@ interface MathCaptchaProps {
   onVerified: (verified: boolean) => void;
 }
 
-function generateProblem(): { a: number; b: number; answer: number } {
+export function generateProblem(): { a: number; b: number; answer: number } {
   const a = Math.floor(Math.random() * 20) + 1;
   const b = Math.floor(Math.random() * 20) + 1;
   return { a, b, answer: a + b };

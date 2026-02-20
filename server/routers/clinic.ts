@@ -1,4 +1,4 @@
-import { ilike, or } from 'drizzle-orm';
+import { and, eq, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { clinics } from '@/server/db/schema';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
@@ -28,10 +28,14 @@ export const clinicRouter = router({
           addressState: clinics.addressState,
         })
         .from(clinics)
-        .where(or(ilike(clinics.name, searchPattern), ilike(clinics.addressCity, searchPattern)))
+        .where(
+          and(
+            eq(clinics.status, 'active'),
+            or(ilike(clinics.name, searchPattern), ilike(clinics.addressCity, searchPattern)),
+          ),
+        )
         .limit(10);
 
-      // Only return active clinics
       return results;
     }),
 });

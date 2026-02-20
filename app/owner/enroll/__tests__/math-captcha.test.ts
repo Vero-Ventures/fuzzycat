@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'bun:test';
+import { generateProblem } from '@/app/owner/enroll/_components/math-captcha';
 
 /**
  * Unit tests for the math captcha logic.
  * Since the MathCaptcha component relies on React rendering,
  * these tests validate the underlying logic (problem generation, answer checking).
  */
-
-function generateProblem(): { a: number; b: number; answer: number } {
-  const a = Math.floor(Math.random() * 20) + 1;
-  const b = Math.floor(Math.random() * 20) + 1;
-  return { a, b, answer: a + b };
-}
 
 describe('MathCaptcha logic', () => {
   describe('generateProblem', () => {

@@ -2,6 +2,7 @@
 
 import { AlertCircle, Calendar } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { z } from 'zod';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,17 @@ import { MIN_BILL_CENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import type { EnrollmentData } from './types';
+
+export const billDetailsSchema = z.object({
+  billAmountCents: z
+    .number()
+    .int()
+    .min(MIN_BILL_CENTS, `Minimum bill is $${MIN_BILL_CENTS / 100}`),
+  ownerName: z.string().trim().min(1, 'Name is required'),
+  ownerEmail: z.string().email('Valid email is required'),
+  ownerPhone: z.string().trim().min(1, 'Phone is required'),
+  petName: z.string().trim().min(1, 'Pet name is required'),
+});
 
 interface StepBillDetailsProps {
   data: EnrollmentData;
@@ -36,6 +48,7 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
   const [ownerPhone, setOwnerPhone] = useState(data.ownerPhone);
   const [petName, setPetName] = useState(data.petName);
   const [touched, setTouched] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const billAmountCents = useMemo(() => {
     const parsed = Number.parseFloat(billDollars);
@@ -64,13 +77,35 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
 
   function handleContinue() {
     setTouched(true);
-    if (!isFormValid || !schedule) return;
-    updateData({
+
+    const result = billDetailsSchema.safeParse({
       billAmountCents,
-      ownerName: ownerName.trim(),
-      ownerEmail: ownerEmail.trim(),
-      ownerPhone: ownerPhone.trim(),
-      petName: petName.trim(),
+      ownerName,
+      ownerEmail,
+      ownerPhone,
+      petName,
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if (typeof field === 'string' && !errors[field]) {
+          errors[field] = issue.message;
+        }
+      }
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    if (!schedule) return;
+    updateData({
+      billAmountCents: result.data.billAmountCents,
+      ownerName: result.data.ownerName,
+      ownerEmail: result.data.ownerEmail,
+      ownerPhone: result.data.ownerPhone,
+      petName: result.data.petName,
     });
     onNext();
   }
@@ -126,8 +161,8 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
           />
-          {touched && ownerName.trim().length === 0 && (
-            <p className="text-xs text-destructive">Name is required</p>
+          {touched && fieldErrors.ownerName && (
+            <p className="text-xs text-destructive">{fieldErrors.ownerName}</p>
           )}
         </div>
         <div className="space-y-2">
@@ -138,8 +173,8 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
             value={petName}
             onChange={(e) => setPetName(e.target.value)}
           />
-          {touched && petName.trim().length === 0 && (
-            <p className="text-xs text-destructive">Pet name is required</p>
+          {touched && fieldErrors.petName && (
+            <p className="text-xs text-destructive">{fieldErrors.petName}</p>
           )}
         </div>
         <div className="space-y-2">
@@ -151,8 +186,8 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
             value={ownerEmail}
             onChange={(e) => setOwnerEmail(e.target.value)}
           />
-          {touched && ownerEmail.trim().length === 0 && (
-            <p className="text-xs text-destructive">Email is required</p>
+          {touched && fieldErrors.ownerEmail && (
+            <p className="text-xs text-destructive">{fieldErrors.ownerEmail}</p>
           )}
         </div>
         <div className="space-y-2">
@@ -164,8 +199,8 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
             value={ownerPhone}
             onChange={(e) => setOwnerPhone(e.target.value)}
           />
-          {touched && ownerPhone.trim().length === 0 && (
-            <p className="text-xs text-destructive">Phone number is required</p>
+          {touched && fieldErrors.ownerPhone && (
+            <p className="text-xs text-destructive">{fieldErrors.ownerPhone}</p>
           )}
         </div>
       </div>

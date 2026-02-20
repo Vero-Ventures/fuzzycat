@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'bun:test';
+import { z } from 'zod';
+import { billDetailsSchema } from '@/app/owner/enroll/_components/step-bill-details';
 import { MIN_BILL_CENTS } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
+
+const paymentMethodSchema = z.enum(['debit_card', 'bank_account']);
 
 /**
  * Tests for the enrollment flow data types and validation logic.
  * These validate the business rules used across enrollment steps.
  */
+
+const validBillDetails = {
+  billAmountCents: toCents(1200),
+  ownerName: 'Jane Smith',
+  ownerEmail: 'jane@example.com',
+  ownerPhone: '(555) 123-4567',
+  petName: 'Whiskers',
+};
 
 describe('Enrollment flow data validation', () => {
   describe('bill amount validation', () => {
@@ -56,35 +68,104 @@ describe('Enrollment flow data validation', () => {
 
   describe('payment method validation', () => {
     it('accepts debit_card as payment method', () => {
-      const method: 'debit_card' | 'bank_account' = 'debit_card';
-      expect(method).toBe('debit_card');
+      expect(paymentMethodSchema.safeParse('debit_card').success).toBe(true);
     });
 
     it('accepts bank_account as payment method', () => {
-      const method: 'debit_card' | 'bank_account' = 'bank_account';
-      expect(method).toBe('bank_account');
+      expect(paymentMethodSchema.safeParse('bank_account').success).toBe(true);
+    });
+
+    it('rejects invalid payment methods', () => {
+      expect(paymentMethodSchema.safeParse('credit_card').success).toBe(false);
+      expect(paymentMethodSchema.safeParse('').success).toBe(false);
+      expect(paymentMethodSchema.safeParse(123).success).toBe(false);
     });
   });
 
-  describe('owner data requirements', () => {
-    it('requires all mandatory fields', () => {
-      const ownerData = {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '(555) 123-4567',
-        petName: 'Whiskers',
-        paymentMethod: 'debit_card' as const,
-      };
-
-      expect(ownerData.name.trim().length).toBeGreaterThan(0);
-      expect(ownerData.email.trim().length).toBeGreaterThan(0);
-      expect(ownerData.phone.trim().length).toBeGreaterThan(0);
-      expect(ownerData.petName.trim().length).toBeGreaterThan(0);
+  describe('owner data requirements (Zod schema)', () => {
+    it('accepts valid owner data', () => {
+      const result = billDetailsSchema.safeParse(validBillDetails);
+      expect(result.success).toBe(true);
     });
 
-    it('rejects empty required fields', () => {
-      expect(''.trim().length).toBe(0);
-      expect('  '.trim().length).toBe(0);
+    it('rejects bill amount below minimum', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        billAmountCents: 10000, // $100, below $500 minimum
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects non-integer bill amount', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        billAmountCents: 50000.5,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects empty owner name', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerName: '',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects whitespace-only owner name', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerName: '   ',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects invalid email format', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerEmail: 'not-an-email',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects empty email', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerEmail: '',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects empty phone number', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerPhone: '',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects empty pet name', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        petName: '',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects missing required fields', () => {
+      const result = billDetailsSchema.safeParse({});
+      expect(result.success).toBe(false);
+    });
+
+    it('trims owner name whitespace', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        ownerName: '  Jane Smith  ',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.ownerName).toBe('Jane Smith');
+      }
     });
   });
 

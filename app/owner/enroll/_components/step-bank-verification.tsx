@@ -23,7 +23,7 @@ export function StepBankVerification({
   onNext,
   onBack,
 }: StepBankVerificationProps) {
-  const [bankConnected, setBankConnected] = useState(false);
+  const [bankConnected, setBankConnected] = useState(!!data.plaidPublicToken);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const trpc = useTRPC();
 
@@ -52,7 +52,6 @@ export function StepBankVerification({
     updateData({ paymentMethod: 'debit_card', plaidPublicToken: null });
     setBankConnected(false);
     setConnectionError(null);
-    onNext();
   }
 
   function handleContinue() {
@@ -140,7 +139,7 @@ export function StepBankVerification({
           Pay all installments with your debit card. Your card will be charged at Stripe checkout.
         </p>
         <Button
-          variant="outline"
+          variant={data.paymentMethod === 'debit_card' && !bankConnected ? 'default' : 'outline'}
           size="lg"
           className="w-full justify-start gap-3 h-auto py-4"
           onClick={handleDebitCardChoice}
@@ -159,8 +158,12 @@ export function StepBankVerification({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button onClick={handleContinue} disabled={!bankConnected} size="lg">
-          Continue with Bank Account
+        <Button
+          onClick={handleContinue}
+          disabled={!bankConnected && data.paymentMethod !== 'debit_card'}
+          size="lg"
+        >
+          Continue
         </Button>
       </div>
     </div>

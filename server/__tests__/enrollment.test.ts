@@ -25,10 +25,18 @@ const mockOuterSelectFrom = mock();
 const mockOuterSelectWhere = mock();
 const mockOuterSelectLimit = mock();
 
+// Mock for db.query.plans.findFirst (used by getEnrollmentSummary)
+const mockFindFirst = mock();
+
 mock.module('@/server/db', () => ({
   db: {
     select: mockOuterSelect,
     transaction: mockTransaction,
+    query: {
+      plans: {
+        findFirst: mockFindFirst,
+      },
+    },
   },
 }));
 
@@ -101,6 +109,7 @@ function clearAllMocks() {
   mockOuterSelectFrom.mockClear();
   mockOuterSelectWhere.mockClear();
   mockOuterSelectLimit.mockClear();
+  mockFindFirst.mockClear();
 }
 
 // ── createEnrollment tests ───────────────────────────────────────────
@@ -216,7 +225,7 @@ describe('createEnrollment', () => {
     expect(result.paymentIds).toEqual(paymentIds.map((p) => p.id));
   });
 
-  it('reuses existing owner record when email and clinicId match', async () => {
+  it('reuses existing owner record when email matches', async () => {
     setupOuterSelectChain([{ id: CLINIC_ID, status: 'active' }]);
 
     let insertCallCount = 0;
@@ -461,6 +470,54 @@ describe('createEnrollment', () => {
     expect(riskAudit.entityType).toBe('risk_pool');
     expect(riskAudit.action).toBe('contribution');
   });
+
+  it('passes plain objects (not JSON.stringify) to audit log newValue', async () => {
+    setupOuterSelectChain([{ id: CLINIC_ID, status: 'active' }]);
+
+    const tx = createMockTx();
+    const insertedValues: unknown[] = [];
+
+    mockTransaction.mockImplementation(async (fn: TxCallback) => {
+      let insertCount = 0;
+
+      mockSelect.mockReturnValue({
+        from: () => ({
+          where: () => ({
+            limit: () => Promise.resolve([]),
+          }),
+        }),
+      });
+
+      mockInsert.mockImplementation(() => {
+        insertCount++;
+        return {
+          values: (val: unknown) => {
+            insertedValues.push(val);
+            if (insertCount <= 3) {
+              return {
+                returning: () => Promise.resolve([{ id: `mock-id-${insertCount}` }]),
+              };
+            }
+            return Promise.resolve([]);
+          },
+        };
+      });
+
+      return fn(tx);
+    });
+
+    await createEnrollment(CLINIC_ID, VALID_OWNER_DATA, 120_000, ACTOR_ID, ENROLLMENT_DATE);
+
+    // Plan audit log (5th insert) — newValue should be a plain object, not a JSON string
+    const planAudit = insertedValues[4] as { newValue: unknown };
+    expect(typeof planAudit.newValue).toBe('object');
+    expect(typeof planAudit.newValue).not.toBe('string');
+
+    // Risk pool audit log (6th insert) — newValue should be a plain object
+    const riskAudit = insertedValues[5] as { newValue: unknown };
+    expect(typeof riskAudit.newValue).toBe('object');
+    expect(typeof riskAudit.newValue).not.toBe('string');
+  });
 });
 
 // ── getEnrollmentSummary tests ───────────────────────────────────────
@@ -475,102 +532,93 @@ describe('getEnrollmentSummary', () => {
   });
 
   it('throws when plan is not found', async () => {
-    mockOuterSelect.mockImplementation(() => ({
-      from: () => ({
-        where: () => ({
-          limit: () => Promise.resolve([]),
-        }),
-      }),
-    }));
+    mockFindFirst.mockResolvedValue(undefined);
 
     await expect(getEnrollmentSummary(PLAN_ID)).rejects.toThrow('not found');
+  });
+
+  it('throws when plan has no associated owner', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: PLAN_ID,
+      status: 'pending',
+      totalBillCents: 120_000,
+      feeCents: 7_200,
+      totalWithFeeCents: 127_200,
+      depositCents: 31_800,
+      remainingCents: 95_400,
+      installmentCents: 15_900,
+      numInstallments: 6,
+      createdAt: new Date(),
+      owner: null,
+      clinic: { id: CLINIC_ID, name: 'Happy Paws Vet' },
+      payments: [],
+    });
+
+    await expect(getEnrollmentSummary(PLAN_ID)).rejects.toThrow('no associated owner');
+  });
+
+  it('throws when plan has no associated clinic', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: PLAN_ID,
+      status: 'pending',
+      totalBillCents: 120_000,
+      feeCents: 7_200,
+      totalWithFeeCents: 127_200,
+      depositCents: 31_800,
+      remainingCents: 95_400,
+      installmentCents: 15_900,
+      numInstallments: 6,
+      createdAt: new Date(),
+      owner: {
+        id: OWNER_ID,
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        phone: '555-0100',
+        petName: 'Whiskers',
+      },
+      clinic: null,
+      payments: [],
+    });
+
+    await expect(getEnrollmentSummary(PLAN_ID)).rejects.toThrow('no associated clinic');
   });
 
   it('returns full enrollment summary when plan exists', async () => {
     const createdAt = new Date('2026-03-01T12:00:00Z');
     const scheduledAt = new Date('2026-03-01T12:00:00Z');
 
-    let callCount = 0;
-    mockOuterSelect.mockImplementation(() => {
-      callCount++;
-
-      if (callCount === 1) {
-        // Plan lookup
-        return {
-          from: () => ({
-            where: () => ({
-              limit: () =>
-                Promise.resolve([
-                  {
-                    id: PLAN_ID,
-                    status: 'pending',
-                    totalBillCents: 120_000,
-                    feeCents: 7_200,
-                    totalWithFeeCents: 127_200,
-                    depositCents: 31_800,
-                    remainingCents: 95_400,
-                    installmentCents: 15_900,
-                    numInstallments: 6,
-                    createdAt,
-                    ownerId: OWNER_ID,
-                    clinicId: CLINIC_ID,
-                  },
-                ]),
-            }),
-          }),
-        };
-      }
-      if (callCount === 2) {
-        // Owner lookup
-        return {
-          from: () => ({
-            where: () => ({
-              limit: () =>
-                Promise.resolve([
-                  {
-                    id: OWNER_ID,
-                    name: 'Jane Doe',
-                    email: 'jane@example.com',
-                    phone: '555-0100',
-                    petName: 'Whiskers',
-                  },
-                ]),
-            }),
-          }),
-        };
-      }
-      if (callCount === 3) {
-        // Clinic lookup
-        return {
-          from: () => ({
-            where: () => ({
-              limit: () =>
-                Promise.resolve([
-                  {
-                    id: CLINIC_ID,
-                    name: 'Happy Paws Vet',
-                  },
-                ]),
-            }),
-          }),
-        };
-      }
-      // Payments lookup (no limit)
-      return {
-        from: () => ({
-          where: () =>
-            Promise.resolve([
-              {
-                id: 'pay-0',
-                type: 'deposit',
-                sequenceNum: 0,
-                amountCents: 31_800,
-                status: 'pending',
-                scheduledAt,
-              },
-            ]),
-        }),
-      };
+    mockFindFirst.mockResolvedValue({
+      id: PLAN_ID,
+      status: 'pending',
+      totalBillCents: 120_000,
+      feeCents: 7_200,
+      totalWithFeeCents: 127_200,
+      depositCents: 31_800,
+      remainingCents: 95_400,
+      installmentCents: 15_900,
+      numInstallments: 6,
+      createdAt,
+      owner: {
+        id: OWNER_ID,
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        phone: '555-0100',
+        petName: 'Whiskers',
+      },
+      clinic: {
+        id: CLINIC_ID,
+        name: 'Happy Paws Vet',
+      },
+      payments: [
+        {
+          id: 'pay-0',
+          type: 'deposit',
+          sequenceNum: 0,
+          amountCents: 31_800,
+          status: 'pending',
+          scheduledAt,
+        },
+      ],
     });
 
     const summary = await getEnrollmentSummary(PLAN_ID);
@@ -583,6 +631,36 @@ describe('getEnrollmentSummary', () => {
     expect(summary.clinic.name).toBe('Happy Paws Vet');
     expect(summary.payments).toHaveLength(1);
     expect(summary.payments[0].type).toBe('deposit');
+  });
+
+  it('uses a single relational query (db.query.plans.findFirst)', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: PLAN_ID,
+      status: 'pending',
+      totalBillCents: 120_000,
+      feeCents: 7_200,
+      totalWithFeeCents: 127_200,
+      depositCents: 31_800,
+      remainingCents: 95_400,
+      installmentCents: 15_900,
+      numInstallments: 6,
+      createdAt: new Date(),
+      owner: {
+        id: OWNER_ID,
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        phone: '555-0100',
+        petName: 'Whiskers',
+      },
+      clinic: { id: CLINIC_ID, name: 'Happy Paws Vet' },
+      payments: [],
+    });
+
+    await getEnrollmentSummary(PLAN_ID);
+
+    // Should use a single findFirst call instead of 4 separate selects
+    expect(mockFindFirst).toHaveBeenCalledTimes(1);
+    expect(mockOuterSelect).not.toHaveBeenCalled();
   });
 });
 
@@ -697,5 +775,37 @@ describe('cancelEnrollment', () => {
     const auditEntry = insertedValues[0] as { actorType: string; actorId: string | null };
     expect(auditEntry.actorType).toBe('system');
     expect(auditEntry.actorId).toBeNull();
+  });
+
+  it('passes plain objects (not JSON.stringify) to audit log oldValue/newValue', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'pending' }]);
+
+    const tx = createMockTx();
+    const insertedValues: unknown[] = [];
+
+    mockTransaction.mockImplementation(async (fn: TxCallback) => {
+      mockUpdate.mockReturnValue({
+        set: () => ({
+          where: () => Promise.resolve([]),
+        }),
+      });
+
+      mockInsert.mockImplementation(() => ({
+        values: (val: unknown) => {
+          insertedValues.push(val);
+          return Promise.resolve([]);
+        },
+      }));
+
+      return fn(tx);
+    });
+
+    await cancelEnrollment(PLAN_ID, ACTOR_ID, 'clinic');
+
+    const auditEntry = insertedValues[0] as { oldValue: unknown; newValue: unknown };
+    expect(typeof auditEntry.oldValue).toBe('object');
+    expect(typeof auditEntry.oldValue).not.toBe('string');
+    expect(typeof auditEntry.newValue).toBe('object');
+    expect(typeof auditEntry.newValue).not.toBe('string');
   });
 });

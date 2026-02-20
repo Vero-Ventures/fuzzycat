@@ -4,6 +4,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { MIN_BILL_CENTS } from '@/lib/constants';
+import { assertClinicOwnership, assertPlanAccess } from '@/server/services/authorization';
 import {
   cancelEnrollment,
   createEnrollment,
@@ -42,6 +43,11 @@ export const enrollmentRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      // Admin users bypass clinic ownership check
+      if (ctx.session.role !== 'admin') {
+        await assertClinicOwnership(ctx.session.userId, input.clinicId);
+      }
+
       try {
         return await createEnrollment(
           input.clinicId,
@@ -60,7 +66,10 @@ export const enrollmentRouter = router({
    */
   getSummary: protectedProcedure
     .input(z.object({ planId: z.string().uuid('Valid plan ID is required') }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      // Verify the user has access to this plan (clinic, owner, or admin)
+      await assertPlanAccess(ctx.session.userId, ctx.session.role, input.planId);
+
       try {
         return await getEnrollmentSummary(input.planId);
       } catch (error) {
@@ -75,6 +84,9 @@ export const enrollmentRouter = router({
   cancel: protectedProcedure
     .input(z.object({ planId: z.string().uuid('Valid plan ID is required') }))
     .mutation(async ({ input, ctx }) => {
+      // Verify the user has access to this plan (clinic, owner, or admin)
+      await assertPlanAccess(ctx.session.userId, ctx.session.role, input.planId);
+
       try {
         await cancelEnrollment(input.planId, ctx.session.userId, ctx.session.role);
         return { success: true as const };

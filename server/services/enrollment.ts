@@ -112,21 +112,22 @@ export async function createEnrollment(
 
   // ── Execute all inserts in a single transaction ──────────────────
   return await db.transaction(async (tx) => {
-    // 1. Create or find owner record
+    // 1. Create or find owner record (lookup by email only — email has a global unique constraint)
     const [existingOwner] = await tx
       .select({ id: owners.id })
       .from(owners)
-      .where(and(eq(owners.email, ownerData.email), eq(owners.clinicId, clinicId)))
+      .where(eq(owners.email, ownerData.email))
       .limit(1);
 
     let ownerId: string;
 
     if (existingOwner) {
       ownerId = existingOwner.id;
-      // Update owner details in case they changed
+      // Update owner details (including clinicId) in case they changed or are enrolling at a new clinic
       await tx
         .update(owners)
         .set({
+          clinicId,
           name: ownerData.name,
           phone: ownerData.phone,
           petName: ownerData.petName,
@@ -205,7 +206,7 @@ export async function createEnrollment(
       entityId: plan.id,
       action: 'created',
       oldValue: null,
-      newValue: JSON.stringify({
+      newValue: {
         status: 'pending',
         totalBillCents: schedule.totalBillCents,
         totalWithFeeCents: schedule.totalWithFeeCents,
@@ -213,7 +214,7 @@ export async function createEnrollment(
         numInstallments: schedule.numInstallments,
         clinicId,
         ownerId,
-      }),
+      },
       actorType: actorId ? 'clinic' : 'system',
       actorId: actorId ?? null,
     });
@@ -224,10 +225,10 @@ export async function createEnrollment(
       entityId: plan.id,
       action: 'contribution',
       oldValue: null,
-      newValue: JSON.stringify({
+      newValue: {
         contributionCents: riskPoolContributionCents,
         planId: plan.id,
-      }),
+      },
       actorType: 'system',
       actorId: null,
     });
@@ -246,94 +247,59 @@ export async function createEnrollment(
  * @param planId - UUID of the plan
  */
 export async function getEnrollmentSummary(planId: string): Promise<EnrollmentSummary> {
-  const [planRecord] = await db
-    .select({
-      id: plans.id,
-      status: plans.status,
-      totalBillCents: plans.totalBillCents,
-      feeCents: plans.feeCents,
-      totalWithFeeCents: plans.totalWithFeeCents,
-      depositCents: plans.depositCents,
-      remainingCents: plans.remainingCents,
-      installmentCents: plans.installmentCents,
-      numInstallments: plans.numInstallments,
-      createdAt: plans.createdAt,
-      ownerId: plans.ownerId,
-      clinicId: plans.clinicId,
-    })
-    .from(plans)
-    .where(eq(plans.id, planId))
-    .limit(1);
+  const result = await db.query.plans.findFirst({
+    where: eq(plans.id, planId),
+    with: {
+      owner: true,
+      clinic: true,
+      payments: true,
+    },
+  });
 
-  if (!planRecord) {
+  if (!result) {
     throw new Error(`Plan ${planId} not found`);
   }
 
-  if (!planRecord.ownerId) {
+  if (!result.owner) {
     throw new Error(`Plan ${planId} has no associated owner`);
   }
 
-  if (!planRecord.clinicId) {
+  if (!result.clinic) {
     throw new Error(`Plan ${planId} has no associated clinic`);
   }
 
-  const [ownerRecord] = await db
-    .select({
-      id: owners.id,
-      name: owners.name,
-      email: owners.email,
-      phone: owners.phone,
-      petName: owners.petName,
-    })
-    .from(owners)
-    .where(eq(owners.id, planRecord.ownerId))
-    .limit(1);
-
-  if (!ownerRecord) {
-    throw new Error(`Owner ${planRecord.ownerId} not found for plan ${planId}`);
-  }
-
-  const [clinicRecord] = await db
-    .select({
-      id: clinics.id,
-      name: clinics.name,
-    })
-    .from(clinics)
-    .where(eq(clinics.id, planRecord.clinicId))
-    .limit(1);
-
-  if (!clinicRecord) {
-    throw new Error(`Clinic ${planRecord.clinicId} not found for plan ${planId}`);
-  }
-
-  const paymentRecords = await db
-    .select({
-      id: payments.id,
-      type: payments.type,
-      sequenceNum: payments.sequenceNum,
-      amountCents: payments.amountCents,
-      status: payments.status,
-      scheduledAt: payments.scheduledAt,
-    })
-    .from(payments)
-    .where(eq(payments.planId, planId));
-
   return {
     plan: {
-      id: planRecord.id,
-      status: planRecord.status,
-      totalBillCents: planRecord.totalBillCents,
-      feeCents: planRecord.feeCents,
-      totalWithFeeCents: planRecord.totalWithFeeCents,
-      depositCents: planRecord.depositCents,
-      remainingCents: planRecord.remainingCents,
-      installmentCents: planRecord.installmentCents,
-      numInstallments: planRecord.numInstallments,
-      createdAt: planRecord.createdAt,
+      id: result.id,
+      status: result.status,
+      totalBillCents: result.totalBillCents,
+      feeCents: result.feeCents,
+      totalWithFeeCents: result.totalWithFeeCents,
+      depositCents: result.depositCents,
+      remainingCents: result.remainingCents,
+      installmentCents: result.installmentCents,
+      numInstallments: result.numInstallments,
+      createdAt: result.createdAt,
     },
-    owner: ownerRecord,
-    clinic: clinicRecord,
-    payments: paymentRecords,
+    owner: {
+      id: result.owner.id,
+      name: result.owner.name,
+      email: result.owner.email,
+      phone: result.owner.phone,
+      petName: result.owner.petName,
+    },
+    clinic: {
+      id: result.clinic.id,
+      name: result.clinic.name,
+    },
+    payments: result.payments.map((p) => ({
+      id: p.id,
+      type: p.type,
+      sequenceNum: p.sequenceNum,
+      amountCents: p.amountCents,
+      status: p.status,
+      scheduledAt: p.scheduledAt,
+    })),
   };
 }
 
@@ -380,8 +346,8 @@ export async function cancelEnrollment(
       entityType: 'plan',
       entityId: planId,
       action: 'status_changed',
-      oldValue: JSON.stringify({ status: 'pending' }),
-      newValue: JSON.stringify({ status: 'cancelled' }),
+      oldValue: { status: 'pending' },
+      newValue: { status: 'cancelled' },
       actorType,
       actorId: actorId ?? null,
     });

@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
+import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
 import { auditLog, payments, plans } from '@/server/db/schema';
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
 
     if (!webhookSecret) {
       if (process.env.NODE_ENV === 'production') {
-        console.error('STRIPE_WEBHOOK_SECRET is not set in production environment.');
+        logger.error('STRIPE_WEBHOOK_SECRET is not set in production environment');
         return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
       }
       // In development without webhook secret, parse the body directly.
@@ -33,12 +34,12 @@ export async function POST(request: Request) {
     } else if (signature) {
       event = stripe().webhooks.constructEvent(body, signature, webhookSecret);
     } else {
-      console.error('Stripe webhook signature missing.');
+      logger.error('Stripe webhook signature missing');
       return NextResponse.json({ error: 'Webhook signature missing' }, { status: 400 });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Stripe webhook signature verification failed: ${message}`);
+    logger.error('Stripe webhook signature verification failed', { error: message });
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 });
   }
 
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error(`Stripe webhook handler error for ${event.type}: ${message}`);
+    logger.error('Stripe webhook handler error', { eventType: event.type, error: message });
     return NextResponse.json({ error: 'Webhook handler error' }, { status: 500 });
   }
 

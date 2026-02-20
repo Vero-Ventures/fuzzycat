@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
@@ -43,7 +44,11 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   });
 
   if (roleError) {
-    console.error('Failed to set user role:', { userId: data.user.id, role, roleError });
+    logger.error('Failed to set user role', {
+      userId: data.user.id,
+      role,
+      error: roleError.message,
+    });
     await admin.auth.admin.deleteUser(data.user.id);
     return { userId: null, error: 'Failed to configure account. Please try again.' };
   }
@@ -57,8 +62,8 @@ async function deleteAuthUser(userId: string | null) {
   try {
     const admin = createAdminClient();
     await admin.auth.admin.deleteUser(userId);
-  } catch (error) {
-    console.error('Failed to delete orphaned auth user:', { userId, error });
+  } catch (_error) {
+    logger.error('Failed to delete orphaned auth user', { userId });
   }
 }
 
@@ -85,8 +90,8 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
       petName,
       paymentMethod: 'debit_card',
     });
-  } catch (error) {
-    console.error('Failed to insert owner into DB:', { userId, error });
+  } catch (_error) {
+    logger.error('Failed to insert owner into DB', { userId });
     await deleteAuthUser(userId);
     return { error: 'Failed to create account. Please try again.' };
   }
@@ -117,8 +122,8 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
       addressState: addressState.toUpperCase(),
       addressZip,
     });
-  } catch (error) {
-    console.error('Failed to insert clinic into DB:', { userId, error });
+  } catch (_error) {
+    logger.error('Failed to insert clinic into DB', { userId });
     await deleteAuthUser(userId);
     return { error: 'Failed to create account. Please try again.' };
   }

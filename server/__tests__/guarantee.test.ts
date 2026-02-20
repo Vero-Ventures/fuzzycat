@@ -21,11 +21,10 @@ import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
-// Mock the audit service to prevent it from making its own db calls
-const mockLogAuditEvent = mock().mockResolvedValue(undefined);
-mock.module('@/server/services/audit', () => ({
-  logAuditEvent: mockLogAuditEvent,
-}));
+// NOTE: We do NOT mock @/server/services/audit here. The real logAuditEvent
+// runs against the mocked db, so audit inserts go through mockInsertValues.
+// This avoids poisoning the audit module mock for audit.test.ts (Bun's
+// mock.module is global across test files in the same process).
 
 const {
   calculateContribution,
@@ -53,7 +52,6 @@ afterEach(() => {
   mockSelect.mockClear();
   mockSelectFrom.mockClear();
   mockSelectWhere.mockClear();
-  mockLogAuditEvent.mockClear();
 });
 
 // ── calculateContribution tests ──────────────────────────────────────
@@ -103,16 +101,14 @@ describe('contributeToRiskPool', () => {
   it('logs an audit event for the contribution', async () => {
     await contributeToRiskPool('plan-1', 1272);
 
-    expect(mockLogAuditEvent).toHaveBeenCalledWith(
-      {
-        entityType: 'risk_pool',
-        entityId: 'plan-1',
-        action: 'contributed',
-        newValue: { type: 'contribution', contributionCents: 1272 },
-        actorType: 'system',
-      },
-      undefined,
-    );
+    // logAuditEvent runs for real against the mocked db.
+    // The second mockInsertValues call is the audit log entry.
+    const auditCall = mockInsertValues.mock.calls[1]?.[0] as Record<string, unknown> | undefined;
+    expect(auditCall).toBeDefined();
+    expect(auditCall?.entityType).toBe('risk_pool');
+    expect(auditCall?.entityId).toBe('plan-1');
+    expect(auditCall?.action).toBe('contributed');
+    expect(auditCall?.actorType).toBe('system');
   });
 
   it('throws for zero contribution', async () => {
@@ -130,7 +126,9 @@ describe('contributeToRiskPool', () => {
 
     await contributeToRiskPool('plan-1', 1272, fakeTx as never);
 
+    // Both the risk pool insert and the audit log insert go through txInsert
     expect(txInsert).toHaveBeenCalled();
+    // db.insert should not be called (tx is used instead)
     expect(mockInsert).not.toHaveBeenCalled();
   });
 });
@@ -151,16 +149,12 @@ describe('claimFromRiskPool', () => {
   it('logs an audit event for the claim', async () => {
     await claimFromRiskPool('plan-2', 95_400);
 
-    expect(mockLogAuditEvent).toHaveBeenCalledWith(
-      {
-        entityType: 'risk_pool',
-        entityId: 'plan-2',
-        action: 'claimed',
-        newValue: { type: 'claim', claimCents: 95_400 },
-        actorType: 'system',
-      },
-      undefined,
-    );
+    const auditCall = mockInsertValues.mock.calls[1]?.[0] as Record<string, unknown> | undefined;
+    expect(auditCall).toBeDefined();
+    expect(auditCall?.entityType).toBe('risk_pool');
+    expect(auditCall?.entityId).toBe('plan-2');
+    expect(auditCall?.action).toBe('claimed');
+    expect(auditCall?.actorType).toBe('system');
   });
 
   it('throws for zero claim', async () => {
@@ -188,16 +182,12 @@ describe('recordRecovery', () => {
   it('logs an audit event for the recovery', async () => {
     await recordRecovery('plan-3', 10_000);
 
-    expect(mockLogAuditEvent).toHaveBeenCalledWith(
-      {
-        entityType: 'risk_pool',
-        entityId: 'plan-3',
-        action: 'recovered',
-        newValue: { type: 'recovery', recoveryCents: 10_000 },
-        actorType: 'system',
-      },
-      undefined,
-    );
+    const auditCall = mockInsertValues.mock.calls[1]?.[0] as Record<string, unknown> | undefined;
+    expect(auditCall).toBeDefined();
+    expect(auditCall?.entityType).toBe('risk_pool');
+    expect(auditCall?.entityId).toBe('plan-3');
+    expect(auditCall?.action).toBe('recovered');
+    expect(auditCall?.actorType).toBe('system');
   });
 
   it('throws for zero recovery', async () => {

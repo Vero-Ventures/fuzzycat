@@ -107,7 +107,7 @@ describe('contributeToRiskPool', () => {
       {
         entityType: 'risk_pool',
         entityId: 'plan-1',
-        action: 'created',
+        action: 'contributed',
         newValue: { type: 'contribution', contributionCents: 1272 },
         actorType: 'system',
       },
@@ -192,7 +192,7 @@ describe('recordRecovery', () => {
       {
         entityType: 'risk_pool',
         entityId: 'plan-3',
-        action: 'created',
+        action: 'recovered',
         newValue: { type: 'recovery', recoveryCents: 10_000 },
         actorType: 'system',
       },

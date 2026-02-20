@@ -6,6 +6,12 @@
 //   - contribution: 1% of transaction total at enrollment
 //   - claim: pays out remaining balance to clinic on default
 //   - recovery: returned funds from soft collection on defaulted plans
+//
+// NOTE: The `contributionCents` column in the risk_pool table is reused
+// for all three entry types (contributions, claims, and recoveries).
+// This is a known naming issue — the column would be better named
+// `amountCents` to reflect its general purpose. A schema migration to
+// rename it is deferred to a future PR to avoid unnecessary risk here.
 
 import { eq, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
@@ -85,7 +91,7 @@ export async function contributeToRiskPool(
     {
       entityType: 'risk_pool',
       entityId: planId,
-      action: 'created',
+      action: 'contributed',
       newValue: { type: 'contribution', contributionCents },
       actorType: 'system',
     },
@@ -159,7 +165,7 @@ export async function recordRecovery(
     {
       entityType: 'risk_pool',
       entityId: planId,
-      action: 'created',
+      action: 'recovered',
       newValue: { type: 'recovery', recoveryCents },
       actorType: 'system',
     },

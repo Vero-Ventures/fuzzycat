@@ -11,8 +11,27 @@ import { auditLog } from '@/server/db/schema';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-export type EntityType = 'plan' | 'payment' | 'payout' | 'risk_pool' | 'clinic' | 'owner';
-export type AuditAction = 'created' | 'status_changed' | 'retried' | 'defaulted' | 'claimed';
+export const AUDIT_ENTITY_TYPES = [
+  'plan',
+  'payment',
+  'payout',
+  'risk_pool',
+  'clinic',
+  'owner',
+] as const;
+export type EntityType = (typeof AUDIT_ENTITY_TYPES)[number];
+
+export const AUDIT_ACTIONS = [
+  'created',
+  'status_changed',
+  'retried',
+  'defaulted',
+  'claimed',
+  'contributed',
+  'recovered',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
 export type ActorType = 'system' | 'admin' | 'owner' | 'clinic';
 
 export interface AuditEventParams {

@@ -24,9 +24,11 @@ import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
-const { logAuditEvent, getAuditLogByEntity, getAuditLogByType } = await import(
-  '@/server/services/audit'
-);
+// Use a relative path to bypass mock.module('@/server/services/audit', ...)
+// registered by guarantee.test.ts. Bun's mock.module is global and keyed by
+// specifier string, so importing via a different specifier avoids the conflict
+// while still picking up our @/server/db mock (which the audit module imports).
+const { logAuditEvent, getAuditLogByEntity, getAuditLogByType } = await import('../services/audit');
 
 // ── Setup / teardown ─────────────────────────────────────────────────
 
@@ -253,7 +255,7 @@ describe('getAuditLogByType', () => {
     await getAuditLogByType('plan', { limit: 10, offset: 20 });
 
     expect(mockSelectLimit).toHaveBeenCalledWith(10);
-    expect(mockSelectOrderBy.mock.results.length).toBeGreaterThan(0);
+    expect(mockSelectOffset).toHaveBeenCalledWith(20);
   });
 
   it('returns empty array when no entries exist', async () => {

@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { getAuditLogByEntity, getAuditLogByType } from '@/server/services/audit';
+import {
+  AUDIT_ENTITY_TYPES,
+  getAuditLogByEntity,
+  getAuditLogByType,
+} from '@/server/services/audit';
 import { getRiskPoolBalance, getRiskPoolHealth } from '@/server/services/guarantee';
 import { adminProcedure, router } from '@/server/trpc';
 
@@ -29,7 +33,7 @@ export const adminRouter = router({
   auditLogByEntity: adminProcedure
     .input(
       z.object({
-        entityType: z.enum(['plan', 'payment', 'payout', 'risk_pool', 'clinic', 'owner']),
+        entityType: z.enum(AUDIT_ENTITY_TYPES),
         entityId: z.string().uuid(),
       }),
     )
@@ -43,7 +47,7 @@ export const adminRouter = router({
   auditLogByType: adminProcedure
     .input(
       z.object({
-        entityType: z.enum(['plan', 'payment', 'payout', 'risk_pool', 'clinic', 'owner']),
+        entityType: z.enum(AUDIT_ENTITY_TYPES),
         limit: z.number().int().min(1).max(100).default(50),
         offset: z.number().int().min(0).default(0),
       }),

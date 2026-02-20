@@ -9,7 +9,7 @@ export const clinicRouter = router({
   }),
 
   /**
-   * Search active clinics by name or city.
+   * Search clinics by name or city. Only returns active clinics.
    * Available to any authenticated user (pet owners need this during enrollment).
    */
   search: protectedProcedure

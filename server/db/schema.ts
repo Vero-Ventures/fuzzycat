@@ -69,6 +69,7 @@ export const owners = pgTable('owners', {
   petName: text('pet_name').notNull(),
   stripeCustomerId: text('stripe_customer_id'),
   plaidAccessToken: text('plaid_access_token'),
+  plaidItemId: text('plaid_item_id'),
   paymentMethod: paymentMethodEnum('payment_method').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

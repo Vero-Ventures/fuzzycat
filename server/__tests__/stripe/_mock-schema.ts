@@ -7,7 +7,12 @@
  * file that needs `owners`.
  */
 export const schemaMock = {
-  owners: { id: 'owners.id', stripeCustomerId: 'owners.stripe_customer_id' },
+  owners: {
+    id: 'owners.id',
+    stripeCustomerId: 'owners.stripe_customer_id',
+    plaidAccessToken: 'owners.plaid_access_token',
+    plaidItemId: 'owners.plaid_item_id',
+  },
   clinics: { id: 'clinics.id' },
   plans: { id: 'plans.id', status: 'plans.status', remainingCents: 'plans.remaining_cents' },
   payments: { id: 'payments.id', stripePaymentIntentId: 'payments.stripe_payment_intent_id' },

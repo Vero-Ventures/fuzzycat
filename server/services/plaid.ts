@@ -64,8 +64,11 @@ export async function exchangePublicToken(
   const accessToken = response.data.access_token;
   const itemId = response.data.item_id;
 
-  // Store access token on owner record
-  await db.update(owners).set({ plaidAccessToken: accessToken }).where(eq(owners.id, ownerId));
+  // Store access token and item ID on owner record
+  await db
+    .update(owners)
+    .set({ plaidAccessToken: accessToken, plaidItemId: itemId })
+    .where(eq(owners.id, ownerId));
 
   await logAuditEvent({
     entityType: 'owner',

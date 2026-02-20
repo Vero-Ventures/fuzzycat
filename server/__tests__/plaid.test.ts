@@ -74,6 +74,7 @@ mock.module('@/server/db/schema', () => ({
   owners: {
     id: 'owners.id',
     plaidAccessToken: 'owners.plaid_access_token',
+    plaidItemId: 'owners.plaid_item_id',
     stripeCustomerId: 'owners.stripe_customer_id',
   },
   clinics: { id: 'clinics.id' },
@@ -199,9 +200,10 @@ describe('exchangePublicToken', () => {
       public_token: 'public-sandbox-test-token',
     });
 
-    // Verify DB update was called to store access token
+    // Verify DB update was called to store access token and item ID
     expect(mockUpdateSet).toHaveBeenCalledWith({
       plaidAccessToken: 'access-sandbox-test-token-456',
+      plaidItemId: 'item-sandbox-test-789',
     });
   });
 

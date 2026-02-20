@@ -92,6 +92,9 @@ mock.module('@/server/db/schema', () => ({
 
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val, type: 'eq' }),
+  and: (...args: unknown[]) => ({ args, type: 'and' }),
+  lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
+  inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     strings: [...strings],
     values,

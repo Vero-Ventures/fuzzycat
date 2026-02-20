@@ -1,1 +1,428 @@
-// TODO: Payment processing logic (#16)
+import { and, eq } from 'drizzle-orm';
+import { PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { logger } from '@/lib/logger';
+import { percentOfCents } from '@/lib/utils/money';
+import { db } from '@/server/db';
+import { auditLog, clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
+import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
+import { transferToClinic } from '@/server/services/stripe/connect';
+
+/** Maximum number of retry attempts for a failed payment. */
+const MAX_RETRIES = 3;
+
+/**
+ * Initiate a deposit charge for a plan via Stripe Checkout (debit card).
+ * Looks up the plan and its deposit payment record, then delegates to the
+ * Stripe checkout session creator.
+ */
+export async function processDeposit(params: {
+  planId: string;
+  successUrl: string;
+  cancelUrl: string;
+}): Promise<{ sessionId: string; sessionUrl: string }> {
+  // Fetch plan with owner info for Stripe customer
+  const [plan] = await db
+    .select({
+      id: plans.id,
+      ownerId: plans.ownerId,
+      depositCents: plans.depositCents,
+      status: plans.status,
+    })
+    .from(plans)
+    .where(eq(plans.id, params.planId))
+    .limit(1);
+
+  if (!plan) {
+    throw new Error(`Plan not found: ${params.planId}`);
+  }
+
+  if (plan.status !== 'pending') {
+    throw new Error(`Plan ${params.planId} is not in pending status (current: ${plan.status})`);
+  }
+
+  if (!plan.ownerId) {
+    throw new Error(`Plan ${params.planId} has no owner`);
+  }
+
+  // Fetch the deposit payment record
+  const [depositPayment] = await db
+    .select({ id: payments.id, status: payments.status })
+    .from(payments)
+    .where(and(eq(payments.planId, params.planId), eq(payments.type, 'deposit')))
+    .limit(1);
+
+  if (!depositPayment) {
+    throw new Error(`Deposit payment not found for plan: ${params.planId}`);
+  }
+
+  if (depositPayment.status !== 'pending') {
+    throw new Error(
+      `Deposit payment ${depositPayment.id} is not pending (current: ${depositPayment.status})`,
+    );
+  }
+
+  // Fetch the owner's Stripe customer ID
+  const [owner] = await db
+    .select({
+      stripeCustomerId: owners.stripeCustomerId,
+    })
+    .from(owners)
+    .where(eq(owners.id, plan.ownerId))
+    .limit(1);
+
+  if (!owner?.stripeCustomerId) {
+    throw new Error(`Owner ${plan.ownerId} does not have a Stripe customer ID`);
+  }
+
+  return createDepositCheckoutSession({
+    paymentId: depositPayment.id,
+    planId: params.planId,
+    stripeCustomerId: owner.stripeCustomerId,
+    depositCents: plan.depositCents,
+    successUrl: params.successUrl,
+    cancelUrl: params.cancelUrl,
+  });
+}
+
+/**
+ * Initiate an ACH installment charge for a specific payment via Stripe.
+ * Looks up the payment record and associated owner, then creates a PaymentIntent.
+ */
+export async function processInstallment(params: {
+  paymentId: string;
+  paymentMethodId?: string;
+}): Promise<{ paymentIntentId: string; clientSecret: string; status: string }> {
+  // Fetch payment with plan info
+  const [payment] = await db
+    .select({
+      id: payments.id,
+      planId: payments.planId,
+      amountCents: payments.amountCents,
+      status: payments.status,
+      type: payments.type,
+    })
+    .from(payments)
+    .where(eq(payments.id, params.paymentId))
+    .limit(1);
+
+  if (!payment) {
+    throw new Error(`Payment not found: ${params.paymentId}`);
+  }
+
+  if (payment.type !== 'installment') {
+    throw new Error(`Payment ${params.paymentId} is not an installment (type: ${payment.type})`);
+  }
+
+  if (payment.status !== 'pending' && payment.status !== 'retried') {
+    throw new Error(
+      `Payment ${params.paymentId} cannot be processed (current status: ${payment.status})`,
+    );
+  }
+
+  if (!payment.planId) {
+    throw new Error(`Payment ${params.paymentId} has no associated plan`);
+  }
+
+  // Fetch plan to get owner
+  const [plan] = await db
+    .select({ ownerId: plans.ownerId, status: plans.status })
+    .from(plans)
+    .where(eq(plans.id, payment.planId))
+    .limit(1);
+
+  if (!plan) {
+    throw new Error(`Plan not found for payment: ${params.paymentId}`);
+  }
+
+  if (plan.status !== 'active') {
+    throw new Error(`Plan for payment ${params.paymentId} is not active (status: ${plan.status})`);
+  }
+
+  if (!plan.ownerId) {
+    throw new Error(`Plan for payment ${params.paymentId} has no owner`);
+  }
+
+  // Fetch owner's Stripe customer ID
+  const [owner] = await db
+    .select({ stripeCustomerId: owners.stripeCustomerId })
+    .from(owners)
+    .where(eq(owners.id, plan.ownerId))
+    .limit(1);
+
+  if (!owner?.stripeCustomerId) {
+    throw new Error(`Owner for payment ${params.paymentId} has no Stripe customer ID`);
+  }
+
+  return createInstallmentPaymentIntent({
+    paymentId: params.paymentId,
+    planId: payment.planId,
+    stripeCustomerId: owner.stripeCustomerId,
+    amountCents: payment.amountCents,
+    paymentMethodId: params.paymentMethodId,
+  });
+}
+
+/**
+ * Handle a successful payment. Updates the payment status to succeeded,
+ * logs an audit entry, contributes to the risk pool, and triggers a payout
+ * to the clinic via Stripe Connect.
+ *
+ * All database operations run inside a transaction.
+ */
+export async function handlePaymentSuccess(
+  paymentId: string,
+  stripePaymentIntentId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    // Fetch current payment state
+    const [payment] = await tx
+      .select({
+        id: payments.id,
+        planId: payments.planId,
+        amountCents: payments.amountCents,
+        status: payments.status,
+        type: payments.type,
+      })
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .limit(1);
+
+    if (!payment) {
+      throw new Error(`Payment not found: ${paymentId}`);
+    }
+
+    if (payment.status === 'succeeded') {
+      logger.warn('Payment already succeeded, skipping', { paymentId });
+      return;
+    }
+
+    const oldStatus = payment.status;
+
+    // Update payment status
+    await tx
+      .update(payments)
+      .set({
+        status: 'succeeded',
+        stripePaymentIntentId,
+        processedAt: new Date(),
+      })
+      .where(eq(payments.id, paymentId));
+
+    // Audit log for payment success
+    await tx.insert(auditLog).values({
+      entityType: 'payment',
+      entityId: paymentId,
+      action: 'status_changed',
+      oldValue: JSON.stringify({ status: oldStatus }),
+      newValue: JSON.stringify({ status: 'succeeded' }),
+      actorType: 'system',
+    });
+
+    if (!payment.planId) return;
+
+    // Fetch plan + clinic info for payout
+    const [plan] = await tx
+      .select({
+        id: plans.id,
+        clinicId: plans.clinicId,
+        totalBillCents: plans.totalBillCents,
+      })
+      .from(plans)
+      .where(eq(plans.id, payment.planId))
+      .limit(1);
+
+    if (!plan?.clinicId) return;
+
+    // Risk pool contribution: 1% of payment amount
+    const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
+
+    await tx.insert(riskPool).values({
+      planId: payment.planId,
+      contributionCents: riskContributionCents,
+      type: 'contribution',
+    });
+
+    await tx.insert(auditLog).values({
+      entityType: 'risk_pool',
+      entityId: payment.planId,
+      action: 'contribution',
+      newValue: JSON.stringify({ contributionCents: riskContributionCents }),
+      actorType: 'system',
+    });
+
+    // Fetch clinic's Stripe Connect account
+    const [clinic] = await tx
+      .select({ stripeAccountId: clinics.stripeAccountId })
+      .from(clinics)
+      .where(eq(clinics.id, plan.clinicId))
+      .limit(1);
+
+    if (!clinic?.stripeAccountId) {
+      logger.warn('Clinic has no Stripe Connect account, skipping payout', {
+        clinicId: plan.clinicId,
+        paymentId,
+      });
+      return;
+    }
+
+    // Calculate transfer amount: payment amount minus platform fee portion
+    // Platform takes ~3% (6% fee charged to owner, split: 3% clinic share + ~3% FuzzyCat)
+    // But the fee is already baked into the total. The transfer to the clinic
+    // should be: payment amount minus the FuzzyCat platform share.
+    // FuzzyCat retains PLATFORM_FEE_RATE/2 of the original bill per payment.
+    // Simplified: transferAmount = paymentAmount - platformRetainedAmount
+    const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
+    const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
+
+    // Trigger payout outside transaction (Stripe API call)
+    // We store the intent to pay and handle the actual transfer after commit
+    await tx.insert(auditLog).values({
+      entityType: 'payment',
+      entityId: paymentId,
+      action: 'payout_initiated',
+      newValue: JSON.stringify({
+        clinicId: plan.clinicId,
+        transferAmountCents,
+        riskContributionCents,
+      }),
+      actorType: 'system',
+    });
+
+    // Note: The actual Stripe transfer call happens outside this function
+    // to avoid holding the transaction open during an external API call.
+    // The caller or a subsequent job should call transferToClinic().
+  });
+}
+
+/**
+ * Trigger the actual Stripe Connect payout to a clinic for a succeeded payment.
+ * This is separated from handlePaymentSuccess to avoid holding a DB transaction
+ * open during external Stripe API calls.
+ */
+export async function triggerPayout(paymentId: string): Promise<void> {
+  const [payment] = await db
+    .select({
+      id: payments.id,
+      planId: payments.planId,
+      amountCents: payments.amountCents,
+      status: payments.status,
+    })
+    .from(payments)
+    .where(eq(payments.id, paymentId))
+    .limit(1);
+
+  if (!payment || payment.status !== 'succeeded') {
+    logger.warn('Cannot trigger payout for non-succeeded payment', { paymentId });
+    return;
+  }
+
+  if (!payment.planId) return;
+
+  const [plan] = await db
+    .select({ clinicId: plans.clinicId })
+    .from(plans)
+    .where(eq(plans.id, payment.planId))
+    .limit(1);
+
+  if (!plan?.clinicId) return;
+
+  const [clinic] = await db
+    .select({ stripeAccountId: clinics.stripeAccountId })
+    .from(clinics)
+    .where(eq(clinics.id, plan.clinicId))
+    .limit(1);
+
+  if (!clinic?.stripeAccountId) {
+    logger.warn('Clinic has no Stripe Connect account for payout', {
+      clinicId: plan.clinicId,
+      paymentId,
+    });
+    return;
+  }
+
+  const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
+  const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
+  const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
+
+  if (transferAmountCents <= 0) {
+    logger.warn('Transfer amount is zero or negative, skipping payout', {
+      paymentId,
+      transferAmountCents,
+    });
+    return;
+  }
+
+  await transferToClinic({
+    paymentId,
+    planId: payment.planId,
+    clinicId: plan.clinicId,
+    clinicStripeAccountId: clinic.stripeAccountId,
+    transferAmountCents,
+  });
+}
+
+/**
+ * Handle a failed payment. Updates the payment status to failed,
+ * records the failure reason, and logs an audit entry.
+ * If the payment has exceeded MAX_RETRIES, it will NOT be retried again.
+ */
+export async function handlePaymentFailure(paymentId: string, reason: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [payment] = await tx
+      .select({
+        id: payments.id,
+        status: payments.status,
+        retryCount: payments.retryCount,
+        planId: payments.planId,
+      })
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .limit(1);
+
+    if (!payment) {
+      throw new Error(`Payment not found: ${paymentId}`);
+    }
+
+    if (payment.status === 'failed' || payment.status === 'written_off') {
+      logger.warn('Payment already in terminal failure state, skipping', {
+        paymentId,
+        status: payment.status,
+      });
+      return;
+    }
+
+    const oldStatus = payment.status;
+    const currentRetryCount = payment.retryCount ?? 0;
+    const isMaxRetries = currentRetryCount >= MAX_RETRIES;
+
+    await tx
+      .update(payments)
+      .set({
+        status: isMaxRetries ? 'written_off' : 'failed',
+        failureReason: reason,
+      })
+      .where(eq(payments.id, paymentId));
+
+    await tx.insert(auditLog).values({
+      entityType: 'payment',
+      entityId: paymentId,
+      action: 'status_changed',
+      oldValue: JSON.stringify({ status: oldStatus }),
+      newValue: JSON.stringify({
+        status: isMaxRetries ? 'written_off' : 'failed',
+        failureReason: reason,
+        retryCount: currentRetryCount,
+      }),
+      actorType: 'system',
+    });
+
+    if (isMaxRetries) {
+      logger.warn('Payment exhausted retries, written off', {
+        paymentId,
+        retryCount: currentRetryCount,
+        planId: payment.planId,
+      });
+    }
+  });
+}

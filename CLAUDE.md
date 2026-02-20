@@ -40,10 +40,10 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 | Sentry | Configured (`fuzzycatapp` / `javascript-nextjs`) |
 | PostHog | Configured (Project `318239`, US Cloud) |
 | Vercel | Configured (`fuzzy-cat-apps-projects`, `fuzzycatapp.com`) |
-| Stripe | Not configured |
-| Plaid | Not configured |
-| Resend | Not configured |
-| Twilio | Not configured |
+| Stripe | Configured (test mode, webhook endpoint on `fuzzycatapp.com`) |
+| Plaid | Configured (sandbox) |
+| Resend | Configured |
+| Twilio | Configured (trial account) |
 
 All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Vercel env vars (production). Never commit secrets.
 
@@ -103,23 +103,33 @@ fuzzycat/
 │   ├── logger.ts                 # Structured JSON logger
 │   ├── rate-limit.ts             # Upstash Redis rate limiter
 │   ├── stripe.ts                 # Stripe client singleton
+│   ├── plaid.ts                  # Plaid client singleton
+│   ├── resend.ts                 # Resend email client singleton
+│   ├── twilio.ts                 # Twilio SMS client singleton
 │   ├── constants.ts              # Business constants (fees, rates)
 │   ├── supabase/                 # Supabase client (browser + server)
 │   └── utils/
 │       ├── money.ts              # Integer cents helpers
+│       ├── phone.ts              # Phone number validation (E.164)
 │       └── schedule.ts           # Payment schedule calculator
 ├── server/
 │   ├── db/
 │   │   ├── index.ts              # Drizzle client
 │   │   └── schema.ts             # Drizzle schema (source of truth)
-│   ├── routers/                  # tRPC routers
+│   ├── emails/                   # React Email templates (7 templates)
+│   ├── routers/                  # tRPC routers (enrollment, payment, payout, plaid, admin)
 │   ├── services/
 │   │   ├── stripe/               # Stripe API layer (checkout, ach, connect, customer)
-│   │   ├── enrollment.ts         # Enrollment business logic (stub)
-│   │   ├── payment.ts            # Payment processing (stub)
-│   │   ├── payout.ts             # Clinic payouts (stub)
-│   │   ├── collection.ts         # Retry logic (stub)
-│   │   └── guarantee.ts          # Risk pool (stub)
+│   │   ├── audit.ts              # Audit log service (compliance-critical)
+│   │   ├── authorization.ts      # Role-based access control helpers
+│   │   ├── email.ts              # Email send functions (Resend)
+│   │   ├── enrollment.ts         # Enrollment business logic
+│   │   ├── payment.ts            # Payment processing
+│   │   ├── payout.ts             # Clinic payouts
+│   │   ├── plaid.ts              # Plaid Link + balance check
+│   │   ├── collection.ts         # Failed payment retry logic
+│   │   ├── guarantee.ts          # Risk pool (contributions, claims, recoveries)
+│   │   └── sms.ts                # SMS notifications (Twilio)
 │   └── trpc.ts                   # tRPC init
 ├── types/                        # Shared TypeScript types
 ├── scripts/                      # seed.ts, create-admin.ts
@@ -147,6 +157,99 @@ PAYOUTS:
   1. Stripe Connect transfer to clinic after each successful installment
   2. Transfer = installment minus FuzzyCat share; clinic's 3% bonus included
 ```
+
+## User Stories (Unvalidated Hypotheses)
+
+These are early-stage hypotheses about pet owner needs. They may be wrong. Use them as directional guidance for frontend work, not as rigid specs.
+
+- As a pet owner, I want to see all my payment dates clearly displayed so that I can plan my finances.
+- As a pet owner, I want to access a payment history screen so that I can track completed and upcoming payments.
+- As a pet owner, I want a simple way to create an account so that I can register for FuzzyCat.
+- As a pet owner, I want a simple way to add my pet & plan details so that I can see the details of my plan.
+- As a pet owner, I want a simple way to link my bank account so that payments can be made automatically.
+- As a pet owner, I want to receive notifications if a payment fails so that I can quickly resolve the issue.
+
+## Development Workflow
+
+### Parallel Agent Workflow (Standard)
+
+When working on multiple issues concurrently, use **git worktrees** for isolation:
+
+```bash
+# Setup (one worktree per issue)
+mkdir -p /path/to/fuzzycat-worktrees
+git worktree add /path/to/fuzzycat-worktrees/issue-N -b feat/branch-name origin/main
+cd /path/to/fuzzycat-worktrees/issue-N && bun install --frozen-lockfile
+```
+
+Each sub-agent gets its own worktree and follows this lifecycle:
+
+1. **Read the issue ticket** on GitHub (`gh issue view N`)
+2. **Read CLAUDE.md** and relevant existing code
+3. **Implement** the feature with tests
+4. **Verify locally**: `bun test`, `bun run check`, `bun run typecheck`
+5. **Commit** with conventional commit format (`feat:`, `fix:`, `chore:`)
+6. **Push** to origin (`git push -u origin feat/branch-name`)
+7. **Create PR** (`gh pr create --title "..." --body "..."`)
+8. **Wait for CI** — poll `gh pr checks N` until all 16 checks pass
+9. **Read review comments** — `gh api repos/Vero-Ventures/fuzzycat/pulls/N/comments`
+10. **Fix review comments**, commit, push
+11. **Reply to each comment** — `gh api repos/Vero-Ventures/fuzzycat/pulls/comments/ID/replies -f body="FIXED: ..."`
+12. **Wait for CI** again after fixes
+13. **Merge** — `gh pr merge N --squash --delete-branch`
+14. If merge fails (branch not up to date), **rebase on main** and push again
+
+After all PRs merge, clean up:
+```bash
+git worktree remove /path/to/fuzzycat-worktrees/issue-N
+git pull origin main
+```
+
+### Gemini CLI Offloading
+
+Use `gemini --yolo` to offload appropriate tasks and conserve Claude tokens:
+
+```bash
+# Example: generate boilerplate
+gemini --yolo "Generate a React component for a payment history table with columns: date, amount, status, type. Use Tailwind CSS. TypeScript. No emojis." > /tmp/output.tsx
+
+# Example: generate test fixtures
+gemini --yolo "Generate 15 realistic seed records for a veterinary clinic payments table. Fields: id (uuid), planId (uuid), type (deposit|installment), sequenceNum (0-6), amountCents (integer), status, scheduledAt. Output as TypeScript array." > /tmp/fixtures.ts
+```
+
+**Good for Gemini:**
+- Boilerplate React components (repetitive UI structure)
+- Test fixture / seed data generation
+- Documentation and JSDoc comments
+- Regex patterns, SQL queries from natural language
+- Simple single-file utilities
+- CSS/Tailwind patterns
+- Translating between formats (JSON <-> TypeScript types)
+
+**Keep on Claude:**
+- Multi-file coordinated changes
+- Git operations, PR workflows, CI monitoring
+- Security-sensitive logic (payments, auth, PCI)
+- Tasks requiring conversation history or project context
+- Iterative debugging across files
+- Architectural decisions
+
+Always **review Gemini output** before applying — treat it as a draft, not final code.
+
+### Testing Requirements
+
+- All new features must include unit tests
+- Mock external services (Stripe, Plaid, Twilio, Resend) — never call real APIs in tests
+- Bun's `mock.module()` is **global across test files** in the same process — be careful not to poison mocks between test files
+- Run the full suite (`bun test`) before pushing, not just individual test files
+
+### PR Review Comment Protocol
+
+When addressing review comments:
+1. Read the comment carefully
+2. Make the code change
+3. Reply with `FIXED: <concise one-liner>` using the GitHub API
+4. Do NOT reply to ask for clarification — just fix it or make a reasonable judgment call
 
 ## Confidentiality
 

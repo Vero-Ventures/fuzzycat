@@ -1,5 +1,6 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
+  check,
   index,
   inet,
   integer,
@@ -8,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -41,7 +43,7 @@ export const clinics = pgTable('clinics', {
   authId: text('auth_id').unique(),
   name: text('name').notNull(),
   phone: text('phone').notNull(),
-  email: text('email').notNull(),
+  email: text('email').notNull().unique(),
   addressLine1: text('address_line1'),
   addressCity: text('address_city'),
   addressState: text('address_state').notNull(),
@@ -58,7 +60,7 @@ export const owners = pgTable('owners', {
   authId: text('auth_id').unique(),
   clinicId: uuid('clinic_id').references(() => clinics.id),
   name: text('name').notNull(),
-  email: text('email').notNull(),
+  email: text('email').notNull().unique(),
   phone: text('phone').notNull(),
   addressLine1: text('address_line1'),
   addressCity: text('address_city'),
@@ -120,6 +122,8 @@ export const payments = pgTable(
     index('idx_payments_plan').on(table.planId),
     index('idx_payments_scheduled').on(table.scheduledAt),
     index('idx_payments_status').on(table.status),
+    unique('uq_payments_plan_sequence').on(table.planId, table.sequenceNum),
+    check('ck_payments_amount_positive', sql`${table.amountCents} > 0`),
   ],
 );
 
@@ -137,7 +141,10 @@ export const payouts = pgTable(
     status: payoutStatusEnum('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
-  (table) => [index('idx_payouts_clinic').on(table.clinicId)],
+  (table) => [
+    index('idx_payouts_clinic').on(table.clinicId),
+    check('ck_payouts_amount_positive', sql`${table.amountCents} > 0`),
+  ],
 );
 
 // ── Risk pool (guarantee fund) ──────────────────────────────────────

@@ -5,6 +5,7 @@ import { enrollmentRouter } from './enrollment';
 import { ownerRouter } from './owner';
 import { paymentRouter } from './payment';
 import { payoutRouter } from './payout';
+import { plaidRouter } from './plaid';
 import { planRouter } from './plan';
 
 export const appRouter = router({
@@ -17,6 +18,7 @@ export const appRouter = router({
   plan: planRouter,
   payment: paymentRouter,
   payout: payoutRouter,
+  plaid: plaidRouter,
   admin: adminRouter,
 });
 

@@ -104,6 +104,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       status: 'succeeded',
       stripePaymentIntentId: paymentIntentId,
       processedAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntentId));
 
@@ -134,6 +135,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     .set({
       status: 'active',
       depositPaidAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(plans.id, existingPayment.planId));
 
@@ -173,6 +175,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     .set({
       status: 'succeeded',
       processedAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 
@@ -205,7 +208,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 
       await tx
         .update(plans)
-        .set({ status: 'completed', completedAt: new Date() })
+        .set({ status: 'completed', completedAt: new Date(), updatedAt: new Date() })
         .where(eq(plans.id, existingPayment.planId ?? ''));
 
       await tx.insert(auditLog).values({
@@ -245,6 +248,7 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
       status: 'failed',
       failureReason,
       retryCount: sql`coalesce(${payments.retryCount}, 0) + 1`,
+      updatedAt: new Date(),
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 

@@ -49,6 +49,7 @@ export async function createDepositCheckoutSession(params: {
     .set({
       status: 'processing',
       stripePaymentIntentId: paymentIntentId,
+      updatedAt: new Date(),
     })
     .where(eq(payments.id, params.paymentId));
 

@@ -31,10 +31,16 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Refresh session — required by @supabase/ssr to keep cookies in sync
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresh session — required by @supabase/ssr to keep cookies in sync.
+  // Wrapped in try/catch so the middleware doesn't crash if Supabase is unreachable
+  // (e.g. CI environments, transient outages). Treat as unauthenticated on failure.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // Supabase unreachable — treat as unauthenticated
+  }
 
   const { pathname } = request.nextUrl;
 

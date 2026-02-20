@@ -9,7 +9,9 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   STRIPE_SECRET_KEY: z.string().startsWith('sk_', 'STRIPE_SECRET_KEY must start with sk_'),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .startsWith('whsec_', 'STRIPE_WEBHOOK_SECRET must start with whsec_'),
   RESEND_API_KEY: z.string().startsWith('re_', 'RESEND_API_KEY must start with re_'),
   TWILIO_ACCOUNT_SID: z.string().startsWith('AC', 'TWILIO_ACCOUNT_SID must start with AC'),
   TWILIO_AUTH_TOKEN: z.string().min(1, 'TWILIO_AUTH_TOKEN is required'),

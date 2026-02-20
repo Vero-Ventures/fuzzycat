@@ -10,6 +10,18 @@ mock.module('@/lib/stripe', () => ({
   }),
 }));
 
+// Set env vars so serverEnv() validates successfully when the route imports it.
+// We do NOT mock @/lib/env to avoid contaminating other test files that import
+// validateEnv (Bun's mock.module is global per test run).
+process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
+process.env.STRIPE_SECRET_KEY = 'sk_test_abc123';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+process.env.TWILIO_ACCOUNT_SID = 'ACtest1234567890abcdef1234567890ab';
+process.env.TWILIO_AUTH_TOKEN = 'test-twilio-auth-token';
+process.env.TWILIO_PHONE_NUMBER = '+15551234567';
+process.env.RESEND_API_KEY = 're_test_abc123';
+
 const mockSelectFrom = mock();
 const mockSelectWhere = mock();
 const mockSelectLimit = mock();
@@ -62,7 +74,11 @@ mock.module('@/server/db', () => ({
 
 mock.module('@/server/db/schema', () => ({
   owners: { id: 'owners.id', stripeCustomerId: 'owners.stripe_customer_id' },
-  clinics: { id: 'clinics.id' },
+  clinics: {
+    id: 'clinics.id',
+    stripeAccountId: 'clinics.stripe_account_id',
+    status: 'clinics.status',
+  },
   plans: { id: 'plans.id', status: 'plans.status' },
   payments: {
     id: 'payments.id',
@@ -128,8 +144,6 @@ function stripeEvent(type: string, data: Record<string, unknown>) {
 
 describe('Stripe webhook handler', () => {
   beforeEach(() => {
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_secret';
-
     // select chain: select() -> from() -> where() -> limit()
     mockSelectLimit.mockResolvedValue([]);
     mockSelectWhere.mockReturnValue({ limit: mockSelectLimit });
@@ -181,22 +195,7 @@ describe('Stripe webhook handler', () => {
     expect(body.error).toContain('signature verification failed');
   });
 
-  it('returns 500 when webhook secret is missing in production', async () => {
-    const env = process.env as Record<string, string | undefined>;
-    const originalEnv = env.NODE_ENV;
-    process.env.STRIPE_WEBHOOK_SECRET = '';
-    env.NODE_ENV = 'production';
-
-    const response = await POST(makeRequest('{}'));
-
-    expect(response.status).toBe(500);
-    const body = await response.json();
-    expect(body.error).toContain('Webhook secret not configured');
-
-    env.NODE_ENV = originalEnv;
-  });
-
-  it('returns 400 when signature is missing but secret is configured', async () => {
+  it('returns 400 when signature is missing', async () => {
     const request = new Request('https://app.example.com/api/webhooks/stripe', {
       method: 'POST',
       body: '{}',
@@ -253,6 +252,45 @@ describe('Stripe webhook handler', () => {
         }),
       );
     });
+
+    it('skips processing when payment is already succeeded (idempotency)', async () => {
+      const event = stripeEvent('checkout.session.completed', {
+        payment_intent: 'pi_deposit_dup',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Payment already succeeded
+      mockSelectLimit.mockResolvedValueOnce([
+        { id: 'pay-1', status: 'succeeded', planId: 'plan-1' },
+      ]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should NOT update payment or plan
+      expect(mockUpdateSet).not.toHaveBeenCalled();
+    });
+
+    it('skips plan activation when plan is already active', async () => {
+      const event = stripeEvent('checkout.session.completed', {
+        payment_intent: 'pi_deposit_456',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Payment is processing (not yet succeeded)
+      mockSelectLimit
+        .mockResolvedValueOnce([{ id: 'pay-1', status: 'processing', planId: 'plan-1' }])
+        // Plan is already active
+        .mockResolvedValueOnce([{ id: 'plan-1', status: 'active' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Payment update happens (first call)
+      expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+      // But plan update should NOT happen (only 1 update call total for payment)
+      expect(mockUpdateSet).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('payment_intent.succeeded', () => {
@@ -274,6 +312,24 @@ describe('Stripe webhook handler', () => {
 
       expect(response.status).toBe(200);
       expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+    });
+
+    it('skips processing when payment is already succeeded (idempotency)', async () => {
+      const event = stripeEvent('payment_intent.succeeded', {
+        id: 'pi_installment_dup',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Payment already succeeded
+      mockSelectLimit.mockResolvedValueOnce([
+        { id: 'pay-2', status: 'succeeded', planId: 'plan-1' },
+      ]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should NOT update payment
+      expect(mockUpdateSet).not.toHaveBeenCalled();
     });
 
     it('completes plan inside transaction when all payments succeeded', async () => {
@@ -331,7 +387,7 @@ describe('Stripe webhook handler', () => {
         { status: 'succeeded' },
       ]);
 
-      // Plan already completed — should skip update
+      // Plan already completed -- should skip update
       mockTxSelectWhere.mockResolvedValue([{ id: 'plan-1', status: 'completed' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
@@ -370,6 +426,87 @@ describe('Stripe webhook handler', () => {
           newValue: JSON.stringify({ status: 'failed', failureReason: 'Insufficient funds' }),
         }),
       );
+    });
+  });
+
+  describe('account.updated', () => {
+    it('activates a pending clinic when fully onboarded', async () => {
+      const event = stripeEvent('account.updated', {
+        id: 'acct_clinic_123',
+        charges_enabled: true,
+        payouts_enabled: true,
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Fetch clinic by stripeAccountId
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'clinic-1', status: 'pending' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Verify clinic status update
+      expect(mockUpdateSet).toHaveBeenCalledWith({ status: 'active' });
+      // Verify audit log
+      expect(mockInsertValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: 'clinic',
+          entityId: 'clinic-1',
+          action: 'status_changed',
+          oldValue: JSON.stringify({ status: 'pending' }),
+          actorType: 'system',
+        }),
+      );
+    });
+
+    it('skips activation when clinic is already active', async () => {
+      const event = stripeEvent('account.updated', {
+        id: 'acct_clinic_123',
+        charges_enabled: true,
+        payouts_enabled: true,
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Clinic already active
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'clinic-1', status: 'active' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should NOT update clinic
+      expect(mockUpdateSet).not.toHaveBeenCalled();
+    });
+
+    it('skips activation when charges are not enabled', async () => {
+      const event = stripeEvent('account.updated', {
+        id: 'acct_clinic_123',
+        charges_enabled: false,
+        payouts_enabled: true,
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'clinic-1', status: 'pending' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      expect(mockUpdateSet).not.toHaveBeenCalled();
+    });
+
+    it('skips when no matching clinic is found', async () => {
+      const event = stripeEvent('account.updated', {
+        id: 'acct_unknown',
+        charges_enabled: true,
+        payouts_enabled: true,
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // No clinic found
+      mockSelectLimit.mockResolvedValueOnce([]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      expect(mockUpdateSet).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,19 +1,21 @@
 import { eq, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
+import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
-import { auditLog, payments, plans } from '@/server/db/schema';
+import { auditLog, clinics, payments, plans } from '@/server/db/schema';
 
 /**
  * Stripe webhook handler.
  *
- * Verifies the webhook signature, then routes to the appropriate handler
- * based on the event type. All payment state changes are logged to the
- * audit_log table for compliance.
+ * Verifies the webhook signature using the validated STRIPE_WEBHOOK_SECRET,
+ * then routes to the appropriate handler based on the event type.
+ * All payment state changes are logged to the audit_log table for compliance.
  *
- * Required env: STRIPE_WEBHOOK_SECRET (required in production, optional in dev).
+ * Idempotency: handlers check the current status before updating to avoid
+ * duplicate processing from Stripe's at-least-once delivery.
  */
 export async function POST(request: Request) {
   const body = await request.text();
@@ -22,21 +24,14 @@ export async function POST(request: Request) {
   let event: Stripe.Event;
 
   try {
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const { STRIPE_WEBHOOK_SECRET } = serverEnv();
 
-    if (!webhookSecret) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.error('STRIPE_WEBHOOK_SECRET is not set in production environment');
-        return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
-      }
-      // In development without webhook secret, parse the body directly.
-      event = JSON.parse(body) as Stripe.Event;
-    } else if (signature) {
-      event = stripe().webhooks.constructEvent(body, signature, webhookSecret);
-    } else {
+    if (!signature) {
       logger.error('Stripe webhook signature missing');
       return NextResponse.json({ error: 'Webhook signature missing' }, { status: 400 });
     }
+
+    event = stripe().webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('Stripe webhook signature verification failed', { error: message });
@@ -58,12 +53,11 @@ export async function POST(request: Request) {
         break;
 
       case 'account.updated':
-        // Stripe Connect: clinic onboarding status changes.
-        // Will be implemented when Connect onboarding is built.
+        await handleAccountUpdated(event.data.object as Stripe.Account);
         break;
 
       default:
-        // Unhandled event type — log but don't fail.
+        // Unhandled event type -- log but don't fail.
         break;
     }
   } catch (err) {
@@ -79,6 +73,7 @@ export async function POST(request: Request) {
  * Handle successful Checkout Session (deposit payment).
  * Fetches current state before updating for accurate audit logs.
  * Updates the payment record and transitions the plan to active.
+ * Skips processing if the payment is already succeeded (idempotency).
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const paymentIntentId =
@@ -96,6 +91,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     .limit(1);
 
   if (!existingPayment) return;
+
+  // Idempotency: skip if already processed
+  if (existingPayment.status === 'succeeded') return;
 
   const oldPaymentStatus = existingPayment.status;
 
@@ -128,6 +126,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   if (!existingPlan) return;
 
+  // Idempotency: skip if plan is already active or beyond
+  if (existingPlan.status !== 'pending' && existingPlan.status !== 'deposit_paid') return;
+
   const oldPlanStatus = existingPlan.status;
 
   await db
@@ -152,6 +153,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
  * Handle successful PaymentIntent (installment ACH payment).
  * Fetches current state before updating for accurate audit logs.
  * Uses a transaction for plan completion to prevent race conditions.
+ * Skips processing if the payment is already succeeded (idempotency).
  */
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   // Fetch current payment state before updating
@@ -166,6 +168,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     .limit(1);
 
   if (!existingPayment) return;
+
+  // Idempotency: skip if already processed
+  if (existingPayment.status === 'succeeded') return;
 
   const oldPaymentStatus = existingPayment.status;
 
@@ -257,4 +262,41 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     newValue: JSON.stringify({ status: 'failed', failureReason }),
     actorType: 'system',
   });
+}
+
+/**
+ * Handle Stripe Connect account.updated events.
+ * When a clinic completes Stripe Connect onboarding (charges_enabled + payouts_enabled),
+ * transition the clinic status from 'pending' to 'active'.
+ */
+async function handleAccountUpdated(account: Stripe.Account) {
+  if (!account.id) return;
+
+  const [clinic] = await db
+    .select({ id: clinics.id, status: clinics.status })
+    .from(clinics)
+    .where(eq(clinics.stripeAccountId, account.id))
+    .limit(1);
+
+  if (!clinic) return;
+
+  const isFullyOnboarded = account.charges_enabled && account.payouts_enabled;
+
+  if (isFullyOnboarded && clinic.status === 'pending') {
+    await db.update(clinics).set({ status: 'active' }).where(eq(clinics.id, clinic.id));
+
+    await db.insert(auditLog).values({
+      entityType: 'clinic',
+      entityId: clinic.id,
+      action: 'status_changed',
+      oldValue: JSON.stringify({ status: 'pending' }),
+      newValue: JSON.stringify({ status: 'active', chargesEnabled: true, payoutsEnabled: true }),
+      actorType: 'system',
+    });
+
+    logger.info('Clinic activated via Stripe Connect onboarding', {
+      clinicId: clinic.id,
+      stripeAccountId: account.id,
+    });
+  }
 }

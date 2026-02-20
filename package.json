@@ -29,6 +29,11 @@
     "db:create-admin": "bun run scripts/create-admin.ts"
   },
   "dependencies": {
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@react-email/components": "^1.0.8",
     "@sentry/nextjs": "^10.39.0",
     "@supabase/ssr": "^0.8.0",

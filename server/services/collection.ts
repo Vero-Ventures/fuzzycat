@@ -1,4 +1,4 @@
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, inArray, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { db } from '@/server/db';
 import { auditLog, payments, plans, riskPool } from '@/server/db/schema';
@@ -173,7 +173,7 @@ export async function escalateDefault(planId: string): Promise<void> {
       .where(
         and(
           eq(payments.planId, planId),
-          sql`${payments.status} in ('pending', 'failed', 'retried', 'written_off')`,
+          inArray(payments.status, ['pending', 'failed', 'retried', 'written_off']),
         ),
       );
 
@@ -225,7 +225,7 @@ export async function escalateDefault(planId: string): Promise<void> {
       .where(
         and(
           eq(payments.planId, planId),
-          sql`${payments.status} in ('pending', 'failed', 'retried')`,
+          inArray(payments.status, ['pending', 'failed', 'retried']),
         ),
       );
 

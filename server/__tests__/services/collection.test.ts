@@ -106,6 +106,7 @@ mock.module('drizzle-orm', () => ({
   eq: (col: string, val: unknown) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
   lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
+  inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     strings: [...strings],
     values,
@@ -288,6 +289,8 @@ describe('retryFailedPayment', () => {
   });
 
   it('schedules retry 3 days in the future', async () => {
+    const beforeCall = new Date();
+
     mockTxSelectLimit.mockResolvedValueOnce([
       { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1' },
     ]);
@@ -298,13 +301,12 @@ describe('retryFailedPayment', () => {
       scheduledAt: Date;
     };
     const scheduledAt = setCall.scheduledAt;
-    const now = new Date();
-    const diffMs = scheduledAt.getTime() - now.getTime();
+    const diffMs = scheduledAt.getTime() - beforeCall.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
-    // Should be approximately 3 days in the future (allow small margin)
-    expect(diffDays).toBeGreaterThan(2.9);
-    expect(diffDays).toBeLessThan(3.1);
+    // Should be approximately 3 days in the future (allow margin for execution time)
+    expect(diffDays).toBeGreaterThanOrEqual(2.9);
+    expect(diffDays).toBeLessThanOrEqual(3.1);
   });
 });
 

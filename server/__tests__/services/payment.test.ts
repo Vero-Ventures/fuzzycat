@@ -141,6 +141,7 @@ mock.module('@/server/db/schema', () => ({
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
+  inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     strings: [...strings],
     values,
@@ -284,9 +285,7 @@ describe('processDeposit', () => {
       .mockResolvedValueOnce([{ id: 'pay-1', status: 'pending' }])
       .mockResolvedValueOnce([{ stripeCustomerId: 'cus_123' }]);
 
-    // Also mock the insert chain for audit log (called by createDepositCheckoutSession)
-    mockInsertValues.mockResolvedValue([]);
-    mockInsert.mockReturnValue({ values: mockInsertValues });
+    // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processDeposit({
       planId: 'plan-1',
@@ -373,8 +372,7 @@ describe('processInstallment', () => {
       .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeCustomerId: 'cus_456' }]);
 
-    mockInsertValues.mockResolvedValue([]);
-    mockInsert.mockReturnValue({ values: mockInsertValues });
+    // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processInstallment({ paymentId: 'pay-2' });
 
@@ -397,8 +395,7 @@ describe('processInstallment', () => {
       .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeCustomerId: 'cus_456' }]);
 
-    mockInsertValues.mockResolvedValue([]);
-    mockInsert.mockReturnValue({ values: mockInsertValues });
+    // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processInstallment({ paymentId: 'pay-3' });
 

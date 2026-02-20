@@ -3,26 +3,33 @@ import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/cons
 import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
+// Instead of mocking @/server/services/stripe/connect (which leaks into
+// connect.test.ts due to Bun's global mock.module scope), we mock the
+// underlying dependencies: @/lib/stripe and @/server/db. This lets
+// transferToClinic run its real logic against mocked Stripe + DB.
 
-const mockTransferToClinic = mock(() =>
-  Promise.resolve({
-    transferId: 'tr_mock_123',
-    payoutRecord: { id: 'payout-mock-1' },
+const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_payout_789' }));
+
+mock.module('@/lib/stripe', () => ({
+  stripe: () => ({
+    accounts: { create: mock() },
+    accountLinks: { create: mock() },
+    transfers: { create: mockTransfersCreate },
   }),
-);
-
-mock.module('@/server/services/stripe/connect', () => ({
-  transferToClinic: mockTransferToClinic,
 }));
 
 import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
+// ── DB mock: superset of all methods used by payout.ts + connect.ts ──
+
 const mockFindFirstPayments = mock();
 const mockFindFirstPayouts = mock();
 
 const mockSelect = mock();
+const mockUpdate = mock();
+const mockInsert = mock();
 
 mock.module('@/server/db', () => ({
   db: {
@@ -31,7 +38,8 @@ mock.module('@/server/db', () => ({
       payouts: { findFirst: mockFindFirstPayouts },
     },
     select: mockSelect,
-    insert: mock(() => ({ values: mock(() => ({ returning: mock(() => []) })) })),
+    update: mockUpdate,
+    insert: mockInsert,
     transaction: mock(),
   },
 }));
@@ -213,38 +221,63 @@ describe('processClinicPayout', () => {
   beforeEach(() => {
     mockFindFirstPayments.mockResolvedValue(validPayment);
     mockFindFirstPayouts.mockResolvedValue(null); // No existing payout
-    mockTransferToClinic.mockResolvedValue({
-      transferId: 'tr_mock_123',
-      payoutRecord: { id: 'payout-mock-1' },
+    mockTransfersCreate.mockResolvedValue({ id: 'tr_payout_789' });
+
+    // Mock insert chain for transferToClinic (called by processClinicPayout):
+    //   1st call: db.insert(payouts).values(...).returning() -> payout record
+    //   2nd call: db.insert(auditLog).values(...) -> void
+    let insertCallCount = 0;
+    mockInsert.mockImplementation(() => {
+      insertCallCount++;
+      const callNum = insertCallCount;
+      if (callNum === 1) {
+        // Payout record insert with returning()
+        return {
+          values: mock(() => ({
+            returning: mock(() => Promise.resolve([{ id: 'payout-mock-1' }])),
+          })),
+        };
+      }
+      // Audit log insert without returning()
+      return {
+        values: mock(() => Promise.resolve([])),
+      };
     });
   });
 
   afterEach(() => {
     mockFindFirstPayments.mockClear();
     mockFindFirstPayouts.mockClear();
-    mockTransferToClinic.mockClear();
+    mockTransfersCreate.mockClear();
+    mockInsert.mockClear();
   });
 
   it('processes a payout for a succeeded payment', async () => {
     const result = await processClinicPayout('pay-1');
 
     expect(result.payoutId).toBe('payout-mock-1');
-    expect(result.stripeTransferId).toBe('tr_mock_123');
+    expect(result.stripeTransferId).toBe('tr_payout_789');
     expect(result.breakdown.paymentAmountCents).toBe(15_900);
   });
 
-  it('calls transferToClinic with correct parameters', async () => {
+  it('calls transferToClinic with correct parameters via Stripe', async () => {
     await processClinicPayout('pay-1');
 
     const breakdown = calculatePayoutBreakdown(15_900);
 
-    expect(mockTransferToClinic).toHaveBeenCalledWith({
-      paymentId: 'pay-1',
-      planId: 'plan-1',
-      clinicId: 'clinic-1',
-      clinicStripeAccountId: 'acct_clinic_123',
-      transferAmountCents: breakdown.transferAmountCents,
-    });
+    // Verify the Stripe transfer was called with the right amount and destination
+    expect(mockTransfersCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: breakdown.transferAmountCents,
+        currency: 'usd',
+        destination: 'acct_clinic_123',
+        metadata: expect.objectContaining({
+          paymentId: 'pay-1',
+          planId: 'plan-1',
+          clinicId: 'clinic-1',
+        }),
+      }),
+    );
   });
 
   it('returns the correct payout breakdown', async () => {
@@ -357,46 +390,42 @@ describe('processClinicPayout', () => {
 // ── getClinicPayoutHistory tests ─────────────────────────────────────
 
 describe('getClinicPayoutHistory', () => {
+  const payoutData = [
+    {
+      id: 'payout-1',
+      planId: 'plan-1',
+      paymentId: 'pay-1',
+      amountCents: 15_327,
+      clinicShareCents: 477,
+      stripeTransferId: 'tr_123',
+      status: 'succeeded',
+      createdAt: new Date('2026-02-01'),
+    },
+  ];
+
   beforeEach(() => {
-    const mockWhere = mock(() => ({
-      orderBy: mock(() => ({
-        limit: mock(() => ({
-          offset: mock(() =>
-            Promise.resolve([
-              {
-                id: 'payout-1',
-                planId: 'plan-1',
-                paymentId: 'pay-1',
-                amountCents: 15_327,
-                clinicShareCents: 477,
-                stripeTransferId: 'tr_123',
-                status: 'succeeded',
-                createdAt: new Date('2026-02-01'),
-              },
-            ]),
-          ),
-        })),
-      })),
-    }));
-
-    const mockCountWhere = mock(() => Promise.resolve([{ total: 1 }]));
-
-    // Track call count to return different behavior for data vs count queries
-    let callCount = 0;
-    mockSelect.mockImplementation(() => {
-      callCount++;
-      if (callCount % 2 === 1) {
-        // Data query
+    // Use argument-based differentiation instead of brittle callCount.
+    // The data query calls .from().where().orderBy().limit().offset(),
+    // while the count query calls .from().where() and resolves directly.
+    mockSelect.mockImplementation((fields: Record<string, unknown>) => {
+      if ('total' in fields) {
+        // Count query: db.select({ total: count() })
         return {
           from: mock(() => ({
-            where: mockWhere,
+            where: mock(() => Promise.resolve([{ total: 1 }])),
           })),
         };
       }
-      // Count query
+      // Data query: db.select({ id, planId, ... })
       return {
         from: mock(() => ({
-          where: mockCountWhere,
+          where: mock(() => ({
+            orderBy: mock(() => ({
+              limit: mock(() => ({
+                offset: mock(() => Promise.resolve(payoutData)),
+              })),
+            })),
+          })),
         })),
       };
     });
@@ -427,26 +456,26 @@ describe('getClinicPayoutHistory', () => {
 
 describe('getClinicEarnings', () => {
   beforeEach(() => {
-    let callCount = 0;
-    mockSelect.mockImplementation(() => {
-      callCount++;
-      if (callCount % 3 === 1) {
-        // Succeeded totals
+    // Use argument-based differentiation instead of brittle callCount.
+    // Each select call passes different field names, so we inspect the keys.
+    mockSelect.mockImplementation((fields: Record<string, unknown>) => {
+      if ('totalPayout' in fields) {
+        // Succeeded totals: db.select({ totalPayout, totalShare })
         return {
           from: mock(() => ({
             where: mock(() => Promise.resolve([{ totalPayout: '150000', totalShare: '4500' }])),
           })),
         };
       }
-      if (callCount % 3 === 2) {
-        // Pending totals
+      if ('pendingPayout' in fields) {
+        // Pending totals: db.select({ pendingPayout })
         return {
           from: mock(() => ({
             where: mock(() => Promise.resolve([{ pendingPayout: '15900' }])),
           })),
         };
       }
-      // Completed count
+      // Completed count: db.select({ completedCount })
       return {
         from: mock(() => ({
           where: mock(() => Promise.resolve([{ completedCount: 10 }])),

@@ -1,6 +1,7 @@
 import { publicProcedure, router } from '@/server/trpc';
 import { adminRouter } from './admin';
 import { clinicRouter } from './clinic';
+import { enrollmentRouter } from './enrollment';
 import { ownerRouter } from './owner';
 import { paymentRouter } from './payment';
 import { payoutRouter } from './payout';
@@ -11,6 +12,7 @@ export const appRouter = router({
     return { status: 'ok' as const, timestamp: new Date() };
   }),
   clinic: clinicRouter,
+  enrollment: enrollmentRouter,
   owner: ownerRouter,
   plan: planRouter,
   payment: paymentRouter,

@@ -30,13 +30,14 @@ function emit(entry: LogEntry) {
   } else {
     // Readable output for local development
     const { level, message, timestamp: _ts, ...rest } = payload;
+    const prefix = '['.concat(level, '] ', message);
     const extra = Object.keys(rest).length > 0 ? rest : undefined;
     if (level === 'error') {
-      console.error(`[${level}] ${message}`, extra ?? '');
+      console.error(prefix, extra ?? '');
     } else if (level === 'warn') {
-      console.warn(`[${level}] ${message}`, extra ?? '');
+      console.warn(prefix, extra ?? '');
     } else {
-      console.info(`[${level}] ${message}`, extra ?? '');
+      console.info(prefix, extra ?? '');
     }
   }
 }

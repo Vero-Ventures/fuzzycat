@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
@@ -68,6 +69,11 @@ async function deleteAuthUser(userId: string | null) {
 }
 
 export async function signUpOwner(formData: FormData): Promise<ActionResult> {
+  const { success: allowed } = await checkRateLimit();
+  if (!allowed) {
+    return { error: 'Too many requests. Please try again later.' };
+  }
+
   const parsed = ownerSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
@@ -100,6 +106,11 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
 }
 
 export async function signUpClinic(formData: FormData): Promise<ActionResult> {
+  const { success: allowed } = await checkRateLimit();
+  if (!allowed) {
+    return { error: 'Too many requests. Please try again later.' };
+  }
+
   const parsed = clinicSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {

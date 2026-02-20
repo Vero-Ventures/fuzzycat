@@ -59,17 +59,21 @@ export async function createOnboardingLink(params: {
 
 /**
  * Transfer funds to a clinic's Stripe Connect account after a successful payment.
- * Creates a payout record with the clinic's 3% share calculation.
+ *
+ * The caller (orchestration layer) computes the correct `transferAmountCents`,
+ * which is the payment amount minus the FuzzyCat platform fee. The 3% clinic
+ * bonus is included in `transferAmountCents` and tracked separately in the
+ * payout record as `clinicShareCents` for bookkeeping.
  */
 export async function transferToClinic(params: {
   paymentId: string;
   planId: string;
   clinicId: string;
   clinicStripeAccountId: string;
-  amountCents: number;
+  transferAmountCents: number;
 }): Promise<{ transferId: string; payoutRecord: { id: string } }> {
   const transfer = await stripe().transfers.create({
-    amount: params.amountCents,
+    amount: params.transferAmountCents,
     currency: 'usd',
     destination: params.clinicStripeAccountId,
     metadata: {
@@ -79,7 +83,7 @@ export async function transferToClinic(params: {
     },
   });
 
-  const clinicShareCents = percentOfCents(params.amountCents, CLINIC_SHARE_RATE);
+  const clinicShareCents = percentOfCents(params.transferAmountCents, CLINIC_SHARE_RATE);
 
   const [payoutRecord] = await db
     .insert(payouts)
@@ -87,7 +91,7 @@ export async function transferToClinic(params: {
       clinicId: params.clinicId,
       planId: params.planId,
       paymentId: params.paymentId,
-      amountCents: params.amountCents,
+      amountCents: params.transferAmountCents,
       clinicShareCents,
       stripeTransferId: transfer.id,
       status: 'succeeded',
@@ -99,7 +103,7 @@ export async function transferToClinic(params: {
     entityId: payoutRecord.id,
     action: 'created',
     newValue: JSON.stringify({
-      amountCents: params.amountCents,
+      amountCents: params.transferAmountCents,
       clinicShareCents,
       stripeTransferId: transfer.id,
     }),

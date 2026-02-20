@@ -134,7 +134,7 @@ describe('transferToClinic', () => {
     planId: 'plan-1',
     clinicId: 'clinic-1',
     clinicStripeAccountId: 'acct_clinic_123',
-    amountCents: 15_900,
+    transferAmountCents: 15_900,
   };
 
   beforeEach(() => {

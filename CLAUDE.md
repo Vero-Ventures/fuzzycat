@@ -47,6 +47,12 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 
 All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Vercel env vars (production). Never commit secrets.
 
+## Repository Rules
+
+- **`main` branch is protected.** No direct commits to main — ever. All changes go through feature branches and pull requests. PRs require CI checks to pass before merging.
+- **All work goes through PRs.** Even documentation-only changes (like CLAUDE.md updates) must be on their own branch with a PR.
+- **Squash merge** is the standard merge strategy. Use `gh pr merge N --squash --auto` or `gh pr merge N --squash --delete-branch`.
+
 ## Commands
 
 ```bash
@@ -89,15 +95,15 @@ Target SAQ A: FuzzyCat servers never touch card data. Use Stripe Checkout (hoste
 fuzzycat/
 ├── app/
 │   ├── (marketing)/              # Public pages (landing, how-it-works)
-│   ├── (auth)/                   # Login, signup flows
-│   ├── clinic/                   # Clinic portal (dashboard, clients, payouts, settings)
-│   ├── owner/                    # Pet owner portal (enroll, payments, settings)
-│   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk)
+│   ├── (auth)/                   # Login, signup, password reset flows
+│   ├── clinic/                   # Clinic portal (dashboard, clients, payouts, settings) [stubs]
+│   ├── owner/                    # Pet owner portal (enroll, payments, settings) [implemented]
+│   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk) [stubs]
 │   └── api/
 │       ├── webhooks/stripe/      # Stripe webhook handler
-│       ├── webhooks/plaid/       # Plaid webhook handler (stub)
+│       ├── webhooks/plaid/       # Plaid webhook handler
 │       └── trpc/                 # tRPC API handler
-├── components/                   # Shared UI components (shadcn/ui)
+├── components/ui/                # shadcn/ui components (14 installed)
 ├── lib/
 │   ├── env.ts                    # Zod-validated env vars
 │   ├── logger.ts                 # Structured JSON logger
@@ -107,17 +113,21 @@ fuzzycat/
 │   ├── resend.ts                 # Resend email client singleton
 │   ├── twilio.ts                 # Twilio SMS client singleton
 │   ├── constants.ts              # Business constants (fees, rates)
-│   ├── supabase/                 # Supabase client (browser + server)
+│   ├── auth.ts                   # Role extraction + role-based routing
+│   ├── supabase/                 # Supabase client (browser, server, admin, mfa)
+│   ├── posthog/                  # PostHog analytics (client, server, provider)
+│   ├── trpc/                     # tRPC client + React Query provider
 │   └── utils/
-│       ├── money.ts              # Integer cents helpers
+│       ├── money.ts              # Integer cents helpers (formatCents, toCents, etc.)
 │       ├── phone.ts              # Phone number validation (E.164)
+│       ├── date.ts               # Date formatting + countdown helpers
 │       └── schedule.ts           # Payment schedule calculator
 ├── server/
 │   ├── db/
 │   │   ├── index.ts              # Drizzle client
 │   │   └── schema.ts             # Drizzle schema (source of truth)
 │   ├── emails/                   # React Email templates (7 templates)
-│   ├── routers/                  # tRPC routers (enrollment, payment, payout, plaid, admin)
+│   ├── routers/                  # tRPC routers (enrollment, payment, payout, plaid, owner, clinic, plan, admin)
 │   ├── services/
 │   │   ├── stripe/               # Stripe API layer (checkout, ach, connect, customer)
 │   │   ├── audit.ts              # Audit log service (compliance-critical)
@@ -205,6 +215,20 @@ git worktree remove /path/to/fuzzycat-worktrees/issue-N
 git pull origin main
 ```
 
+### Post-Merge Review (Mandatory)
+
+After all sub-agents complete their work and all PRs are merged to main:
+
+1. **Verify no open PRs** — `gh pr list --state open` must return empty
+2. **Pull latest main** — `git checkout main && git pull origin main`
+3. **Clean up worktrees** — `git worktree remove /path/to/worktree` for each
+4. **Run full test suite** — `bun test` (all tests must pass)
+5. **Review project state** — check file structure, test coverage, and overall consistency
+6. **Update CLAUDE.md** — update implementation status, fix any stale documentation, add new utilities/components/routers that were added
+7. **Commit via PR** — create a `chore/` maintenance branch, commit changes, create PR, merge
+
+This ensures CLAUDE.md always reflects the true state of the repository and catches drift from parallel agent work.
+
 ### Gemini CLI Offloading
 
 Use `gemini --yolo` to offload appropriate tasks and conserve Claude tokens:
@@ -250,6 +274,42 @@ When addressing review comments:
 2. Make the code change
 3. Reply with `FIXED: <concise one-liner>` using the GitHub API
 4. Do NOT reply to ask for clarification — just fix it or make a reasonable judgment call
+
+## Implementation Status
+
+### Phase 1 — Completed
+
+| Area | Issues | Status |
+|------|--------|--------|
+| Project scaffold, Biome, Drizzle, tRPC, Auth, CI | #8–#14 | Done |
+| Backend services (enrollment, payment, payout, audit, risk pool) | #15–#18 | Done |
+| Stripe integration (Checkout, ACH, Connect, webhooks) | #19 | Done |
+| Plaid integration (Link, balance check, webhooks) | #20 | Done |
+| Resend email (7 React Email templates) | #21 | Done |
+| Twilio SMS (payment reminders, failure notifications) | #22 | Done |
+| Marketing pages (landing, how-it-works, interactive calculator) | #23 | Done |
+| Pet owner enrollment flow (5-step form, Plaid Link, Stripe Checkout) | #24 | Done |
+| Pet owner dashboard (payments, history, settings) | #25 | Done |
+
+### Phase 1 — Remaining
+
+| Area | Issues | Status |
+|------|--------|--------|
+| Clinic onboarding + Stripe Connect setup | #26 | Open |
+| Clinic dashboard (plans, payments, revenue, payouts) | #27 | Open |
+| Admin dashboard (metrics, clinic management, payments, risk) | #28 | Open |
+| Cat-themed UI design system refinement + CAPTCHA | #29 | Open |
+| PCI SAQ A self-assessment | #32 | Open (human) |
+| Pilot clinic recruitment | #33 | Open (human) |
+
+### Phase 0 (Human/Legal) — Outstanding
+
+Issues #1–#7: Regulatory attorney, business entity, DFPI registration, NDAs, trademarks, legal disclaimers. These block production launch but not development.
+
+### Test Suite
+
+368 unit tests across 27 test files. Bun test runner. All external services mocked.
+E2E smoke test via Playwright (runs separately with `bun run test:e2e`).
 
 ## Confidentiality
 

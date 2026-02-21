@@ -9,6 +9,7 @@ describe('env validation', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_abc123';
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = '0x4AAAAAAA_test_site_key';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
     process.env.STRIPE_SECRET_KEY = 'sk_test_abc123';
@@ -20,6 +21,7 @@ describe('env validation', () => {
     process.env.TWILIO_ACCOUNT_SID = 'ACtest1234567890abcdef1234567890ab';
     process.env.TWILIO_AUTH_TOKEN = 'test-twilio-auth-token';
     process.env.TWILIO_PHONE_NUMBER = '+15551234567';
+    process.env.TURNSTILE_SECRET_KEY = '0x4AAAAAAA_test_secret_key';
   });
 
   afterEach(() => {

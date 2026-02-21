@@ -23,6 +23,7 @@ const serverSchema = z.object({
   TWILIO_PHONE_NUMBER: z
     .string()
     .startsWith('+', 'TWILIO_PHONE_NUMBER must be in E.164 format (start with +)'),
+  TURNSTILE_SECRET_KEY: z.string().min(1, 'TURNSTILE_SECRET_KEY is required'),
   SENTRY_AUTH_TOKEN: z.string().optional(),
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
@@ -38,6 +39,7 @@ const publicSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z
     .string()
     .startsWith('pk_', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with pk_'),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1, 'NEXT_PUBLIC_TURNSTILE_SITE_KEY is required'),
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),

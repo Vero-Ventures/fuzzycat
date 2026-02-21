@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { verifyCaptcha } from '@/lib/captcha';
 import { logger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -26,6 +27,17 @@ const clinicSchema = z.object({
   addressState: z.string().length(2, 'State must be a 2-letter code.'),
   addressZip: z.string().min(5, 'ZIP code is required.'),
 });
+
+async function validateCaptcha(formData: FormData): Promise<ActionResult | null> {
+  if (process.env.TURNSTILE_SECRET_KEY) {
+    const captchaToken = formData.get('captchaToken') as string | null;
+    const captchaValid = await verifyCaptcha(captchaToken ?? '');
+    if (!captchaValid) {
+      return { error: 'CAPTCHA verification failed. Please try again.' };
+    }
+  }
+  return null;
+}
 
 async function signUpWithRole(email: string, password: string, role: 'owner' | 'clinic') {
   const supabase = await createClient();
@@ -74,6 +86,11 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error: 'Too many requests. Please try again later.' };
   }
 
+  const captchaError = await validateCaptcha(formData);
+  if (captchaError) {
+    return captchaError;
+  }
+
   const parsed = ownerSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
@@ -112,6 +129,11 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
   const { success: allowed } = await checkRateLimit();
   if (!allowed) {
     return { error: 'Too many requests. Please try again later.' };
+  }
+
+  const captchaError = await validateCaptcha(formData);
+  if (captchaError) {
+    return captchaError;
   }
 
   const parsed = clinicSchema.safeParse(Object.fromEntries(formData.entries()));

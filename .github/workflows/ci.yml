@@ -99,7 +99,7 @@ jobs:
         run: |
           count=$(find . -path ./node_modules -prune -o -path ./e2e -prune -o \( -name '*.test.*' -o -name '*.spec.*' \) -print | head -1)
           if [ -n "$count" ]; then
-            bun test lib server app --coverage --coverage-reporter=lcov
+            TURNSTILE_SECRET_KEY='1x0000000000000000000000000000000AA' NEXT_PUBLIC_TURNSTILE_SITE_KEY='1x00000000000000000000AA' bun test lib server app --coverage --coverage-reporter=lcov
           else
             echo "No test files found, skipping."
           fi
@@ -139,6 +139,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: placeholder
           STRIPE_SECRET_KEY: sk_test_placeholder
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

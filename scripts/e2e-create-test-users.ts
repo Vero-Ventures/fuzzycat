@@ -34,27 +34,6 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 const validatedKey = SERVICE_KEY;
 
 async function createUser(email: string, role: string) {
-  const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=50`, {
-    headers: {
-      Authorization: `Bearer ${validatedKey}`,
-      apikey: validatedKey,
-    },
-  });
-
-  if (!listRes.ok) {
-    console.error(`Failed to list users: ${listRes.status}`);
-    return;
-  }
-
-  const { users } = (await listRes.json()) as {
-    users: Array<{ id: string; email: string }>;
-  };
-
-  if (users.find((u) => u.email === email)) {
-    console.log(`✓ ${email} (${role}) — already exists`);
-    return;
-  }
-
   const createRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
     method: 'POST',
     headers: {
@@ -70,13 +49,20 @@ async function createUser(email: string, role: string) {
     }),
   });
 
-  if (!createRes.ok) {
-    console.error(`✗ ${email} (${role}) — ${createRes.status}: ${await createRes.text()}`);
+  if (createRes.ok) {
+    const created = (await createRes.json()) as { id: string };
+    console.log(`✓ ${email} (${role}) — created (${created.id})`);
     return;
   }
 
-  const created = (await createRes.json()) as { id: string };
-  console.log(`✓ ${email} (${role}) — created (${created.id})`);
+  const responseText = await createRes.text();
+
+  if (createRes.status === 422 && responseText.includes('already registered')) {
+    console.log(`✓ ${email} (${role}) — already exists`);
+    return;
+  }
+
+  console.error(`✗ ${email} (${role}) — ${createRes.status}: ${responseText}`);
 }
 
 console.log('Provisioning E2E test users...\n');

@@ -1,9 +1,7 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import { TEST_PASSWORD, TEST_USERS } from './helpers/test-users';
 
-type UserEntry = { id: string; email: string };
-
-/** Ensure a single test user exists via Supabase Admin API. */
+/** Ensure a single test user exists via Supabase Admin API (create-first approach). */
 async function ensureUser(
   supabaseUrl: string,
   serviceRoleKey: string,
@@ -12,23 +10,6 @@ async function ensureUser(
   roleName: string,
 ) {
   console.log(`[e2e:global-setup] Ensuring user: ${email} (${roleName})`);
-
-  const listRes = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=50`, {
-    headers: { Authorization: `Bearer ${serviceRoleKey}`, apikey: serviceRoleKey },
-  });
-
-  if (!listRes.ok) {
-    console.error(`[e2e:global-setup] Failed to list users: ${listRes.status}`);
-    return;
-  }
-
-  const { users } = (await listRes.json()) as { users: UserEntry[] };
-  const existing = users.find((u) => u.email === email);
-
-  if (existing) {
-    console.log(`  ✓ Already exists (${existing.id})`);
-    return;
-  }
 
   const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: 'POST',
@@ -45,13 +26,25 @@ async function ensureUser(
     }),
   });
 
-  if (!createRes.ok) {
-    console.error(`[e2e:global-setup] Failed to create ${email}: ${createRes.status}`);
+  if (createRes.ok) {
+    const created = (await createRes.json()) as { id: string };
+    console.log(`  ✓ Created (${created.id})`);
     return;
   }
 
-  const created = (await createRes.json()) as { id: string };
-  console.log(`  ✓ Created (${created.id})`);
+  const responseText = await createRes.text();
+
+  if (createRes.status === 422 && responseText.includes('already registered')) {
+    console.log('  ✓ Already exists');
+    return;
+  }
+
+  console.error(
+    '[e2e:global-setup] Failed to create %s: %d %s',
+    email,
+    createRes.status,
+    responseText,
+  );
 }
 
 /** Log in as a role via browser and save storage state. */
@@ -88,8 +81,11 @@ async function globalSetup(config: FullConfig) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.warn('[e2e:global-setup] Missing SUPABASE env vars — skipping user provisioning.');
+  const isPlaceholder = !supabaseUrl || !serviceRoleKey || supabaseUrl.includes('placeholder');
+  if (isPlaceholder) {
+    console.warn(
+      '[e2e:global-setup] Missing or placeholder SUPABASE env vars — skipping user provisioning.',
+    );
     return;
   }
 

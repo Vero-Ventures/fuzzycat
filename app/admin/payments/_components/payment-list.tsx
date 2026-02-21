@@ -60,8 +60,8 @@ export function PaymentList() {
   const { data, isLoading, error } = useQuery(
     trpc.admin.getPayments.queryOptions({
       status: statusFilter === 'all' ? undefined : statusFilter,
-      dateFrom: dateFrom ? new Date(dateFrom).toISOString() : undefined,
-      dateTo: dateTo ? new Date(dateTo).toISOString() : undefined,
+      dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
+      dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
       limit,
       offset,
     }),

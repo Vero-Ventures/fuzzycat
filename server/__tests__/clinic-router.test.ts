@@ -17,6 +17,7 @@ mock.module('@/server/db', () => ({
 
 import { schemaMock } from './stripe/_mock-schema';
 
+// Extend schemaMock with all fields used by the clinic router
 const extendedSchemaMock = {
   ...schemaMock,
   clinics: {
@@ -33,6 +34,64 @@ const extendedSchemaMock = {
     status: 'clinics.status',
     createdAt: 'clinics.created_at',
     updatedAt: 'clinics.updated_at',
+  },
+  owners: {
+    ...schemaMock.owners,
+    authId: 'owners.auth_id',
+    name: 'owners.name',
+    email: 'owners.email',
+    phone: 'owners.phone',
+    petName: 'owners.pet_name',
+    clinicId: 'owners.clinic_id',
+    addressLine1: 'owners.address_line1',
+    addressCity: 'owners.address_city',
+    addressState: 'owners.address_state',
+    addressZip: 'owners.address_zip',
+    createdAt: 'owners.created_at',
+    updatedAt: 'owners.updated_at',
+  },
+  plans: {
+    ...schemaMock.plans,
+    ownerId: 'plans.owner_id',
+    clinicId: 'plans.clinic_id',
+    totalBillCents: 'plans.total_bill_cents',
+    feeCents: 'plans.fee_cents',
+    totalWithFeeCents: 'plans.total_with_fee_cents',
+    depositCents: 'plans.deposit_cents',
+    remainingCents: 'plans.remaining_cents',
+    installmentCents: 'plans.installment_cents',
+    numInstallments: 'plans.num_installments',
+    status: 'plans.status',
+    nextPaymentAt: 'plans.next_payment_at',
+    depositPaidAt: 'plans.deposit_paid_at',
+    completedAt: 'plans.completed_at',
+    createdAt: 'plans.created_at',
+    updatedAt: 'plans.updated_at',
+  },
+  payments: {
+    ...schemaMock.payments,
+    planId: 'payments.plan_id',
+    type: 'payments.type',
+    sequenceNum: 'payments.sequence_num',
+    amountCents: 'payments.amount_cents',
+    status: 'payments.status',
+    scheduledAt: 'payments.scheduled_at',
+    processedAt: 'payments.processed_at',
+    failureReason: 'payments.failure_reason',
+    retryCount: 'payments.retry_count',
+    createdAt: 'payments.created_at',
+    updatedAt: 'payments.updated_at',
+  },
+  payouts: {
+    ...schemaMock.payouts,
+    clinicId: 'payouts.clinic_id',
+    planId: 'payouts.plan_id',
+    paymentId: 'payouts.payment_id',
+    amountCents: 'payouts.amount_cents',
+    clinicShareCents: 'payouts.clinic_share_cents',
+    stripeTransferId: 'payouts.stripe_transfer_id',
+    status: 'payouts.status',
+    createdAt: 'payouts.created_at',
   },
 };
 
@@ -80,8 +139,10 @@ mock.module('@/lib/resend', () => ({
 // ── Test data ────────────────────────────────────────────────────────
 
 const CLINIC_ID = '11111111-1111-1111-1111-111111111111';
+const PLAN_ID = '33333333-3333-3333-3333-333333333333';
 const STRIPE_ACCOUNT_ID = 'acct_test123';
 
+// Used for onboarding tests (status: 'pending', full profile)
 const MOCK_CLINIC_FULL = {
   id: CLINIC_ID,
   name: 'Happy Paws Veterinary',
@@ -95,6 +156,7 @@ const MOCK_CLINIC_FULL = {
   status: 'pending',
 };
 
+// Used for onboarding tests (incomplete profile)
 const MOCK_CLINIC_INCOMPLETE = {
   id: CLINIC_ID,
   name: 'Happy Paws Veterinary',
@@ -106,6 +168,57 @@ const MOCK_CLINIC_INCOMPLETE = {
   addressZip: '94102',
   stripeAccountId: null,
   status: 'pending',
+};
+
+const MOCK_ENROLLMENT = {
+  id: PLAN_ID,
+  ownerName: 'Jane Doe',
+  petName: 'Whiskers',
+  totalBillCents: 120000,
+  status: 'active',
+  createdAt: new Date('2026-02-15'),
+};
+
+const MOCK_PLAN_WITH_OWNER = {
+  id: PLAN_ID,
+  clinicId: CLINIC_ID,
+  totalBillCents: 120000,
+  feeCents: 7200,
+  totalWithFeeCents: 127200,
+  depositCents: 31800,
+  remainingCents: 95400,
+  installmentCents: 15900,
+  numInstallments: 6,
+  status: 'active',
+  depositPaidAt: new Date('2026-02-15'),
+  nextPaymentAt: new Date('2026-03-01'),
+  completedAt: null,
+  createdAt: new Date('2026-02-15'),
+  ownerName: 'Jane Doe',
+  ownerEmail: 'jane@example.com',
+  ownerPhone: '+15559876543',
+  petName: 'Whiskers',
+};
+
+const MOCK_PAYMENT = {
+  id: 'pay-1',
+  type: 'deposit',
+  sequenceNum: 0,
+  amountCents: 31800,
+  status: 'succeeded',
+  scheduledAt: new Date('2026-02-15'),
+  processedAt: new Date('2026-02-15'),
+  failureReason: null,
+  retryCount: 0,
+};
+
+const MOCK_PAYOUT = {
+  id: 'payout-1',
+  amountCents: 30000,
+  clinicShareCents: 954,
+  stripeTransferId: 'tr_test_123',
+  status: 'succeeded',
+  createdAt: new Date('2026-02-16'),
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -123,6 +236,7 @@ function clearAllMocks() {
 
 /**
  * Sets up a chain of select queries that return results in order.
+ * Each call to db.select(...).from(...) chains through various methods.
  */
 function setupSelectChainSequence(results: unknown[][]) {
   let callIndex = 0;
@@ -475,6 +589,218 @@ describe('clinic.completeOnboarding', () => {
 
     const result = await mockUpdate().set().where().returning();
     expect(result[0].status).toBe('active');
+  });
+});
+
+// ── getDashboardStats tests ──────────────────────────────────────────
+
+describe('clinic.getDashboardStats', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns dashboard statistics with plan counts and earnings', async () => {
+    const planCounts = {
+      activePlans: 5,
+      completedPlans: 3,
+      defaultedPlans: 1,
+      totalPlans: 10,
+    };
+    const earningsResult = {
+      totalRevenueCents: 15000,
+      totalPayoutCents: 500000,
+    };
+    const pendingPayoutsResult = {
+      pendingCount: 2,
+      pendingAmountCents: 30000,
+    };
+
+    // Query sequence: clinic lookup, then 4 parallel queries
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }], // resolveClinicId
+      [planCounts], // plan counts
+      [earningsResult], // earnings
+      [pendingPayoutsResult], // pending payouts
+      [MOCK_ENROLLMENT], // recent enrollments
+    ]);
+
+    // Verify clinic lookup
+    const clinicChain = mockSelect();
+    const clinicResult = await clinicChain.from().where().limit();
+    expect(clinicResult[0].id).toBe(CLINIC_ID);
+
+    // Verify plan counts
+    const plansChain = mockSelect();
+    const plansResult = await plansChain.from().where().limit();
+    expect(plansResult[0].activePlans).toBe(5);
+    expect(plansResult[0].totalPlans).toBe(10);
+  });
+
+  it('returns zeros when clinic has no data', async () => {
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }],
+      [{ activePlans: 0, completedPlans: 0, defaultedPlans: 0, totalPlans: 0 }],
+      [{ totalRevenueCents: 0, totalPayoutCents: 0 }],
+      [{ pendingCount: 0, pendingAmountCents: 0 }],
+      [],
+    ]);
+
+    const clinicChain = mockSelect();
+    await clinicChain.from().where().limit();
+
+    const plansChain = mockSelect();
+    const plansResult = await plansChain.from().where().limit();
+    expect(plansResult[0].activePlans).toBe(0);
+    expect(plansResult[0].totalPlans).toBe(0);
+  });
+});
+
+// ── getClients tests ─────────────────────────────────────────────────
+
+describe('clinic.getClients', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns paginated client list with payment totals', async () => {
+    const clientRow = {
+      planId: PLAN_ID,
+      ownerName: 'Jane Doe',
+      ownerEmail: 'jane@example.com',
+      ownerPhone: '+15559876543',
+      petName: 'Whiskers',
+      totalBillCents: 120000,
+      totalWithFeeCents: 127200,
+      planStatus: 'active',
+      nextPaymentAt: new Date('2026-03-01'),
+      createdAt: new Date('2026-02-15'),
+      totalPaidCents: 47700,
+    };
+
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }], // resolveClinicId
+      [clientRow], // clients query
+      [{ total: 1 }], // count query
+    ]);
+
+    // Verify clinic lookup
+    const clinicChain = mockSelect();
+    const clinicResult = await clinicChain.from().where().limit();
+    expect(clinicResult[0].id).toBe(CLINIC_ID);
+
+    // Verify client data
+    const clientsChain = mockSelect();
+    const clientsResult = await clientsChain.from().where().limit();
+    expect(clientsResult[0].ownerName).toBe('Jane Doe');
+    expect(clientsResult[0].petName).toBe('Whiskers');
+    expect(clientsResult[0].totalPaidCents).toBe(47700);
+  });
+
+  it('returns empty when no clients match search', async () => {
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }],
+      [], // no matching clients
+      [{ total: 0 }],
+    ]);
+
+    const clinicChain = mockSelect();
+    await clinicChain.from().where().limit();
+
+    const clientsChain = mockSelect();
+    const clientsResult = await clientsChain.from().where().limit();
+    expect(clientsResult).toEqual([]);
+  });
+});
+
+// ── getClientPlanDetails tests ───────────────────────────────────────
+
+describe('clinic.getClientPlanDetails', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns plan details with payments and payouts', async () => {
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }], // resolveClinicId
+      [MOCK_PLAN_WITH_OWNER], // plan query
+      [MOCK_PAYMENT], // payments query
+      [MOCK_PAYOUT], // payouts query
+    ]);
+
+    // Verify clinic lookup
+    const clinicChain = mockSelect();
+    const clinicResult = await clinicChain.from().where().limit();
+    expect(clinicResult[0].id).toBe(CLINIC_ID);
+
+    // Verify plan data
+    const planChain = mockSelect();
+    const planResult = await planChain.from().where().limit();
+    expect(planResult[0].totalBillCents).toBe(120000);
+    expect(planResult[0].ownerName).toBe('Jane Doe');
+    expect(planResult[0].petName).toBe('Whiskers');
+  });
+
+  it('returns empty when plan not found at clinic', async () => {
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }],
+      [], // plan not found
+    ]);
+
+    const clinicChain = mockSelect();
+    await clinicChain.from().where().limit();
+
+    const planChain = mockSelect();
+    const planResult = await planChain.from().where().limit();
+    expect(planResult).toEqual([]);
+  });
+});
+
+// ── getMonthlyRevenue tests ──────────────────────────────────────────
+
+describe('clinic.getMonthlyRevenue', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns monthly revenue aggregations', async () => {
+    const monthlyData = [
+      {
+        month: '2026-01',
+        totalPayoutCents: 250000,
+        totalShareCents: 7500,
+        payoutCount: 10,
+      },
+      {
+        month: '2026-02',
+        totalPayoutCents: 350000,
+        totalShareCents: 10500,
+        payoutCount: 14,
+      },
+    ];
+
+    setupSelectChainSequence([
+      [{ id: CLINIC_ID }], // resolveClinicId
+      monthlyData, // monthly revenue data
+    ]);
+
+    // Verify clinic lookup
+    const clinicChain = mockSelect();
+    const clinicResult = await clinicChain.from().where().limit();
+    expect(clinicResult[0].id).toBe(CLINIC_ID);
+
+    // Verify monthly data
+    const revenueChain = mockSelect();
+    const revenueResult = await revenueChain.from().where().limit();
+    expect(revenueResult).toHaveLength(2);
+    expect(revenueResult[0].month).toBe('2026-01');
+    expect(revenueResult[1].totalPayoutCents).toBe(350000);
+  });
+
+  it('returns empty when no payout history', async () => {
+    setupSelectChainSequence([[{ id: CLINIC_ID }], []]);
+
+    const clinicChain = mockSelect();
+    await clinicChain.from().where().limit();
+
+    const revenueChain = mockSelect();
+    const revenueResult = await revenueChain.from().where().limit();
+    expect(revenueResult).toEqual([]);
   });
 });
 

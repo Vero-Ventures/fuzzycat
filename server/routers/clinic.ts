@@ -1,9 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { and, eq, ilike, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
-import { clinics } from '@/server/db/schema';
+import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
@@ -53,6 +53,23 @@ async function getClinicForUser(
   return clinic;
 }
 
+/** Resolve the clinic row ID for the authenticated user. */
+async function resolveClinicId(
+  db: typeof import('@/server/db')['db'],
+  userId: string,
+): Promise<string> {
+  const [clinic] = await db
+    .select({ id: clinics.id })
+    .from(clinics)
+    .where(eq(clinics.authId, userId))
+    .limit(1);
+
+  if (!clinic) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Clinic profile not found' });
+  }
+  return clinic.id;
+}
+
 // ── Router ───────────────────────────────────────────────────────────
 
 export const clinicRouter = router({
@@ -90,6 +107,8 @@ export const clinicRouter = router({
 
       return results;
     }),
+
+  // ── Onboarding procedures (Issue #26) ────────────────────────────
 
   /**
    * Get the authenticated clinic's profile information.
@@ -375,5 +394,282 @@ export const clinicRouter = router({
     }
 
     return { status: 'active' as const, alreadyActive: false };
+  }),
+
+  // ── Dashboard procedures (Issue #27) ─────────────────────────────
+
+  /**
+   * Get dashboard statistics for the authenticated clinic.
+   * Returns: active plans count, total revenue earned (3% share),
+   * pending payouts, and recent enrollments.
+   */
+  getDashboardStats: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+    // Run all queries in parallel for performance
+    const [planCounts, earningsResult, pendingPayoutsResult, recentEnrollments] = await Promise.all(
+      [
+        // Plan counts by status
+        ctx.db
+          .select({
+            activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+            completedPlans: sql<number>`count(*) filter (where ${plans.status} = 'completed')`,
+            defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
+            totalPlans: sql<number>`count(*)`,
+          })
+          .from(plans)
+          .where(eq(plans.clinicId, clinicId)),
+
+        // Total revenue earned (3% clinic share from succeeded payouts)
+        ctx.db
+          .select({
+            totalRevenueCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
+            totalPayoutCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
+          })
+          .from(payouts)
+          .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'succeeded'))),
+
+        // Pending payouts count and amount
+        ctx.db
+          .select({
+            pendingCount: sql<number>`count(*)`,
+            pendingAmountCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
+          })
+          .from(payouts)
+          .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'pending'))),
+
+        // Last 10 recent enrollments with owner info
+        ctx.db
+          .select({
+            id: plans.id,
+            ownerName: owners.name,
+            petName: owners.petName,
+            totalBillCents: plans.totalBillCents,
+            status: plans.status,
+            createdAt: plans.createdAt,
+          })
+          .from(plans)
+          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .where(eq(plans.clinicId, clinicId))
+          .orderBy(desc(plans.createdAt))
+          .limit(10),
+      ],
+    );
+
+    return {
+      activePlans: Number(planCounts[0]?.activePlans ?? 0),
+      completedPlans: Number(planCounts[0]?.completedPlans ?? 0),
+      defaultedPlans: Number(planCounts[0]?.defaultedPlans ?? 0),
+      totalPlans: Number(planCounts[0]?.totalPlans ?? 0),
+      totalRevenueCents: Number(earningsResult[0]?.totalRevenueCents ?? 0),
+      totalPayoutCents: Number(earningsResult[0]?.totalPayoutCents ?? 0),
+      pendingPayoutsCount: Number(pendingPayoutsResult[0]?.pendingCount ?? 0),
+      pendingPayoutsCents: Number(pendingPayoutsResult[0]?.pendingAmountCents ?? 0),
+      recentEnrollments,
+    };
+  }),
+
+  /**
+   * Get paginated list of pet owners (clients) with plans at this clinic.
+   * Supports search by owner name or pet name, and filter by plan status.
+   */
+  getClients: clinicProcedure
+    .input(
+      z.object({
+        search: z.string().max(100).optional(),
+        status: z
+          .enum(['pending', 'deposit_paid', 'active', 'completed', 'defaulted', 'cancelled'])
+          .optional(),
+        page: z.number().int().min(1).default(1),
+        pageSize: z.number().int().min(1).max(50).default(20),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+      const offset = (input.page - 1) * input.pageSize;
+
+      // Build where conditions
+      const conditions = [eq(plans.clinicId, clinicId)];
+
+      if (input.status) {
+        conditions.push(eq(plans.status, input.status));
+      }
+
+      if (input.search) {
+        const searchPattern = `%${input.search}%`;
+        const searchCondition = or(
+          ilike(owners.name, searchPattern),
+          ilike(owners.petName, searchPattern),
+        );
+        if (searchCondition) {
+          conditions.push(searchCondition);
+        }
+      }
+
+      const whereClause = and(...conditions);
+
+      const [clientRows, countResult] = await Promise.all([
+        ctx.db
+          .select({
+            planId: plans.id,
+            ownerName: owners.name,
+            ownerEmail: owners.email,
+            ownerPhone: owners.phone,
+            petName: owners.petName,
+            totalBillCents: plans.totalBillCents,
+            totalWithFeeCents: plans.totalWithFeeCents,
+            planStatus: plans.status,
+            nextPaymentAt: plans.nextPaymentAt,
+            createdAt: plans.createdAt,
+            totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+          })
+          .from(plans)
+          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(payments, eq(plans.id, payments.planId))
+          .where(whereClause)
+          .groupBy(plans.id, owners.id)
+          .orderBy(desc(plans.createdAt))
+          .limit(input.pageSize)
+          .offset(offset),
+        ctx.db
+          .select({ total: count() })
+          .from(plans)
+          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .where(whereClause),
+      ]);
+
+      const totalCount = Number(countResult[0]?.total ?? 0);
+      const totalPages = Math.ceil(totalCount / input.pageSize);
+
+      return {
+        clients: clientRows.map((row) => ({
+          ...row,
+          totalPaidCents: Number(row.totalPaidCents),
+        })),
+        pagination: {
+          page: input.page,
+          pageSize: input.pageSize,
+          totalCount,
+          totalPages,
+        },
+      };
+    }),
+
+  /**
+   * Get detailed plan + payment info for a specific plan at this clinic.
+   */
+  getClientPlanDetails: clinicProcedure
+    .input(
+      z.object({
+        planId: z.string().uuid('Valid plan ID is required'),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+      // Get the plan and verify it belongs to this clinic
+      const [plan] = await ctx.db
+        .select({
+          id: plans.id,
+          clinicId: plans.clinicId,
+          totalBillCents: plans.totalBillCents,
+          feeCents: plans.feeCents,
+          totalWithFeeCents: plans.totalWithFeeCents,
+          depositCents: plans.depositCents,
+          remainingCents: plans.remainingCents,
+          installmentCents: plans.installmentCents,
+          numInstallments: plans.numInstallments,
+          status: plans.status,
+          depositPaidAt: plans.depositPaidAt,
+          nextPaymentAt: plans.nextPaymentAt,
+          completedAt: plans.completedAt,
+          createdAt: plans.createdAt,
+          ownerName: owners.name,
+          ownerEmail: owners.email,
+          ownerPhone: owners.phone,
+          petName: owners.petName,
+        })
+        .from(plans)
+        .leftJoin(owners, eq(plans.ownerId, owners.id))
+        .where(and(eq(plans.id, input.planId), eq(plans.clinicId, clinicId)))
+        .limit(1);
+
+      if (!plan) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Plan not found or does not belong to this clinic',
+        });
+      }
+
+      // Get all payments for this plan
+      const planPayments = await ctx.db
+        .select({
+          id: payments.id,
+          type: payments.type,
+          sequenceNum: payments.sequenceNum,
+          amountCents: payments.amountCents,
+          status: payments.status,
+          scheduledAt: payments.scheduledAt,
+          processedAt: payments.processedAt,
+          failureReason: payments.failureReason,
+          retryCount: payments.retryCount,
+        })
+        .from(payments)
+        .where(eq(payments.planId, input.planId))
+        .orderBy(payments.sequenceNum);
+
+      // Get payouts for this plan
+      const planPayouts = await ctx.db
+        .select({
+          id: payouts.id,
+          amountCents: payouts.amountCents,
+          clinicShareCents: payouts.clinicShareCents,
+          stripeTransferId: payouts.stripeTransferId,
+          status: payouts.status,
+          createdAt: payouts.createdAt,
+        })
+        .from(payouts)
+        .where(and(eq(payouts.planId, input.planId), eq(payouts.clinicId, clinicId)))
+        .orderBy(desc(payouts.createdAt));
+
+      return {
+        plan,
+        payments: planPayments,
+        payouts: planPayouts,
+      };
+    }),
+
+  /**
+   * Get monthly revenue data for the clinic (for revenue chart/table).
+   * Returns the last 12 months of aggregated payout data.
+   */
+  getMonthlyRevenue: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+    const monthlyData = await ctx.db
+      .select({
+        month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
+        totalPayoutCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
+        totalShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
+        payoutCount: sql<number>`count(*)`,
+      })
+      .from(payouts)
+      .where(
+        and(
+          eq(payouts.clinicId, clinicId),
+          eq(payouts.status, 'succeeded'),
+          sql`${payouts.createdAt} >= now() - interval '12 months'`,
+        ),
+      )
+      .groupBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`);
+
+    return monthlyData.map((row) => ({
+      month: row.month,
+      totalPayoutCents: Number(row.totalPayoutCents),
+      totalShareCents: Number(row.totalShareCents),
+      payoutCount: Number(row.payoutCount),
+    }));
   }),
 });

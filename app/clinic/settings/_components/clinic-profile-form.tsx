@@ -211,7 +211,9 @@ export function ClinicProfileForm() {
               {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
             </Button>
             {saveStatus === 'saved' && (
-              <p className="text-sm text-green-600">Clinic information updated successfully.</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Clinic information updated successfully.
+              </p>
             )}
             {saveStatus === 'error' && (
               <p className="text-sm text-destructive">

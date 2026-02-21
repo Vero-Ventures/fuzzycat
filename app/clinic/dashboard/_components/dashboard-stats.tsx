@@ -79,7 +79,7 @@ export function DashboardStats() {
           <div className="text-2xl font-bold">{formatCents(data.totalPayoutCents)}</div>
           <div className="flex items-center gap-2 mt-1">
             {data.completedPlans > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs text-green-600">
+              <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <CheckCircle2 className="h-3 w-3" />
                 {data.completedPlans} completed
               </span>

@@ -48,12 +48,14 @@ export function SignupForm() {
 
   return (
     <div className="space-y-4">
-      <div className="flex rounded-md border border-gray-300">
+      <div className="flex rounded-md border border-input">
         <button
           type="button"
           onClick={() => setTab('owner')}
           className={`flex-1 rounded-l-md px-4 py-2 text-sm font-medium ${
-            tab === 'owner' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            tab === 'owner'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-background text-foreground hover:bg-muted'
           }`}
         >
           Pet Owner
@@ -62,7 +64,9 @@ export function SignupForm() {
           type="button"
           onClick={() => setTab('clinic')}
           className={`flex-1 rounded-r-md px-4 py-2 text-sm font-medium ${
-            tab === 'clinic' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            tab === 'clinic'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-background text-foreground hover:bg-muted'
           }`}
         >
           Veterinary Clinic
@@ -70,10 +74,12 @@ export function SignupForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {error && (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        )}
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="block text-sm font-medium text-foreground">
             Email
           </label>
           <input
@@ -82,12 +88,12 @@ export function SignupForm() {
             type="email"
             required
             autoComplete="email"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="block text-sm font-medium text-foreground">
             Password
           </label>
           <input
@@ -97,7 +103,7 @@ export function SignupForm() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -121,7 +127,7 @@ function OwnerFields() {
   return (
     <>
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-foreground">
           Full name
         </label>
         <input
@@ -130,11 +136,11 @@ function OwnerFields() {
           type="text"
           required
           autoComplete="name"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="phone" className="block text-sm font-medium text-foreground">
           Phone
         </label>
         <input
@@ -143,11 +149,11 @@ function OwnerFields() {
           type="tel"
           required
           autoComplete="tel"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div>
-        <label htmlFor="petName" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="petName" className="block text-sm font-medium text-foreground">
           Pet name
         </label>
         <input
@@ -155,7 +161,7 @@ function OwnerFields() {
           name="petName"
           type="text"
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
     </>
@@ -166,7 +172,7 @@ function ClinicFields() {
   return (
     <>
       <div>
-        <label htmlFor="clinicName" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="clinicName" className="block text-sm font-medium text-foreground">
           Clinic name
         </label>
         <input
@@ -174,11 +180,11 @@ function ClinicFields() {
           name="clinicName"
           type="text"
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="phone" className="block text-sm font-medium text-foreground">
           Phone
         </label>
         <input
@@ -187,12 +193,12 @@ function ClinicFields() {
           type="tel"
           required
           autoComplete="tel"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="addressState" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="addressState" className="block text-sm font-medium text-foreground">
             State
           </label>
           <input
@@ -202,11 +208,11 @@ function ClinicFields() {
             required
             maxLength={2}
             placeholder="CA"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
         <div>
-          <label htmlFor="addressZip" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="addressZip" className="block text-sm font-medium text-foreground">
             ZIP code
           </label>
           <input
@@ -216,7 +222,7 @@ function ClinicFields() {
             required
             maxLength={10}
             placeholder="94105"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>

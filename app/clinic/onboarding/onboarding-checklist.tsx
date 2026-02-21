@@ -45,7 +45,10 @@ interface CompleteMutation {
 function StepStatus({ complete }: { complete: boolean }) {
   if (complete) {
     return (
-      <Badge variant="default" className="bg-green-600 hover:bg-green-600">
+      <Badge
+        variant="default"
+        className="bg-green-600 hover:bg-green-600 dark:bg-green-500 dark:hover:bg-green-500"
+      >
         Complete
       </Badge>
     );
@@ -92,7 +95,7 @@ function ProgressBar({ status }: { status: OnboardingStatus }) {
             {steps.map((step) => (
               <div
                 key={step.key}
-                className={`h-2 w-8 rounded-full ${step.complete ? 'bg-green-500' : 'bg-muted'}`}
+                className={`h-2 w-8 rounded-full ${step.complete ? 'bg-green-500 dark:bg-green-400' : 'bg-muted'}`}
               />
             ))}
           </div>
@@ -238,7 +241,7 @@ function OnboardingFooter({
   if (status.clinicStatus === 'active') {
     return (
       <div className="text-center">
-        <p className="text-sm font-medium text-green-600">
+        <p className="text-sm font-medium text-green-600 dark:text-green-400">
           Your clinic is active and ready to accept payment plans.
         </p>
         <Button className="mt-3" asChild>

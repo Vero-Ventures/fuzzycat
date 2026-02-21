@@ -4,15 +4,16 @@
 
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { resolveOwnerId } from '@/server/services/authorization';
 import { checkBalance, createLinkToken, exchangePublicToken } from '@/server/services/plaid';
-import { protectedProcedure, router } from '@/server/trpc';
+import { ownerProcedure, router } from '@/server/trpc';
 
 export const plaidRouter = router({
   /**
    * Create a Plaid Link token for the bank connection flow.
    * The frontend uses this token to initialize Plaid Link.
    */
-  createLinkToken: protectedProcedure.mutation(async ({ ctx }) => {
+  createLinkToken: ownerProcedure.mutation(async ({ ctx }) => {
     try {
       const linkToken = await createLinkToken(ctx.session.userId);
       return { linkToken };
@@ -26,16 +27,16 @@ export const plaidRouter = router({
    * Exchange a Plaid public token for an access token after the user
    * successfully connects their bank via Plaid Link.
    */
-  exchangePublicToken: protectedProcedure
+  exchangePublicToken: ownerProcedure
     .input(
       z.object({
         publicToken: z.string().min(1, 'Public token is required'),
-        ownerId: z.string().uuid('Valid owner ID is required'),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const result = await exchangePublicToken(input.publicToken, input.ownerId);
+        const ownerId = await resolveOwnerId(ctx.db, ctx.session.userId);
+        const result = await exchangePublicToken(input.publicToken, ownerId);
         return { success: true as const, itemId: result.itemId };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to exchange public token';
@@ -47,16 +48,16 @@ export const plaidRouter = router({
    * Check if the owner's bank account has sufficient balance for the
    * deposit and first 2 installments.
    */
-  checkBalance: protectedProcedure
+  checkBalance: ownerProcedure
     .input(
       z.object({
-        ownerId: z.string().uuid('Valid owner ID is required'),
         requiredCents: z.number().int().positive('Required amount must be a positive integer'),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        return await checkBalance(input.ownerId, input.requiredCents);
+        const ownerId = await resolveOwnerId(ctx.db, ctx.session.userId);
+        return await checkBalance(ownerId, input.requiredCents);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to check balance';
         throw new TRPCError({ code: 'BAD_REQUEST', message });

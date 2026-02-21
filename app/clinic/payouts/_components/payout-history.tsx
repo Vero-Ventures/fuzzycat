@@ -25,26 +25,11 @@ export function PayoutHistory() {
   const trpc = useTRPC();
   const [offset, setOffset] = useState(0);
 
-  // Get clinic profile for the clinicId
-  const {
-    data: profile,
-    isLoading: profileLoading,
-    error: profileError,
-  } = useQuery(trpc.clinic.getProfile.queryOptions());
-
   const {
     data: historyData,
-    isLoading: historyLoading,
-    error: historyError,
-  } = useQuery(
-    trpc.payout.history.queryOptions(
-      { clinicId: profile?.id ?? '', limit: PAGE_SIZE, offset },
-      { enabled: !!profile?.id },
-    ),
-  );
-
-  const isLoading = profileLoading || historyLoading;
-  const error = profileError || historyError;
+    isLoading,
+    error,
+  } = useQuery(trpc.payout.history.queryOptions({ limit: PAGE_SIZE, offset }));
 
   if (isLoading) {
     return <PayoutHistorySkeleton />;

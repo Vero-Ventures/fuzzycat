@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { resolveClinicId } from '@/server/services/authorization';
 import {
   getClinicEarnings,
   getClinicPayoutHistory,
@@ -30,13 +31,13 @@ export const payoutRouter = router({
   history: clinicProcedure
     .input(
       z.object({
-        clinicId: z.string().uuid(),
         limit: z.number().int().min(1).max(100).default(20),
         offset: z.number().int().min(0).default(0),
       }),
     )
-    .query(async ({ input }) => {
-      return getClinicPayoutHistory(input.clinicId, {
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      return getClinicPayoutHistory(clinicId, {
         limit: input.limit,
         offset: input.offset,
       });
@@ -45,9 +46,8 @@ export const payoutRouter = router({
   /**
    * Get aggregate earnings for the authenticated clinic.
    */
-  earnings: clinicProcedure
-    .input(z.object({ clinicId: z.string().uuid() }))
-    .query(async ({ input }) => {
-      return getClinicEarnings(input.clinicId);
-    }),
+  earnings: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    return getClinicEarnings(clinicId);
+  }),
 });

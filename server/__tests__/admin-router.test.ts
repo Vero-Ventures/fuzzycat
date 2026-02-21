@@ -27,6 +27,13 @@ const createCaller = createCallerFactory(adminRouter);
 const caller = createCaller({
   db: dbMock,
   session: { userId: '00000000-0000-4000-a000-000000000000', role: 'admin' },
+  supabase: {
+    auth: {
+      mfa: {
+        getAuthenticatorAssuranceLevel: () => Promise.resolve({ data: { currentLevel: 'aal2' } }),
+      },
+    },
+  },
   // biome-ignore lint/suspicious/noExplicitAny: test context
 } as any);
 

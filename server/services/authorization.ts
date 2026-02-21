@@ -8,6 +8,34 @@ import type { UserRole } from '@/lib/auth';
 import { db } from '@/server/db';
 import { clinics, owners, plans } from '@/server/db/schema';
 
+/** Resolve the clinic row ID for the authenticated user. */
+export async function resolveClinicId(database: typeof db, userId: string): Promise<string> {
+  const [clinic] = await database
+    .select({ id: clinics.id })
+    .from(clinics)
+    .where(eq(clinics.authId, userId))
+    .limit(1);
+
+  if (!clinic) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Clinic profile not found' });
+  }
+  return clinic.id;
+}
+
+/** Resolve the owner row ID for the authenticated user. */
+export async function resolveOwnerId(database: typeof db, userId: string): Promise<string> {
+  const [owner] = await database
+    .select({ id: owners.id })
+    .from(owners)
+    .where(eq(owners.authId, userId))
+    .limit(1);
+
+  if (!owner) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
+  }
+  return owner.id;
+}
+
 /**
  * Verify that the authenticated user's clinic matches the provided clinicId.
  * Looks up the clinic by authId (the Supabase auth user ID).

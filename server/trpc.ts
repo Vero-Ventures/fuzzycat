@@ -54,12 +54,25 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 
 /**
  * Role-specific procedure factory — throws FORBIDDEN if user role doesn't match.
+ * For clinic and admin roles, also enforces MFA (AAL2) at the API layer.
  */
 function roleProcedure(...allowedRoles: UserRole[]) {
   return protectedProcedure.use(async ({ ctx, next }) => {
     if (!allowedRoles.includes(ctx.session.role)) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
     }
+
+    // Enforce MFA for clinic and admin roles
+    if (ctx.session.role === 'clinic' || ctx.session.role === 'admin') {
+      const { data: aal } = await ctx.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== 'aal2') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'MFA verification required',
+        });
+      }
+    }
+
     return next({ ctx });
   });
 }

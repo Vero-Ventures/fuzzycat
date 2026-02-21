@@ -1,7 +1,41 @@
-import { clinicProcedure, router } from '@/server/trpc';
+import { and, eq, ilike, or } from 'drizzle-orm';
+import { z } from 'zod';
+import { clinics } from '@/server/db/schema';
+import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
 export const clinicRouter = router({
   healthCheck: clinicProcedure.query(() => {
     return { status: 'ok' as const, router: 'clinic' };
   }),
+
+  /**
+   * Search clinics by name or city. Only returns active clinics.
+   * Available to any authenticated user (pet owners need this during enrollment).
+   */
+  search: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(100),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      const searchPattern = `%${input.query}%`;
+      const results = await ctx.db
+        .select({
+          id: clinics.id,
+          name: clinics.name,
+          addressCity: clinics.addressCity,
+          addressState: clinics.addressState,
+        })
+        .from(clinics)
+        .where(
+          and(
+            eq(clinics.status, 'active'),
+            or(ilike(clinics.name, searchPattern), ilike(clinics.addressCity, searchPattern)),
+          ),
+        )
+        .limit(10);
+
+      return results;
+    }),
 });

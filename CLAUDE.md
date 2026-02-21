@@ -194,7 +194,7 @@ Each sub-agent gets its own worktree and follows this lifecycle:
 8. **Wait for CI** — poll `gh pr checks N` until all 16 checks pass
 9. **Read review comments** — `gh api repos/Vero-Ventures/fuzzycat/pulls/N/comments`
 10. **Fix review comments**, commit, push
-11. **Reply to each comment** — `gh api repos/Vero-Ventures/fuzzycat/pulls/comments/ID/replies -f body="FIXED: ..."`
+11. **Reply to each comment** — `gh api repos/Vero-Ventures/fuzzycat/pulls/N/comments/ID/replies -f body="FIXED: ..."`
 12. **Wait for CI** again after fixes
 13. **Merge** — `gh pr merge N --squash --delete-branch`
 14. If merge fails (branch not up to date), **rebase on main** and push again

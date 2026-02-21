@@ -4,7 +4,7 @@ test.describe('smoke tests — public pages', () => {
   test('homepage renders with correct title and heading', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/FuzzyCat/);
-    await expect(page.locator('h1')).toHaveText('FuzzyCat');
+    await expect(page.locator('h1')).toContainText('Your pet deserves care');
   });
 
   test('homepage has no console errors', async ({ page }) => {

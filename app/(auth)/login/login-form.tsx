@@ -37,7 +37,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       const destination = redirectTo ?? ROLE_HOME[role];
       router.push(destination);
       router.refresh();
-    } catch {
+    } catch (error) {
+      console.error('Login form submission error:', error);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);

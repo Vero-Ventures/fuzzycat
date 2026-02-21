@@ -47,7 +47,8 @@ export function SignupForm() {
 
       router.push(tab === 'owner' ? '/owner/payments' : '/clinic/dashboard');
       router.refresh();
-    } catch {
+    } catch (error) {
+      console.error('Signup form submission error:', error);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);

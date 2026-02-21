@@ -1,21 +1,26 @@
 import { expect, test } from '@playwright/test';
 
+const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD;
+if (!E2E_PASSWORD) {
+  throw new Error('E2E_TEST_PASSWORD environment variable is required to run E2E tests');
+}
+
 const ROLES = {
   admin: {
-    email: 'testadmin@example.com',
-    password: 'password123',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'testadmin@example.com',
+    password: E2E_PASSWORD,
     home: '/admin/dashboard',
     pages: ['/admin/dashboard', '/admin/clinics', '/admin/payments', '/admin/risk'],
   },
   clinic: {
-    email: 'testclinic@example.com',
-    password: 'password123',
+    email: process.env.E2E_CLINIC_EMAIL ?? 'testclinic@example.com',
+    password: E2E_PASSWORD,
     home: '/clinic/dashboard',
     pages: ['/clinic/dashboard', '/clinic/clients', '/clinic/payouts', '/clinic/settings'],
   },
   owner: {
-    email: 'testowner@example.com',
-    password: 'password123',
+    email: process.env.E2E_OWNER_EMAIL ?? 'testowner@example.com',
+    password: E2E_PASSWORD,
     home: '/owner/payments',
     pages: ['/owner/payments', '/owner/enroll', '/owner/settings'],
   },
@@ -62,9 +67,8 @@ test.describe('Comprehensive App Audit', () => {
       // 1. Login
       await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
-      // Wait for hydration - prevent default form submission
-      // Increased to 3s because 1s was insufficient in CI/test env
-      await page.waitForTimeout(3000);
+      // Wait for React hydration so the form's onSubmit handler is attached
+      await page.waitForSelector('button[type="submit"]:not([disabled])');
 
       await page.fill('#email', config.email);
       await page.fill('#password', config.password);

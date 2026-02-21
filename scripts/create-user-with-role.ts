@@ -1,11 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const email = process.argv[2];
-const password = process.argv[3];
-const role = process.argv[4];
+const role = process.argv[3];
+const password = process.env.CREATE_USER_PASSWORD;
 
-if (!email || !password || !role) {
-  console.error('Usage: bun run scripts/create-user-with-role.ts <email> <password> <role>');
+if (!email || !role || !password) {
+  console.error(
+    'Usage: CREATE_USER_PASSWORD=<password> bun run scripts/create-user-with-role.ts <email> <role>',
+  );
   process.exit(1);
 }
 

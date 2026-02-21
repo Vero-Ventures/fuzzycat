@@ -63,7 +63,11 @@ bun run typecheck                # tsc --noEmit
 bun run check                    # Biome lint + format check
 bun run check:fix                # Biome auto-fix
 bun test                         # Unit tests
-bun run test:e2e                 # Playwright E2E
+bun run test:e2e                 # Playwright E2E (all projects)
+bun run test:e2e:local           # E2E localhost projects only
+bun run test:e2e:prod            # E2E production (fuzzycatapp.com)
+bun run test:e2e:mobile          # E2E mobile responsive (Pixel 5)
+bun run e2e:setup-users          # Provision E2E test users in Supabase
 bun run ci                       # Full CI (biome ci + tsc + circular deps + secrets)
 bunx drizzle-kit push            # Push schema to DB (dev only)
 bunx drizzle-kit generate        # Generate SQL migrations
@@ -161,9 +165,22 @@ fuzzycat/
 │   │   └── sms.ts                # SMS notifications (Twilio)
 │   └── trpc.ts                   # tRPC init
 ├── types/                        # Shared TypeScript types
-├── scripts/                      # seed.ts, create-admin.ts
+├── scripts/                      # seed.ts, create-admin.ts, e2e-create-test-users.ts
 ├── drizzle/                      # Migration files + config
-├── e2e/                          # Playwright tests
+├── e2e/                          # Playwright E2E tests (30 spec files, ~132 tests)
+│   ├── auth-state/               # Stored auth cookies per role (gitignored)
+│   ├── fixtures/                 # Playwright fixtures (auth, mocks, screenshots, logging)
+│   ├── helpers/                  # Test utilities (test-users, screenshot, trpc-mock)
+│   ├── global-setup.ts           # Creates test users + saves auth state
+│   └── tests/                    # Test specs by category
+│       ├── public/               # Landing, how-it-works, forgot/reset password
+│       ├── auth/                 # Login, signup, redirects, MFA
+│       ├── owner/                # Payments, enrollment, settings
+│       ├── clinic/               # Dashboard, clients, payouts, reports, settings
+│       ├── admin/                # Dashboard, clinics, payments, risk
+│       ├── api/                  # Health endpoint
+│       ├── cross-cutting/        # Navigation, responsive, 404, accessibility
+│       └── production/           # fuzzycatapp.com smoke tests
 └── packages/extension/           # Chrome extension (Phase 2, Plasmo)
 ```
 
@@ -336,7 +353,24 @@ Issues #1–#7: Regulatory attorney, business entity, DFPI registration, NDAs, t
 ### Test Suite
 
 395 unit tests across 27 test files. Bun test runner. All external services mocked.
-E2E smoke test via Playwright (runs separately with `bun run test:e2e`).
+
+**E2E Tests:** ~132 Playwright tests across 30 spec files covering all 21 page routes + API health endpoint.
+
+```bash
+bun run test:e2e              # Run all projects (including production)
+bun run test:e2e:local        # Run localhost projects only (public, auth, owner, clinic, admin, api, cross-cutting)
+bun run test:e2e:prod         # Run production tests (fuzzycatapp.com)
+bun run test:e2e:mobile       # Run mobile responsive tests (Pixel 5)
+bun run e2e:setup-users       # Provision E2E test users in Supabase
+```
+
+**E2E architecture:**
+- **Auth via storage state:** Global setup logs in as owner/clinic/admin, saves cookies to `e2e/auth-state/`. Playwright projects load these via `storageState`.
+- **External service mocking:** Stripe.js, Plaid Link, Turnstile, and analytics are intercepted via `page.route()` — no real API keys needed for these in CI.
+- **Real Supabase in CI:** Auth and DB tests use real Supabase credentials (GitHub Secrets).
+- **Screenshots:** Every test captures screenshots via `testInfo.attach()`, embedded in HTML report.
+- **MFA bypass:** Test users have no TOTP enrolled, so `enforceMfa()` lets them through without redirect.
+- **Test user emails:** `e2e-owner@fuzzycatapp.com`, `e2e-clinic@fuzzycatapp.com`, `e2e-admin@fuzzycatapp.com`.
 
 ## Confidentiality
 

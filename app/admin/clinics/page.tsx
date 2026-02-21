@@ -1,7 +1,16 @@
+import { ClinicList } from './_components/clinic-list';
+
 export default function AdminClinicsPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold">Manage Clinics</h1>
+    <div className="container mx-auto max-w-6xl px-6 py-8 space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Manage Clinics</h1>
+        <p className="text-muted-foreground mt-1">
+          Review, approve, and manage registered veterinary clinics.
+        </p>
+      </div>
+
+      <ClinicList />
     </div>
   );
 }

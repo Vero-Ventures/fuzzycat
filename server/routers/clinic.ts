@@ -1,9 +1,11 @@
 import { TRPCError } from '@trpc/server';
-import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
+import { generateCsv } from '@/lib/utils/csv';
+import { formatCents } from '@/lib/utils/money';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
@@ -678,5 +680,289 @@ export const clinicRouter = router({
       totalShareCents: Number(row.totalShareCents),
       payoutCount: Number(row.payoutCount),
     }));
+  }),
+
+  // ── Reporting procedures (Issue #36) ─────────────────────────────
+
+  /**
+   * Get revenue report with monthly breakdown within a date range.
+   * Returns: month, enrollments, revenue, payouts, clinic share.
+   */
+  getRevenueReport: clinicProcedure
+    .input(
+      z.object({
+        dateFrom: z.string().datetime(),
+        dateTo: z.string().datetime(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const fromDate = new Date(input.dateFrom);
+      const toDate = new Date(input.dateTo);
+
+      // Get monthly revenue from payouts
+      const revenueData = await ctx.db
+        .select({
+          month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
+          revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
+          clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
+          payoutCount: sql<number>`count(*)`,
+        })
+        .from(payouts)
+        .where(
+          and(
+            eq(payouts.clinicId, clinicId),
+            eq(payouts.status, 'succeeded'),
+            gte(payouts.createdAt, fromDate),
+            lte(payouts.createdAt, toDate),
+          ),
+        )
+        .groupBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`)
+        .orderBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`);
+
+      // Get monthly enrollment counts
+      const enrollmentData = await ctx.db
+        .select({
+          month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
+          enrollments: sql<number>`count(*)`,
+        })
+        .from(plans)
+        .where(
+          and(
+            eq(plans.clinicId, clinicId),
+            gte(plans.createdAt, fromDate),
+            lte(plans.createdAt, toDate),
+          ),
+        )
+        .groupBy(sql`to_char(${plans.createdAt}, 'YYYY-MM')`)
+        .orderBy(sql`to_char(${plans.createdAt}, 'YYYY-MM')`);
+
+      // Merge revenue and enrollment data by month
+      const enrollmentMap = new Map(enrollmentData.map((e) => [e.month, Number(e.enrollments)]));
+
+      // Collect all months
+      const allMonths = new Set<string>();
+      for (const r of revenueData) allMonths.add(r.month);
+      for (const e of enrollmentData) allMonths.add(e.month);
+      const sortedMonths = [...allMonths].sort();
+
+      const revenueMap = new Map(
+        revenueData.map((r) => [
+          r.month,
+          {
+            revenueCents: Number(r.revenueCents),
+            clinicShareCents: Number(r.clinicShareCents),
+            payoutCount: Number(r.payoutCount),
+          },
+        ]),
+      );
+
+      return sortedMonths.map((month) => ({
+        month,
+        enrollments: enrollmentMap.get(month) ?? 0,
+        revenueCents: revenueMap.get(month)?.revenueCents ?? 0,
+        payoutsCents: revenueMap.get(month)?.revenueCents ?? 0,
+        clinicShareCents: revenueMap.get(month)?.clinicShareCents ?? 0,
+      }));
+    }),
+
+  /**
+   * Get enrollment trends — enrollment counts by month for the last N months.
+   */
+  getEnrollmentTrends: clinicProcedure
+    .input(
+      z
+        .object({
+          months: z.number().int().min(1).max(36).default(12),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const monthsBack = input?.months ?? 12;
+
+      const trendData = await ctx.db
+        .select({
+          month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
+          enrollments: sql<number>`count(*)`,
+        })
+        .from(plans)
+        .where(
+          and(
+            eq(plans.clinicId, clinicId),
+            sql`${plans.createdAt} >= now() - interval '${sql.raw(String(monthsBack))} months'`,
+          ),
+        )
+        .groupBy(sql`to_char(${plans.createdAt}, 'YYYY-MM')`)
+        .orderBy(sql`to_char(${plans.createdAt}, 'YYYY-MM')`);
+
+      return trendData.map((row) => ({
+        month: row.month,
+        enrollments: Number(row.enrollments),
+      }));
+    }),
+
+  /**
+   * Get the clinic's default rate (defaulted plans / total plans).
+   */
+  getDefaultRate: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+    const [result] = await ctx.db
+      .select({
+        totalPlans: sql<number>`count(*)`,
+        defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
+      })
+      .from(plans)
+      .where(eq(plans.clinicId, clinicId));
+
+    const total = Number(result?.totalPlans ?? 0);
+    const defaulted = Number(result?.defaultedPlans ?? 0);
+    const rate = total > 0 ? (defaulted / total) * 100 : 0;
+
+    return {
+      totalPlans: total,
+      defaultedPlans: defaulted,
+      defaultRate: Math.round(rate * 100) / 100,
+    };
+  }),
+
+  /**
+   * Export all clients as a CSV string.
+   */
+  exportClientsCSV: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+    const clientRows = await ctx.db
+      .select({
+        ownerName: owners.name,
+        ownerEmail: owners.email,
+        petName: owners.petName,
+        planStatus: plans.status,
+        totalBillCents: plans.totalBillCents,
+        totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+        remainingCents: plans.remainingCents,
+      })
+      .from(plans)
+      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(payments, eq(plans.id, payments.planId))
+      .where(eq(plans.clinicId, clinicId))
+      .groupBy(plans.id, owners.id)
+      .orderBy(desc(plans.createdAt));
+
+    const headers = [
+      'Owner Name',
+      'Email',
+      'Pet Name',
+      'Plan Status',
+      'Total Bill',
+      'Paid Amount',
+      'Remaining',
+    ];
+
+    const rows = clientRows.map((row) => [
+      row.ownerName ?? '',
+      row.ownerEmail ?? '',
+      row.petName ?? '',
+      row.planStatus ?? '',
+      formatCents(row.totalBillCents),
+      formatCents(Number(row.totalPaidCents)),
+      formatCents(row.remainingCents),
+    ]);
+
+    return { csv: generateCsv(headers, rows) };
+  }),
+
+  /**
+   * Export revenue report as CSV within a date range.
+   */
+  exportRevenueCSV: clinicProcedure
+    .input(
+      z.object({
+        dateFrom: z.string().datetime(),
+        dateTo: z.string().datetime(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const fromDate = new Date(input.dateFrom);
+      const toDate = new Date(input.dateTo);
+
+      const revenueData = await ctx.db
+        .select({
+          month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
+          revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
+          clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
+          payoutCount: sql<number>`count(*)`,
+        })
+        .from(payouts)
+        .where(
+          and(
+            eq(payouts.clinicId, clinicId),
+            eq(payouts.status, 'succeeded'),
+            gte(payouts.createdAt, fromDate),
+            lte(payouts.createdAt, toDate),
+          ),
+        )
+        .groupBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`)
+        .orderBy(sql`to_char(${payouts.createdAt}, 'YYYY-MM')`);
+
+      const headers = ['Month', 'Revenue', 'Clinic Share', 'Payouts'];
+      const rows = revenueData.map((row) => [
+        row.month,
+        formatCents(Number(row.revenueCents)),
+        formatCents(Number(row.clinicShareCents)),
+        Number(row.payoutCount),
+      ]);
+
+      return { csv: generateCsv(headers, rows) };
+    }),
+
+  /**
+   * Export payout history as CSV.
+   */
+  exportPayoutsCSV: clinicProcedure.query(async ({ ctx }) => {
+    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+
+    const payoutRows = await ctx.db
+      .select({
+        payoutId: payouts.id,
+        amountCents: payouts.amountCents,
+        clinicShareCents: payouts.clinicShareCents,
+        status: payouts.status,
+        stripeTransferId: payouts.stripeTransferId,
+        createdAt: payouts.createdAt,
+        ownerName: owners.name,
+        petName: owners.petName,
+      })
+      .from(payouts)
+      .leftJoin(plans, eq(payouts.planId, plans.id))
+      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .where(eq(payouts.clinicId, clinicId))
+      .orderBy(desc(payouts.createdAt));
+
+    const headers = [
+      'Payout ID',
+      'Owner',
+      'Pet',
+      'Amount',
+      'Clinic Share',
+      'Status',
+      'Stripe Transfer',
+      'Date',
+    ];
+
+    const rows = payoutRows.map((row) => [
+      row.payoutId,
+      row.ownerName ?? '',
+      row.petName ?? '',
+      formatCents(row.amountCents),
+      formatCents(row.clinicShareCents),
+      row.status,
+      row.stripeTransferId ?? '',
+      row.createdAt ? new Date(row.createdAt).toISOString() : '',
+    ]);
+
+    return { csv: generateCsv(headers, rows) };
   }),
 });

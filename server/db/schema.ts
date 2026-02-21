@@ -36,6 +36,13 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 export const payoutStatusEnum = pgEnum('payout_status', ['pending', 'succeeded', 'failed']);
 export const riskPoolTypeEnum = pgEnum('risk_pool_type', ['contribution', 'claim', 'recovery']);
 export const actorTypeEnum = pgEnum('actor_type', ['system', 'admin', 'owner', 'clinic']);
+export const softCollectionStageEnum = pgEnum('soft_collection_stage', [
+  'day_1_reminder',
+  'day_7_followup',
+  'day_14_final',
+  'completed',
+  'cancelled',
+]);
 
 // ── Veterinary clinics ──────────────────────────────────────────────
 export const clinics = pgTable('clinics', {
@@ -163,6 +170,32 @@ export const riskPool = pgTable('risk_pool', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── Soft collections (post-default recovery) ────────────────────────
+export const softCollections = pgTable(
+  'soft_collections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    planId: uuid('plan_id')
+      .references(() => plans.id)
+      .unique()
+      .notNull(),
+    stage: softCollectionStageEnum('stage').notNull().default('day_1_reminder'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    lastEscalatedAt: timestamp('last_escalated_at', { withTimezone: true }),
+    nextEscalationAt: timestamp('next_escalation_at', { withTimezone: true }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index('idx_soft_collections_plan').on(table.planId),
+    index('idx_soft_collections_stage').on(table.stage),
+    index('idx_soft_collections_next_escalation').on(table.nextEscalationAt),
+  ],
+);
+
 // ── Audit log (MANDATORY for compliance) ────────────────────────────
 export const auditLog = pgTable(
   'audit_log',
@@ -200,6 +233,10 @@ export const plansRelations = relations(plans, ({ one, many }) => ({
   payments: many(payments),
   payouts: many(payouts),
   riskPoolEntries: many(riskPool),
+  softCollection: one(softCollections, {
+    fields: [plans.id],
+    references: [softCollections.planId],
+  }),
 }));
 
 export const paymentsRelations = relations(payments, ({ one, many }) => ({
@@ -215,4 +252,8 @@ export const payoutsRelations = relations(payouts, ({ one }) => ({
 
 export const riskPoolRelations = relations(riskPool, ({ one }) => ({
   plan: one(plans, { fields: [riskPool.planId], references: [plans.id] }),
+}));
+
+export const softCollectionsRelations = relations(softCollections, ({ one }) => ({
+  plan: one(plans, { fields: [softCollections.planId], references: [plans.id] }),
 }));

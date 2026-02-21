@@ -14,6 +14,12 @@ import type { PaymentSuccessProps } from '@/server/emails/payment-success';
 import { PaymentSuccess } from '@/server/emails/payment-success';
 import type { PlanCompletedProps } from '@/server/emails/plan-completed';
 import { PlanCompleted } from '@/server/emails/plan-completed';
+import type { SoftCollectionDay1Props } from '@/server/emails/soft-collection-day1';
+import { SoftCollectionDay1 } from '@/server/emails/soft-collection-day1';
+import type { SoftCollectionDay7Props } from '@/server/emails/soft-collection-day7';
+import { SoftCollectionDay7 } from '@/server/emails/soft-collection-day7';
+import type { SoftCollectionDay14Props } from '@/server/emails/soft-collection-day14';
+import { SoftCollectionDay14 } from '@/server/emails/soft-collection-day14';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -170,5 +176,55 @@ export async function sendClinicPayoutNotification(
     subject: `Payout Sent: ${props.ownerName}'s Payment for ${props.petName}`,
     react: ClinicPayout(props),
     errorContext: 'clinic payout notification',
+  });
+}
+
+// ── Soft collection email functions ──────────────────────────────────
+
+/**
+ * Send Day 1 soft collection email — friendly reminder that plan is paused.
+ * Sent on the day a plan defaults.
+ */
+export async function sendSoftCollectionDay1(
+  to: string,
+  props: SoftCollectionDay1Props,
+): Promise<SendEmailResult> {
+  return sendEmail({
+    to,
+    subject: `Your payment plan for ${props.petName} needs attention`,
+    react: SoftCollectionDay1(props),
+    errorContext: 'soft collection day 1',
+  });
+}
+
+/**
+ * Send Day 7 soft collection email — moderate urgency follow-up.
+ * Sent 7 days after a plan defaults.
+ */
+export async function sendSoftCollectionDay7(
+  to: string,
+  props: SoftCollectionDay7Props,
+): Promise<SendEmailResult> {
+  return sendEmail({
+    to,
+    subject: `Action required: Update your payment method for ${props.petName}'s plan`,
+    react: SoftCollectionDay7(props),
+    errorContext: 'soft collection day 7',
+  });
+}
+
+/**
+ * Send Day 14 soft collection email — final notice.
+ * Sent 14 days after a plan defaults.
+ */
+export async function sendSoftCollectionDay14(
+  to: string,
+  props: SoftCollectionDay14Props,
+): Promise<SendEmailResult> {
+  return sendEmail({
+    to,
+    subject: `Final notice: Your payment plan for ${props.petName}`,
+    react: SoftCollectionDay14(props),
+    errorContext: 'soft collection day 14',
   });
 }

@@ -352,3 +352,40 @@ export function _resetSmsState(): void {
   contactedPhones.clear();
   sendTimestamps.clear();
 }
+
+// ── Soft collection SMS functions ─────────────────────────────────────
+
+export interface SoftCollectionReminderParams {
+  petName: string;
+  stage: 'day_1_reminder' | 'day_7_followup' | 'day_14_final';
+  updatePaymentUrl: string;
+}
+
+/**
+ * Send a soft collection reminder SMS with stage-appropriate messaging.
+ * - Day 1: Friendly reminder
+ * - Day 7: Follow-up with urgency
+ * - Day 14: Final notice
+ */
+export async function sendSoftCollectionReminder(
+  phone: string,
+  params: SoftCollectionReminderParams,
+): Promise<SmsResult> {
+  const messages: Record<string, string> = {
+    day_1_reminder: `FuzzyCat: Your payment plan for ${params.petName} has been paused. Please update your payment method at ${params.updatePaymentUrl} to resume.`,
+    day_7_followup: `FuzzyCat: Action required -- your payment plan for ${params.petName} has been paused for 7 days. Update your payment method at ${params.updatePaymentUrl} to avoid further action.`,
+    day_14_final: `FuzzyCat: Final notice -- your payment plan for ${params.petName} will have a guarantee claim finalized soon. Update your payment method now at ${params.updatePaymentUrl}`,
+  };
+
+  const body = messages[params.stage];
+  if (!body) {
+    return { success: false, error: `Unknown soft collection stage: ${params.stage}` };
+  }
+
+  logger.info('Sending soft collection SMS', {
+    phone: maskPhone(phone),
+    stage: params.stage,
+  });
+
+  return sendSms(phone, body);
+}

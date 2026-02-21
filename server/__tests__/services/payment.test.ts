@@ -136,6 +136,12 @@ mock.module('@/server/db/schema', () => ({
   paymentsRelations: {},
   payoutsRelations: {},
   riskPoolRelations: {},
+  softCollections: {
+    id: 'soft_collections.id',
+    planId: 'soft_collections.plan_id',
+    stage: 'soft_collections.stage',
+    nextEscalationAt: 'soft_collections.next_escalation_at',
+  },
 }));
 
 mock.module('drizzle-orm', () => ({

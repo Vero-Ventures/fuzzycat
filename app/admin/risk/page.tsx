@@ -1,6 +1,7 @@
 import { DefaultedPlansList } from './_components/defaulted-plans-list';
 import { RiskPoolDashboard } from './_components/risk-pool-dashboard';
 import { RiskPoolHistory } from './_components/risk-pool-history';
+import { SoftCollectionsList } from './_components/soft-collections-list';
 
 export default function AdminRiskPage() {
   return (
@@ -13,6 +14,7 @@ export default function AdminRiskPage() {
       </div>
 
       <RiskPoolDashboard />
+      <SoftCollectionsList />
       <DefaultedPlansList />
       <RiskPoolHistory />
     </div>

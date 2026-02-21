@@ -1,9 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD;
-if (!E2E_PASSWORD) {
-  throw new Error('E2E_TEST_PASSWORD environment variable is required to run E2E tests');
-}
+const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD ?? '';
 
 const ROLES = {
   admin: {
@@ -29,6 +26,7 @@ const ROLES = {
 const PUBLIC_PAGES = ['/', '/how-it-works', '/login', '/signup', '/forgot-password'];
 
 test.describe('Comprehensive App Audit', () => {
+  test.skip(!process.env.E2E_TEST_PASSWORD, 'E2E_TEST_PASSWORD not set — skipping auth tests');
   test.setTimeout(120000); // 2 minutes per test
 
   test.beforeEach(async ({ page }) => {

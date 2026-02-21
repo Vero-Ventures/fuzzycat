@@ -46,8 +46,7 @@ test.describe('Landing page', () => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(msg.text());
     });
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
+    await page.goto('/', { waitUntil: 'load' });
     const real = errors.filter(
       (e) => !e.includes('monitoring') && !e.includes('posthog') && !e.includes('favicon'),
     );
@@ -110,11 +109,15 @@ test.describe('Forgot Password page', () => {
     await expect(page.getByRole('button', { name: /send reset link/i })).toBeVisible();
   });
 
-  test('shows validation for empty email submission', async ({ page }) => {
+  test('prevents empty email submission', async ({ page }) => {
     await page.goto('/forgot-password');
-    // HTML5 validation should prevent empty submission
     const emailInput = page.locator('input[type="email"]');
     await expect(emailInput).toHaveAttribute('required', '');
+
+    // Attempt to submit with empty email — HTML5 validation prevents it
+    await page.getByRole('button', { name: /send reset link/i }).click();
+    await expect(page.getByText('Check your email')).not.toBeVisible();
+    await expect(page).toHaveURL('/forgot-password');
   });
 
   test('has back to login link', async ({ page }) => {

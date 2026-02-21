@@ -96,7 +96,7 @@ fuzzycat/
 ├── app/
 │   ├── (marketing)/              # Public pages (landing, how-it-works)
 │   ├── (auth)/                   # Login, signup, password reset flows
-│   ├── clinic/                   # Clinic portal (dashboard, clients, payouts, settings) [stubs]
+│   ├── clinic/                   # Clinic portal (onboarding, dashboard, clients, payouts, settings) [implemented]
 │   ├── owner/                    # Pet owner portal (enroll, payments, settings) [implemented]
 │   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk) [stubs]
 │   └── api/
@@ -178,6 +178,14 @@ These are early-stage hypotheses about pet owner needs. They may be wrong. Use t
 - As a pet owner, I want a simple way to add my pet & plan details so that I can see the details of my plan.
 - As a pet owner, I want a simple way to link my bank account so that payments can be made automatically.
 - As a pet owner, I want to receive notifications if a payment fails so that I can quickly resolve the issue.
+
+### Clinic Stories (Unvalidated)
+
+- As a clinic owner, I want to register my clinic with contact details and payment account information so that I can begin offering FuzzyCat to clients.
+- As a clinic, I want a dashboard showing active plans, completed payments, and earnings so that I can monitor revenue from FuzzyCat.
+- As a clinic, I want a page showing a list of my clients as well as client details so that I can see all my clients and track payments.
+- As a clinic, I want to receive guaranteed payments even if a pet owner defaults so that I reduce financial risk.
+- As a clinic, I want to earn a 3% revenue share on each enrollment so that I benefit financially from offering FuzzyCat.
 
 ## Development Workflow
 
@@ -290,13 +298,13 @@ When addressing review comments:
 | Marketing pages (landing, how-it-works, interactive calculator) | #23 | Done |
 | Pet owner enrollment flow (5-step form, Plaid Link, Stripe Checkout) | #24 | Done |
 | Pet owner dashboard (payments, history, settings) | #25 | Done |
+| Clinic onboarding (Stripe Connect, profile, onboarding checklist) | #26 | Done |
+| Clinic dashboard (stats, clients, payouts, revenue, settings) | #27 | Done |
 
 ### Phase 1 — Remaining
 
 | Area | Issues | Status |
 |------|--------|--------|
-| Clinic onboarding + Stripe Connect setup | #26 | Open |
-| Clinic dashboard (plans, payments, revenue, payouts) | #27 | Open |
 | Admin dashboard (metrics, clinic management, payments, risk) | #28 | Open |
 | Cat-themed UI design system refinement + CAPTCHA | #29 | Open |
 | PCI SAQ A self-assessment | #32 | Open (human) |
@@ -308,7 +316,7 @@ Issues #1–#7: Regulatory attorney, business entity, DFPI registration, NDAs, t
 
 ### Test Suite
 
-368 unit tests across 27 test files. Bun test runner. All external services mocked.
+395 unit tests across 27 test files. Bun test runner. All external services mocked.
 E2E smoke test via Playwright (runs separately with `bun run test:e2e`).
 
 ## Confidentiality

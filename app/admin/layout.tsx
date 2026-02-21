@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserRole } from '@/lib/auth';
 import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
+import { AdminSidebar } from './_components/admin-sidebar';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -19,5 +20,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   await enforceMfa(supabase);
 
-  return <>{children}</>;
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <AdminSidebar />
+      <main className="flex-1 overflow-y-auto bg-background">{children}</main>
+    </div>
+  );
 }

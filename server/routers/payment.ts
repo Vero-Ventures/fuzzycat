@@ -6,7 +6,7 @@ import {
   retryFailedPayment,
 } from '@/server/services/collection';
 import { processDeposit, processInstallment } from '@/server/services/payment';
-import { adminProcedure, ownerProcedure, protectedProcedure, router } from '@/server/trpc';
+import { adminProcedure, ownerProcedure, router } from '@/server/trpc';
 
 export const paymentRouter = router({
   /**
@@ -34,7 +34,7 @@ export const paymentRouter = router({
    * Initiate an installment payment via ACH.
    * Can be called manually by admin or triggered by the collection cron.
    */
-  processInstallment: protectedProcedure
+  processInstallment: adminProcedure
     .input(
       z.object({
         paymentId: z.string().uuid(),

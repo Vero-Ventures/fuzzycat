@@ -10,23 +10,7 @@ import { formatCents } from '@/lib/utils/money';
 export function PayoutEarnings() {
   const trpc = useTRPC();
 
-  // First get the clinic profile to get the clinicId
-  const {
-    data: profile,
-    isLoading: profileLoading,
-    error: profileError,
-  } = useQuery(trpc.clinic.getProfile.queryOptions());
-
-  const {
-    data: earnings,
-    isLoading: earningsLoading,
-    error: earningsError,
-  } = useQuery(
-    trpc.payout.earnings.queryOptions({ clinicId: profile?.id ?? '' }, { enabled: !!profile?.id }),
-  );
-
-  const isLoading = profileLoading || earningsLoading;
-  const error = profileError || earningsError;
+  const { data: earnings, isLoading, error } = useQuery(trpc.payout.earnings.queryOptions());
 
   if (isLoading) {
     return <PayoutEarningsSkeleton />;

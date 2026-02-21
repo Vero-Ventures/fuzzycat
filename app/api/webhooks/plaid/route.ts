@@ -1,6 +1,8 @@
 import { eq } from 'drizzle-orm';
+import { importJWK, jwtVerify } from 'jose';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { plaid } from '@/lib/plaid';
 import { db } from '@/server/db';
 import { owners } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
@@ -37,23 +39,14 @@ type PlaidWebhook = PlaidItemWebhook | PlaidAuthWebhook | PlaidWebhookBase;
 // ── Webhook Verification ─────────────────────────────────────────────
 
 /**
- * Verify the Plaid webhook using the Plaid-Verification header.
+ * Verify the Plaid webhook using full JWS signature verification.
  *
- * Plaid signs webhooks using JWS (JSON Web Signature). The
- * `Plaid-Verification` header contains a signed JWT whose payload
- * includes a SHA-256 hash of the request body. Full JWS verification
- * requires fetching Plaid's public keys via `/webhook_verification_key/get`.
- *
- * For MVP, we verify the body hash from the JWT claims without
- * validating the JWT signature itself. In development without the
- * verification header, we skip verification entirely (same pattern
- * as the Stripe webhook handler).
- *
- * TODO: Implement full JWS signature verification using Plaid's
- * public keys for production hardening.
+ * 1. Decode the JWT header to extract the `kid` (key ID)
+ * 2. Fetch the corresponding public key from Plaid via `webhookVerificationKeyGet`
+ * 3. Verify the JWT signature using `jose`
+ * 4. Validate the body SHA-256 hash from the verified payload
  */
 async function verifyWebhook(body: string, verificationHeader: string | null): Promise<boolean> {
-  // In development without a verification header, skip verification
   if (!verificationHeader) {
     if (process.env.NODE_ENV === 'production') {
       logger.error('Plaid webhook: Plaid-Verification header missing in production');
@@ -62,27 +55,39 @@ async function verifyWebhook(body: string, verificationHeader: string | null): P
     return true;
   }
 
-  // The Plaid-Verification header contains a JWS compact serialization
-  // (header.payload.signature). The payload contains a `request_body_sha256`
-  // claim. We decode the payload and verify the body hash matches.
   try {
+    // 1. Decode the JWT header to get the key ID
     const parts = verificationHeader.split('.');
     if (parts.length !== 3) {
       logger.error('Plaid webhook: Plaid-Verification header is not a valid JWS');
       return false;
     }
 
-    // Decode the JWT payload (base64url)
-    const payloadBase64 = parts[1];
-    const payloadJson = Buffer.from(payloadBase64, 'base64url').toString('utf-8');
-    const payload = JSON.parse(payloadJson) as { request_body_sha256?: string };
+    const headerJson = Buffer.from(parts[0], 'base64url').toString('utf-8');
+    const header = JSON.parse(headerJson) as { kid?: string; alg?: string };
 
-    if (!payload.request_body_sha256) {
-      logger.error('Plaid webhook: JWS payload missing request_body_sha256');
+    if (!header.kid) {
+      logger.error('Plaid webhook: JWS header missing kid');
       return false;
     }
 
-    // Compute SHA-256 of the request body and compare
+    // 2. Fetch the public key from Plaid
+    const keyResponse = await plaid().webhookVerificationKeyGet({ key_id: header.kid });
+    const jwk = keyResponse.data.key;
+
+    // 3. Import the JWK and verify the JWT signature
+    const publicKey = await importJWK(jwk);
+    const { payload } = await jwtVerify(verificationHeader, publicKey, {
+      clockTolerance: 300,
+    });
+
+    const claimedHash = (payload as { request_body_sha256?: string }).request_body_sha256;
+    if (!claimedHash) {
+      logger.error('Plaid webhook: verified payload missing request_body_sha256');
+      return false;
+    }
+
+    // 4. Verify the body hash
     const encoder = new TextEncoder();
     const data = encoder.encode(body);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -91,7 +96,7 @@ async function verifyWebhook(body: string, verificationHeader: string | null): P
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
 
-    if (hashHex !== payload.request_body_sha256) {
+    if (hashHex !== claimedHash) {
       logger.error('Plaid webhook: body hash mismatch');
       return false;
     }

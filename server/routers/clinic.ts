@@ -8,6 +8,7 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
+import { resolveClinicId } from '@/server/services/authorization';
 import { sendClinicWelcome } from '@/server/services/email';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
@@ -60,23 +61,6 @@ async function getClinicForUser(
   }
 
   return clinic;
-}
-
-/** Resolve the clinic row ID for the authenticated user. */
-async function resolveClinicId(
-  db: typeof import('@/server/db')['db'],
-  userId: string,
-): Promise<string> {
-  const [clinic] = await db
-    .select({ id: clinics.id })
-    .from(clinics)
-    .where(eq(clinics.authId, userId))
-    .limit(1);
-
-  if (!clinic) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Clinic profile not found' });
-  }
-  return clinic.id;
 }
 
 // ── Router ───────────────────────────────────────────────────────────

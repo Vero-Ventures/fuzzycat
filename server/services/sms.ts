@@ -16,6 +16,7 @@ import { logger } from '@/lib/logger';
 import { twilio } from '@/lib/twilio';
 import { formatCents } from '@/lib/utils/money';
 import { isValidUSPhone } from '@/lib/utils/phone';
+import type { UrgencyLevel } from '@/server/services/collection';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -35,6 +36,13 @@ export interface PaymentFailedParams {
   amountCents: number;
   retryDate: Date;
   planId: string;
+}
+
+export interface PaymentFailedWithUrgencyParams {
+  amountCents: number;
+  retryDate: Date;
+  planId: string;
+  urgencyLevel: UrgencyLevel;
 }
 
 export interface DefaultWarningParams {
@@ -249,6 +257,44 @@ export async function sendPaymentFailed(
     phone: maskPhone(phone),
     planId: params.planId,
     amountCents: params.amountCents,
+  });
+
+  return sendSms(phone, body);
+}
+
+/**
+ * Send an urgency-aware payment failure notification SMS.
+ * The message tone escalates with each retry attempt:
+ * - Level 1: Friendly reminder
+ * - Level 2: Urgent notice mentioning consequences
+ * - Level 3: Final notice before plan defaults
+ */
+export async function sendPaymentFailedWithUrgency(
+  phone: string,
+  params: PaymentFailedWithUrgencyParams,
+): Promise<SmsResult> {
+  const amount = formatCents(params.amountCents);
+  const retryDate = formatDate(params.retryDate);
+
+  let body: string;
+
+  switch (params.urgencyLevel) {
+    case 1:
+      body = `FuzzyCat: Your payment of ${amount} could not be processed. We'll try again on ${retryDate}. Please ensure your account has sufficient funds.`;
+      break;
+    case 2:
+      body = `FuzzyCat: Important - your payment of ${amount} failed again. We'll retry on ${retryDate}. Please ensure funds are available to avoid disruption to your payment plan.`;
+      break;
+    case 3:
+      body = `FuzzyCat: Final Notice - your payment of ${amount} has failed multiple times. Last retry on ${retryDate}. If this attempt fails, your plan will default. Please contact us if you need help.`;
+      break;
+  }
+
+  logger.info('Sending urgency-aware payment failed SMS', {
+    phone: maskPhone(phone),
+    planId: params.planId,
+    amountCents: params.amountCents,
+    urgencyLevel: params.urgencyLevel,
   });
 
   return sendSms(phone, body);

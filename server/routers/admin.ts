@@ -1,7 +1,16 @@
 import { TRPCError } from '@trpc/server';
 import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import {
+  auditLog,
+  clinics,
+  owners,
+  payments,
+  payouts,
+  plans,
+  riskPool,
+  softCollections,
+} from '@/server/db/schema';
 import {
   AUDIT_ENTITY_TYPES,
   getAuditLogByEntity,
@@ -9,6 +18,7 @@ import {
   logAuditEvent,
 } from '@/server/services/audit';
 import { getRiskPoolBalance, getRiskPoolHealth } from '@/server/services/guarantee';
+import { cancelSoftCollection } from '@/server/services/soft-collection';
 import { adminProcedure, router } from '@/server/trpc';
 
 export const adminRouter = router({
@@ -483,4 +493,145 @@ export const adminRouter = router({
     .query(async ({ ctx, input }) => {
       return ctx.db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(input.limit);
     }),
+
+  // ── Soft Collection Management (Issue #36) ──────────────────────────
+
+  /**
+   * Paginated list of soft collections with plan/owner info.
+   * Supports optional status filter.
+   */
+  getSoftCollections: adminProcedure
+    .input(
+      z.object({
+        status: z
+          .enum(['day_1_reminder', 'day_7_followup', 'day_14_final', 'completed', 'cancelled'])
+          .optional(),
+        limit: z.number().int().min(1).max(100).default(20),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [];
+
+      if (input.status) {
+        conditions.push(eq(softCollections.stage, input.status));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [rows, countResult] = await Promise.all([
+        ctx.db
+          .select({
+            id: softCollections.id,
+            planId: softCollections.planId,
+            stage: softCollections.stage,
+            startedAt: softCollections.startedAt,
+            lastEscalatedAt: softCollections.lastEscalatedAt,
+            nextEscalationAt: softCollections.nextEscalationAt,
+            notes: softCollections.notes,
+            createdAt: softCollections.createdAt,
+            ownerName: owners.name,
+            ownerEmail: owners.email,
+            petName: owners.petName,
+            clinicName: clinics.name,
+            remainingCents: plans.remainingCents,
+          })
+          .from(softCollections)
+          .leftJoin(plans, eq(softCollections.planId, plans.id))
+          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clinics, eq(plans.clinicId, clinics.id))
+          .where(whereClause)
+          .orderBy(desc(softCollections.createdAt))
+          .limit(input.limit)
+          .offset(input.offset),
+        ctx.db.select({ total: count() }).from(softCollections).where(whereClause),
+      ]);
+
+      const totalCount = Number(countResult[0]?.total ?? 0);
+
+      return {
+        collections: rows,
+        pagination: {
+          limit: input.limit,
+          offset: input.offset,
+          totalCount,
+        },
+      };
+    }),
+
+  /**
+   * Cancel a soft collection with a reason.
+   */
+  cancelSoftCollection: adminProcedure
+    .input(
+      z.object({
+        collectionId: z.string().uuid(),
+        reason: z.string().min(1).max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const result = await cancelSoftCollection(input.collectionId, input.reason);
+
+        // Audit the admin action
+        await logAuditEvent({
+          entityType: 'plan',
+          entityId: result.planId,
+          action: 'status_changed',
+          oldValue: { softCollectionCancelledBy: 'admin' },
+          newValue: { softCollectionStage: 'cancelled', reason: input.reason },
+          actorType: 'admin',
+          actorId: ctx.session.userId,
+        });
+
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: error instanceof Error ? error.message : 'Failed to cancel soft collection',
+        });
+      }
+    }),
+
+  /**
+   * Get soft collection statistics: count by stage and recovery rate.
+   */
+  getSoftCollectionStats: adminProcedure.query(async ({ ctx }) => {
+    const stageCounts = await ctx.db
+      .select({
+        stage: softCollections.stage,
+        count: sql<number>`count(*)`,
+      })
+      .from(softCollections)
+      .groupBy(softCollections.stage);
+
+    const stageMap: Record<string, number> = {};
+    let totalCollections = 0;
+    let completedCount = 0;
+    let cancelledCount = 0;
+
+    for (const row of stageCounts) {
+      const cnt = Number(row.count);
+      stageMap[row.stage] = cnt;
+      totalCollections += cnt;
+      if (row.stage === 'completed') completedCount = cnt;
+      if (row.stage === 'cancelled') cancelledCount = cnt;
+    }
+
+    // Recovery rate = cancelled (owner paid) / total completed workflow
+    const resolvedCount = completedCount + cancelledCount;
+    const recoveryRate = resolvedCount > 0 ? (cancelledCount / resolvedCount) * 100 : 0;
+
+    return {
+      totalCollections,
+      byStage: {
+        day_1_reminder: stageMap.day_1_reminder ?? 0,
+        day_7_followup: stageMap.day_7_followup ?? 0,
+        day_14_final: stageMap.day_14_final ?? 0,
+        completed: completedCount,
+        cancelled: cancelledCount,
+      },
+      recoveryRate: Math.round(recoveryRate * 100) / 100,
+    };
+  }),
 });

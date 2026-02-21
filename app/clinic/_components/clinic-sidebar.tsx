@@ -1,6 +1,14 @@
 'use client';
 
-import { BarChart3, LayoutDashboard, LogOut, Settings, Users, Wallet } from 'lucide-react';
+import {
+  BarChart3,
+  FileBarChart,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -12,6 +20,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', href: '/clinic/dashboard', icon: LayoutDashboard },
   { label: 'Clients', href: '/clinic/clients', icon: Users },
   { label: 'Payouts', href: '/clinic/payouts', icon: Wallet },
+  { label: 'Reports', href: '/clinic/reports', icon: FileBarChart },
   { label: 'Settings', href: '/clinic/settings', icon: Settings },
 ] as const;
 

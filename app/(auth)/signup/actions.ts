@@ -29,7 +29,8 @@ const clinicSchema = z.object({
 });
 
 async function validateCaptcha(formData: FormData): Promise<ActionResult | null> {
-  if (process.env.TURNSTILE_SECRET_KEY) {
+  const { serverEnv } = await import('@/lib/env');
+  if (serverEnv().TURNSTILE_SECRET_KEY) {
     const captchaToken = formData.get('captchaToken') as string | null;
     const captchaValid = await verifyCaptcha(captchaToken ?? '');
     if (!captchaValid) {

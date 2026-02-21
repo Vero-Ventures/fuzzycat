@@ -1,3 +1,4 @@
+import { serverEnv } from './env';
 import { logger } from './logger';
 
 interface TurnstileVerifyResponse {
@@ -14,7 +15,7 @@ interface TurnstileVerifyResponse {
  * @returns true if the token is valid, false otherwise.
  */
 export async function verifyCaptcha(token: string): Promise<boolean> {
-  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  const secretKey = serverEnv().TURNSTILE_SECRET_KEY;
 
   if (!secretKey) {
     logger.error('verifyCaptcha: TURNSTILE_SECRET_KEY is not configured');

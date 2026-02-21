@@ -1,6 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { headers } from 'next/headers';
+import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 /**
@@ -15,10 +16,18 @@ let ratelimit: Ratelimit | null = null;
 function getRatelimit(): Ratelimit | null {
   if (ratelimit) return ratelimit;
 
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const env = serverEnv();
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (!url || !token) return null;
+  if (!url || !token) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn(
+        'Rate limiter disabled — UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN is not configured',
+      );
+    }
+    return null;
+  }
 
   ratelimit = new Ratelimit({
     redis: new Redis({ url, token }),

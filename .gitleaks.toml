@@ -58,5 +58,7 @@ paths = [
   '''node_modules/''',
   '''bun\.lockb$''',
   '''__tests__/''',
+  '''\.test\.ts$''',
+  '''\.spec\.ts$''',
   '''\.github/workflows/''',
 ]

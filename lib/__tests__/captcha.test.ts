@@ -1,16 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import { verifyCaptcha } from '@/lib/captcha';
+import { _resetEnvCache } from '@/lib/env';
 
 describe('verifyCaptcha', () => {
   const originalEnv = process.env.TURNSTILE_SECRET_KEY;
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
+    _resetEnvCache();
     process.env.TURNSTILE_SECRET_KEY = 'test-secret-key';
   });
 
   afterEach(() => {
     process.env.TURNSTILE_SECRET_KEY = originalEnv;
+    _resetEnvCache();
     globalThis.fetch = originalFetch;
     mock.restore();
   });

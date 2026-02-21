@@ -11,7 +11,15 @@ import { getQueryClient } from './query-client';
 
 function getBaseUrl() {
   if (typeof window !== 'undefined') return '';
-  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  // NEXT_PUBLIC_ vars are inlined at build time, so direct access is safe here.
+  // On the server side during SSR, use the env var or fall back to localhost for dev.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl && process.env.NODE_ENV === 'production') {
+    console.error(
+      '[trpc] NEXT_PUBLIC_APP_URL is not set — SSR tRPC calls will use localhost fallback',
+    );
+  }
+  return appUrl ?? 'http://localhost:3000';
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

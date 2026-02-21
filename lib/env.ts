@@ -24,6 +24,8 @@ const serverSchema = z.object({
     .string()
     .startsWith('+', 'TWILIO_PHONE_NUMBER must be in E.164 format (start with +)'),
   TURNSTILE_SECRET_KEY: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   SENTRY_AUTH_TOKEN: z.string().optional(),
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
@@ -41,6 +43,7 @@ const publicSchema = z.object({
     .startsWith('pk_', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must start with pk_'),
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
 });
@@ -60,6 +63,12 @@ export function validateEnv<T extends z.ZodTypeAny>(
 
 let _serverEnv: z.infer<typeof serverSchema> | undefined;
 let _publicEnv: z.infer<typeof publicSchema> | undefined;
+
+/** @internal Reset cached env for testing. */
+export function _resetEnvCache() {
+  _serverEnv = undefined;
+  _publicEnv = undefined;
+}
 
 /** Validated server environment variables. Throws on first access if invalid. */
 export function serverEnv() {

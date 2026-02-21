@@ -114,8 +114,15 @@ mock.module('drizzle-orm', () => ({
   }),
 }));
 
-const { identifyDuePayments, retryFailedPayment, escalateDefault, identifyPlansForEscalation } =
-  await import('@/server/services/collection');
+const {
+  identifyDuePayments,
+  retryFailedPayment,
+  escalateDefault,
+  identifyPlansForEscalation,
+  getRetrySuccessRate,
+} = await import('@/server/services/collection');
+
+const { isLikelyPayday } = await import('@/lib/utils/payday');
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -224,7 +231,7 @@ describe('retryFailedPayment', () => {
 
   it('retries a failed payment and increments retry count', async () => {
     mockTxSelectLimit.mockResolvedValueOnce([
-      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1' },
+      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1', amountCents: 15_900 },
     ]);
 
     const result = await retryFailedPayment('pay-1');
@@ -243,7 +250,7 @@ describe('retryFailedPayment', () => {
 
   it('creates audit log when retrying', async () => {
     mockTxSelectLimit.mockResolvedValueOnce([
-      { id: 'pay-1', status: 'failed', retryCount: 1, planId: 'plan-1' },
+      { id: 'pay-1', status: 'failed', retryCount: 1, planId: 'plan-1', amountCents: 15_900 },
     ]);
 
     await retryFailedPayment('pay-1');
@@ -258,9 +265,21 @@ describe('retryFailedPayment', () => {
     );
   });
 
+  it('includes urgencyLevel in audit log', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 1, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
+    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    expect(newValue.urgencyLevel).toBe(2);
+  });
+
   it('returns false when payment has exhausted retries', async () => {
     mockTxSelectLimit.mockResolvedValueOnce([
-      { id: 'pay-1', status: 'failed', retryCount: 3, planId: 'plan-1' },
+      { id: 'pay-1', status: 'failed', retryCount: 3, planId: 'plan-1', amountCents: 15_900 },
     ]);
 
     const result = await retryFailedPayment('pay-1');
@@ -271,7 +290,7 @@ describe('retryFailedPayment', () => {
 
   it('returns false when payment is not in failed status', async () => {
     mockTxSelectLimit.mockResolvedValueOnce([
-      { id: 'pay-1', status: 'succeeded', retryCount: 0, planId: 'plan-1' },
+      { id: 'pay-1', status: 'succeeded', retryCount: 0, planId: 'plan-1', amountCents: 15_900 },
     ]);
 
     const result = await retryFailedPayment('pay-1');
@@ -288,25 +307,72 @@ describe('retryFailedPayment', () => {
     );
   });
 
-  it('schedules retry 3 days in the future', async () => {
-    const beforeCall = new Date();
-
+  it('schedules retry on a likely payday instead of fixed 3-day interval', async () => {
     mockTxSelectLimit.mockResolvedValueOnce([
-      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1' },
+      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1', amountCents: 15_900 },
     ]);
 
     await retryFailedPayment('pay-1');
 
-    const setCall = mockTxUpdateSet.mock.calls[0][0] as {
-      scheduledAt: Date;
-    };
+    const setCall = mockTxUpdateSet.mock.calls[0][0] as { scheduledAt: Date };
+    const scheduledAt = setCall.scheduledAt;
+
+    // The scheduled date must be a likely payday (Friday, 1st, or 15th)
+    expect(isLikelyPayday(scheduledAt)).toBe(true);
+  });
+
+  it('schedules retry at least 2 days in the future', async () => {
+    const beforeCall = new Date();
+
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    const setCall = mockTxUpdateSet.mock.calls[0][0] as { scheduledAt: Date };
     const scheduledAt = setCall.scheduledAt;
     const diffMs = scheduledAt.getTime() - beforeCall.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
-    // Should be approximately 3 days in the future (allow margin for execution time)
-    expect(diffDays).toBeGreaterThanOrEqual(2.9);
-    expect(diffDays).toBeLessThanOrEqual(3.1);
+    // Should be at least 2 days in the future (payday alignment with min 2-day gap)
+    expect(diffDays).toBeGreaterThanOrEqual(1.9);
+  });
+
+  it('sets urgency level 1 for first retry', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 0, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
+    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    expect(newValue.urgencyLevel).toBe(1);
+  });
+
+  it('sets urgency level 2 for second retry', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 1, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
+    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    expect(newValue.urgencyLevel).toBe(2);
+  });
+
+  it('sets urgency level 3 for third retry', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 2, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
+    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    expect(newValue.urgencyLevel).toBe(3);
   });
 });
 
@@ -435,5 +501,86 @@ describe('identifyPlansForEscalation', () => {
     const result = await identifyPlansForEscalation();
 
     expect(result).toEqual([]);
+  });
+});
+
+// ── Tests: getRetrySuccessRate ───────────────────────────────────────
+
+describe('getRetrySuccessRate', () => {
+  beforeEach(setupSelectChain);
+  afterEach(clearAllMocks);
+
+  it('calculates correct rate when there are retried and succeeded payments', async () => {
+    // First select: count all retried (retryCount > 0)
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ total: 10 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    // Second select: count succeeded among retried
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ succeeded: 7 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    const result = await getRetrySuccessRate();
+
+    expect(result.total).toBe(10);
+    expect(result.succeeded).toBe(7);
+    expect(result.rate).toBeCloseTo(0.7);
+  });
+
+  it('returns zero rate when no payments have been retried', async () => {
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ total: 0 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ succeeded: 0 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    const result = await getRetrySuccessRate();
+
+    expect(result.total).toBe(0);
+    expect(result.succeeded).toBe(0);
+    expect(result.rate).toBe(0);
+  });
+
+  it('handles case where all retries succeeded', async () => {
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ total: 5 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ succeeded: 5 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    const result = await getRetrySuccessRate();
+
+    expect(result.total).toBe(5);
+    expect(result.succeeded).toBe(5);
+    expect(result.rate).toBe(1);
+  });
+
+  it('handles case where no retries succeeded', async () => {
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ total: 3 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    mockSelectFrom.mockReturnValueOnce({
+      where: mock().mockReturnValueOnce([{ succeeded: 0 }]),
+      groupBy: mockSelectGroupBy,
+    });
+
+    const result = await getRetrySuccessRate();
+
+    expect(result.total).toBe(3);
+    expect(result.succeeded).toBe(0);
+    expect(result.rate).toBe(0);
   });
 });

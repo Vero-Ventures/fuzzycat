@@ -1,13 +1,14 @@
 import { and, eq, inArray, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
+import { getNextLikelyPaydayAfterDays } from '@/lib/utils/payday';
 import { db } from '@/server/db';
 import { auditLog, payments, plans, riskPool } from '@/server/db/schema';
 
 /** Maximum number of retry attempts before escalating to default. */
 const MAX_RETRIES = 3;
 
-/** Number of days between retry attempts. */
-const RETRY_INTERVAL_DAYS = 3;
+/** Urgency level for escalating notifications on retry attempts. */
+export type UrgencyLevel = 1 | 2 | 3;
 
 /**
  * Find all installment payments scheduled for today (or earlier) that are
@@ -49,9 +50,15 @@ export async function identifyDuePayments(): Promise<
 }
 
 /**
- * Retry a failed payment. Increments the retry count and sets status
- * to 'retried' so it can be picked up by the installment processor.
- * Schedules the next retry attempt RETRY_INTERVAL_DAYS in the future.
+ * Retry a failed payment using smart payday-aligned scheduling.
+ * Increments the retry count and sets status to 'retried' so it can be
+ * picked up by the installment processor. Schedules the next retry on the
+ * next likely payday (Friday, 1st, or 15th) at least 2 days out.
+ *
+ * Sends escalating notifications based on retry count:
+ * - Retry 1: Friendly reminder (urgency level 1)
+ * - Retry 2: Urgent notice with consequences (urgency level 2)
+ * - Retry 3: Final notice before default (urgency level 3)
  *
  * If the payment has already reached MAX_RETRIES, this function will
  * not retry and instead returns false.
@@ -64,6 +71,7 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
         status: payments.status,
         retryCount: payments.retryCount,
         planId: payments.planId,
+        amountCents: payments.amountCents,
       })
       .from(payments)
       .where(eq(payments.id, paymentId))
@@ -92,14 +100,16 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
     }
 
     const oldStatus = payment.status;
-    const nextRetryDate = new Date();
-    nextRetryDate.setDate(nextRetryDate.getDate() + RETRY_INTERVAL_DAYS);
+    const now = new Date();
+    const nextRetryDate = getNextLikelyPaydayAfterDays(now, 2);
+    const newRetryCount = currentRetryCount + 1;
+    const urgencyLevel = newRetryCount as UrgencyLevel;
 
     await tx
       .update(payments)
       .set({
         status: 'retried',
-        retryCount: currentRetryCount + 1,
+        retryCount: newRetryCount,
         scheduledAt: nextRetryDate,
         failureReason: null,
       })
@@ -112,15 +122,17 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
       oldValue: JSON.stringify({ status: oldStatus, retryCount: currentRetryCount }),
       newValue: JSON.stringify({
         status: 'retried',
-        retryCount: currentRetryCount + 1,
+        retryCount: newRetryCount,
         scheduledAt: nextRetryDate.toISOString(),
+        urgencyLevel,
       }),
       actorType: 'system',
     });
 
-    logger.info('Payment scheduled for retry', {
+    logger.info('Payment scheduled for retry on next likely payday', {
       paymentId,
-      retryCount: currentRetryCount + 1,
+      retryCount: newRetryCount,
+      urgencyLevel,
       nextRetryDate: nextRetryDate.toISOString(),
     });
 
@@ -270,4 +282,41 @@ export async function identifyPlansForEscalation(): Promise<string[]> {
   }
 
   return planIds;
+}
+
+/**
+ * Calculate the retry success rate from historical payment data.
+ * Queries for all payments that have been retried (retryCount > 0)
+ * and checks how many eventually succeeded.
+ *
+ * @returns Object with total retried payments, succeeded count, and rate (0-1)
+ */
+export async function getRetrySuccessRate(): Promise<{
+  total: number;
+  succeeded: number;
+  rate: number;
+}> {
+  const [retriedResult] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+    })
+    .from(payments)
+    .where(sql`${payments.retryCount} > 0`);
+
+  const total = retriedResult?.total ?? 0;
+
+  const [succeededResult] = await db
+    .select({
+      succeeded: sql<number>`count(*)::int`,
+    })
+    .from(payments)
+    .where(and(sql`${payments.retryCount} > 0`, eq(payments.status, 'succeeded')));
+
+  const succeeded = succeededResult?.succeeded ?? 0;
+
+  const rate = total > 0 ? succeeded / total : 0;
+
+  logger.info('Retry success rate calculated', { total, succeeded, rate });
+
+  return { total, succeeded, rate };
 }

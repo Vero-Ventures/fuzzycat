@@ -45,8 +45,9 @@ test.describe('MFA Verify Page', () => {
       });
     } else {
       // Page rendered the MFA verify content
+      // The heading is "Two-factor authentication"
       const heading = page.getByRole('heading', {
-        name: /verify|verification|code|authenticate/i,
+        name: /verify|verification|code|authentication|two-factor/i,
       });
       await expect(heading).toBeVisible();
 

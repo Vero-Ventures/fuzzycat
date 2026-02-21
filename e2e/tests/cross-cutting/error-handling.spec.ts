@@ -16,7 +16,7 @@ test.describe('Error handling', () => {
 
   test('captures screenshot of 404 page', async ({ page }, testInfo) => {
     await page.goto('/nonexistent-page-xyz');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const screenshot = await page.screenshot({ fullPage: true });
     await testInfo.attach('404-page', {

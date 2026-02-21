@@ -15,8 +15,11 @@ test.describe('Signup Page', () => {
   });
 
   test('shows pet owner tab by default', async ({ page }, testInfo) => {
-    const ownerTab = page.getByRole('tab', { name: /pet owner|owner/i });
-    await expect(ownerTab).toHaveAttribute('aria-selected', 'true');
+    // Tab buttons are styled <button> elements (not role="tab")
+    const ownerTab = page.getByRole('button', { name: /pet owner/i });
+    await expect(ownerTab).toBeVisible();
+    // Active tab has bg-primary class
+    await expect(ownerTab).toHaveClass(/bg-primary/);
 
     // Owner-specific fields should be visible
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -29,12 +32,13 @@ test.describe('Signup Page', () => {
   });
 
   test('can switch to clinic tab', async ({ page }, testInfo) => {
-    const clinicTab = page.getByRole('tab', {
-      name: /veterinary clinic|clinic/i,
+    const clinicTab = page.getByRole('button', {
+      name: /veterinary clinic/i,
     });
     await clinicTab.click();
 
-    await expect(clinicTab).toHaveAttribute('aria-selected', 'true');
+    // Active tab has bg-primary class
+    await expect(clinicTab).toHaveClass(/bg-primary/);
 
     // Clinic-specific fields should now be visible
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -58,8 +62,8 @@ test.describe('Signup Page', () => {
   });
 
   test('clinic form has required fields', async ({ page }) => {
-    const clinicTab = page.getByRole('tab', {
-      name: /veterinary clinic|clinic/i,
+    const clinicTab = page.getByRole('button', {
+      name: /veterinary clinic/i,
     });
     await clinicTab.click();
 

@@ -33,7 +33,8 @@ test.describe('Landing page', () => {
   test('shows pricing transparency', async ({ page }, testInfo) => {
     await page.goto('/');
 
-    await expect(page.getByText('6%', { exact: false })).toBeVisible();
+    // Multiple elements contain "6%" so use first() to avoid strict mode violation
+    await expect(page.getByText('6%', { exact: false }).first()).toBeVisible();
     await expect(page.getByText('No Credit Check', { exact: true })).toBeVisible();
     await expect(page.getByText('12-Week Plan')).toBeVisible();
 

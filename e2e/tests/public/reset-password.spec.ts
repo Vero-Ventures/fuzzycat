@@ -35,8 +35,19 @@ test.describe('Reset Password page', () => {
   test('shows validation for short password', async ({ page }, testInfo) => {
     await page.goto('/reset-password');
 
-    await page.locator('input#password').fill('short');
-    await page.locator('input#confirm-password').fill('short');
+    // The inputs have minLength=8, so HTML5 validation prevents submission.
+    // Verify the minlength attribute exists as the first line of defense.
+    const passwordInput = page.locator('input#password');
+    const confirmInput = page.locator('input#confirm-password');
+    await expect(passwordInput).toHaveAttribute('minlength', '8');
+    await expect(confirmInput).toHaveAttribute('minlength', '8');
+
+    // Remove minlength via JS to test the client-side validation fallback
+    await passwordInput.evaluate((el) => el.removeAttribute('minlength'));
+    await confirmInput.evaluate((el) => el.removeAttribute('minlength'));
+
+    await passwordInput.fill('short');
+    await confirmInput.fill('short');
     await page.getByRole('button', { name: /update password/i }).click();
 
     await expect(page.getByText('Password must be at least 8 characters')).toBeVisible();

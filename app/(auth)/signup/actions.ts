@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { verifyCaptcha } from '@/lib/captcha';
 import { logger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -74,6 +75,14 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error: 'Too many requests. Please try again later.' };
   }
 
+  const captchaToken = formData.get('captchaToken') as string | null;
+  if (captchaToken) {
+    const captchaValid = await verifyCaptcha(captchaToken);
+    if (!captchaValid) {
+      return { error: 'CAPTCHA verification failed. Please try again.' };
+    }
+  }
+
   const parsed = ownerSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!parsed.success) {
@@ -112,6 +121,14 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
   const { success: allowed } = await checkRateLimit();
   if (!allowed) {
     return { error: 'Too many requests. Please try again later.' };
+  }
+
+  const captchaToken = formData.get('captchaToken') as string | null;
+  if (captchaToken) {
+    const captchaValid = await verifyCaptcha(captchaToken);
+    if (!captchaValid) {
+      return { error: 'CAPTCHA verification failed. Please try again.' };
+    }
   }
 
   const parsed = clinicSchema.safeParse(Object.fromEntries(formData.entries()));

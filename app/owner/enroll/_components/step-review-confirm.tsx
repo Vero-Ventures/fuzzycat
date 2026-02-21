@@ -1,7 +1,8 @@
 'use client';
 
 import { Calendar, CreditCard, Landmark } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { Captcha } from '@/components/shared/captcha';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,6 +38,17 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
       return null;
     }
   }, [data.billAmountCents]);
+
+  const handleTurnstileVerify = useCallback(
+    (token: string) => {
+      updateData({ captchaToken: token });
+    },
+    [updateData],
+  );
+
+  const handleTurnstileError = useCallback(() => {
+    updateData({ captchaToken: null });
+  }, [updateData]);
 
   const canContinue = data.disclaimersAccepted && data.captchaVerified;
 
@@ -195,7 +207,10 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
       {/* CAPTCHA */}
       <div className="rounded-md border p-4">
         <h3 className="mb-3 font-semibold">Verification</h3>
-        <MathCaptcha onVerified={(verified) => updateData({ captchaVerified: verified })} />
+        <div className="space-y-4">
+          <MathCaptcha onVerified={(verified) => updateData({ captchaVerified: verified })} />
+          <Captcha onVerify={handleTurnstileVerify} onError={handleTurnstileError} />
+        </div>
       </div>
 
       <div className="flex justify-between">

@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { Captcha } from '@/components/shared/captcha';
 import { signUpClinic, signUpOwner } from './actions';
 
 type Tab = 'owner' | 'clinic';
@@ -11,6 +12,15 @@ export function SignupForm() {
   const [tab, setTab] = useState<Tab>('owner');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  const handleCaptchaVerify = useCallback((token: string) => {
+    setCaptchaToken(token);
+  }, []);
+
+  const handleCaptchaError = useCallback(() => {
+    setCaptchaToken(null);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -19,6 +29,9 @@ export function SignupForm() {
 
     try {
       const formData = new FormData(e.currentTarget);
+      if (captchaToken) {
+        formData.set('captchaToken', captchaToken);
+      }
       const result = tab === 'owner' ? await signUpOwner(formData) : await signUpClinic(formData);
 
       if (result.error) {
@@ -90,10 +103,12 @@ export function SignupForm() {
 
         {tab === 'owner' ? <OwnerFields /> : <ClinicFields />}
 
+        <Captcha onVerify={handleCaptchaVerify} onError={handleCaptchaError} className="my-2" />
+
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
         >
           {loading ? 'Creating account...' : 'Create account'}
         </button>

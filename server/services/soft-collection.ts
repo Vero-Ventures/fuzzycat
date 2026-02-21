@@ -214,7 +214,7 @@ async function sendEscalationSms(
  */
 export async function initiateSoftCollection(planId: string): Promise<SoftCollectionRecord> {
   const now = new Date();
-  const nextEscalation = addDays(now, 6);
+  const nextEscalation = addDays(now, 7);
 
   const [record] = await db
     .insert(softCollections)

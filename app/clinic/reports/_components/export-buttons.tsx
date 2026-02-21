@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTRPC } from '@/lib/trpc/client';
@@ -53,42 +53,41 @@ export function ExportButtons() {
     enabled: activeExport === 'payouts',
   });
 
-  // Handle download when data arrives
+  // Handle download when data arrives via useEffect
+  useEffect(() => {
+    if (activeExport === 'clients' && clientsQuery.data) {
+      downloadCsv(clientsQuery.data.csv, 'clients-export.csv');
+      setActiveExport(null);
+    }
+    if (activeExport === 'revenue' && revenueQuery.data) {
+      downloadCsv(revenueQuery.data.csv, 'revenue-export.csv');
+      setActiveExport(null);
+    }
+    if (activeExport === 'payouts' && payoutsQuery.data) {
+      downloadCsv(payoutsQuery.data.csv, 'payouts-export.csv');
+      setActiveExport(null);
+    }
+  }, [activeExport, clientsQuery.data, revenueQuery.data, payoutsQuery.data]);
+
+  // Handle button click — trigger data fetch or use cached data
   const handleExport = useCallback(
     (type: string) => {
       if (type === 'clients' && clientsQuery.data) {
         downloadCsv(clientsQuery.data.csv, 'clients-export.csv');
-        setActiveExport(null);
         return;
       }
       if (type === 'revenue' && revenueQuery.data) {
         downloadCsv(revenueQuery.data.csv, 'revenue-export.csv');
-        setActiveExport(null);
         return;
       }
       if (type === 'payouts' && payoutsQuery.data) {
         downloadCsv(payoutsQuery.data.csv, 'payouts-export.csv');
-        setActiveExport(null);
         return;
       }
       setActiveExport(type);
     },
     [clientsQuery.data, revenueQuery.data, payoutsQuery.data],
   );
-
-  // Auto-download when data arrives
-  if (activeExport === 'clients' && clientsQuery.data) {
-    downloadCsv(clientsQuery.data.csv, 'clients-export.csv');
-    setActiveExport(null);
-  }
-  if (activeExport === 'revenue' && revenueQuery.data) {
-    downloadCsv(revenueQuery.data.csv, 'revenue-export.csv');
-    setActiveExport(null);
-  }
-  if (activeExport === 'payouts' && payoutsQuery.data) {
-    downloadCsv(payoutsQuery.data.csv, 'payouts-export.csv');
-    setActiveExport(null);
-  }
 
   return (
     <Card>

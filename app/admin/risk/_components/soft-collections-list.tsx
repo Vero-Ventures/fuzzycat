@@ -47,11 +47,11 @@ interface CollectionItem {
   id: string;
   planId: string;
   stage: string;
-  startedAt: unknown;
-  lastEscalatedAt: unknown;
-  nextEscalationAt: unknown;
+  startedAt: Date;
+  lastEscalatedAt: Date | null;
+  nextEscalationAt: Date | null;
   notes: string | null;
-  createdAt: unknown;
+  createdAt: Date | null;
   ownerName: string | null;
   ownerEmail: string | null;
   petName: string | null;
@@ -299,7 +299,7 @@ function SoftCollectionsTable({
             </TableCell>
             <CollectionStageCell stage={collection.stage} />
             <TableCell className="text-muted-foreground">
-              {collection.nextEscalationAt ? formatDate(collection.nextEscalationAt as Date) : '--'}
+              {collection.nextEscalationAt ? formatDate(collection.nextEscalationAt) : '--'}
             </TableCell>
             <CollectionActionCell
               collection={collection}

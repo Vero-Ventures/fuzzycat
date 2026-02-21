@@ -25,7 +25,11 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       });
 
       if (signInError) {
-        setError(signInError.message);
+        if (signInError.message === 'Email not confirmed') {
+          setError('Please check your email and confirm your account before signing in.');
+        } else {
+          setError(signInError.message);
+        }
         return;
       }
 
@@ -33,6 +37,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       const destination = redirectTo ?? ROLE_HOME[role];
       router.push(destination);
       router.refresh();
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

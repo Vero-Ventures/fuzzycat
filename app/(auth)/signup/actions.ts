@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
 import { clinics, owners } from '@/server/db/schema';
 
-type ActionResult = { error: string | null };
+type ActionResult = { error: string | null; needsEmailConfirmation?: boolean };
 
 const ownerSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -45,11 +45,11 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   const { data, error } = await supabase.auth.signUp({ email, password });
 
   if (error) {
-    return { userId: null, error: error.message };
+    return { userId: null, hasSession: false, error: error.message };
   }
 
   if (!data.user) {
-    return { userId: null, error: 'Failed to create user' };
+    return { userId: null, hasSession: false, error: 'Failed to create user' };
   }
 
   const admin = createAdminClient();
@@ -64,10 +64,14 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
       error: roleError.message,
     });
     await admin.auth.admin.deleteUser(data.user.id);
-    return { userId: null, error: 'Failed to configure account. Please try again.' };
+    return {
+      userId: null,
+      hasSession: false,
+      error: 'Failed to configure account. Please try again.',
+    };
   }
 
-  return { userId: data.user.id, error: null };
+  return { userId: data.user.id, hasSession: !!data.session, error: null };
 }
 
 /** Delete the Supabase auth user when the DB insert fails to prevent orphaned accounts. */
@@ -99,7 +103,7 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
   }
 
   const { email, password, name, phone, petName } = parsed.data;
-  const { userId, error } = await signUpWithRole(email, password, 'owner');
+  const { userId, hasSession, error } = await signUpWithRole(email, password, 'owner');
 
   if (error) {
     return { error };
@@ -123,7 +127,7 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error: 'Failed to create account. Please try again.' };
   }
 
-  return { error: null };
+  return { error: null, needsEmailConfirmation: !hasSession };
 }
 
 export async function signUpClinic(formData: FormData): Promise<ActionResult> {
@@ -144,7 +148,7 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
   }
 
   const { email, password, clinicName, phone, addressState, addressZip } = parsed.data;
-  const { userId, error } = await signUpWithRole(email, password, 'clinic');
+  const { userId, hasSession, error } = await signUpWithRole(email, password, 'clinic');
 
   if (error) {
     return { error };
@@ -168,5 +172,5 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
     return { error: 'Failed to create account. Please try again.' };
   }
 
-  return { error: null };
+  return { error: null, needsEmailConfirmation: !hasSession };
 }

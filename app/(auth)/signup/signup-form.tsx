@@ -13,6 +13,7 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   const handleCaptchaVerify = useCallback((token: string) => {
     setCaptchaToken(token);
@@ -39,11 +40,59 @@ export function SignupForm() {
         return;
       }
 
+      if (result.needsEmailConfirmation) {
+        setEmailSent(formData.get('email') as string);
+        return;
+      }
+
       router.push(tab === 'owner' ? '/owner/payments' : '/clinic/dashboard');
       router.refresh();
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+          <svg
+            className="h-6 w-6 text-amber-700 dark:text-amber-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            role="img"
+            aria-label="Email icon"
+          >
+            <title>Email icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+            />
+          </svg>
+        </div>
+        <h2 className="text-lg font-semibold">Check your email</h2>
+        <p className="text-sm text-muted-foreground">
+          We sent a confirmation link to <strong>{emailSent}</strong>. Click the link in the email
+          to activate your account.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Didn&apos;t receive it? Check your spam folder, or{' '}
+          <button
+            type="button"
+            onClick={() => setEmailSent(null)}
+            className="font-medium text-primary hover:text-primary/80"
+          >
+            try again
+          </button>
+          .
+        </p>
+      </div>
+    );
   }
 
   return (

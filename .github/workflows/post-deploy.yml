@@ -7,7 +7,7 @@ jobs:
   smoke-test:
     name: Smoke Test
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success'
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production'
     steps:
       - name: Wait for deployment to stabilize
         run: sleep 15

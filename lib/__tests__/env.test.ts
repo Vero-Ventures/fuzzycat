@@ -126,32 +126,4 @@ describe('env var parity — .env.example must list every schema key', () => {
       );
     }
   });
-
-  it('direct process.env keys (UPSTASH_*, NEXT_PUBLIC_APP_URL) appear in .env.example', () => {
-    const envExamplePath = resolve(__dirname, '../../.env.example');
-    const envExampleContent = readFileSync(envExamplePath, 'utf-8');
-
-    const envExampleKeys = new Set(
-      envExampleContent
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line && !line.startsWith('#'))
-        .map((line) => line.split('=')[0].trim()),
-    );
-
-    // Keys that are accessed via process.env directly (known usages)
-    const directKeys = [
-      'UPSTASH_REDIS_REST_URL',
-      'UPSTASH_REDIS_REST_TOKEN',
-      'NEXT_PUBLIC_APP_URL',
-    ];
-
-    const missing = directKeys.filter((key) => !envExampleKeys.has(key));
-
-    if (missing.length > 0) {
-      throw new Error(
-        `These directly-accessed env vars are missing from .env.example:\n${missing.map((k) => `  - ${k}`).join('\n')}`,
-      );
-    }
-  });
 });

@@ -63,18 +63,13 @@ function roleProcedure(...allowedRoles: UserRole[]) {
     }
 
     // Enforce MFA for clinic and admin roles
-    const requiresMfa = allowedRoles.some((r) => r === 'clinic' || r === 'admin');
-    if (requiresMfa && (ctx.session.role === 'clinic' || ctx.session.role === 'admin')) {
-      const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
-      const hasTotp = mfaFactors?.totp?.some((f) => f.status === 'verified');
-      if (hasTotp) {
-        const { data: aal } = await ctx.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (aal?.currentLevel !== 'aal2') {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'MFA verification required',
-          });
-        }
+    if (ctx.session.role === 'clinic' || ctx.session.role === 'admin') {
+      const { data: aal } = await ctx.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel !== 'aal2') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'MFA verification required',
+        });
       }
     }
 

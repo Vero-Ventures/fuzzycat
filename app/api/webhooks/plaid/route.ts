@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { importJWK, jwtVerify } from 'jose';
+import { decodeProtectedHeader, importJWK, jwtVerify } from 'jose';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { plaid } from '@/lib/plaid';
@@ -57,22 +57,15 @@ async function verifyWebhook(body: string, verificationHeader: string | null): P
 
   try {
     // 1. Decode the JWT header to get the key ID
-    const parts = verificationHeader.split('.');
-    if (parts.length !== 3) {
-      logger.error('Plaid webhook: Plaid-Verification header is not a valid JWS');
-      return false;
-    }
+    const { kid } = decodeProtectedHeader(verificationHeader);
 
-    const headerJson = Buffer.from(parts[0], 'base64url').toString('utf-8');
-    const header = JSON.parse(headerJson) as { kid?: string; alg?: string };
-
-    if (!header.kid) {
+    if (!kid) {
       logger.error('Plaid webhook: JWS header missing kid');
       return false;
     }
 
     // 2. Fetch the public key from Plaid
-    const keyResponse = await plaid().webhookVerificationKeyGet({ key_id: header.kid });
+    const keyResponse = await plaid().webhookVerificationKeyGet({ key_id: kid });
     const jwk = keyResponse.data.key;
 
     // 3. Import the JWK and verify the JWT signature

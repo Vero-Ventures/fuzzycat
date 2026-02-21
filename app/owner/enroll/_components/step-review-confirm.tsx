@@ -50,7 +50,10 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
     updateData({ captchaToken: null });
   }, [updateData]);
 
-  const canContinue = data.disclaimersAccepted && data.captchaVerified;
+  const canContinue =
+    data.disclaimersAccepted &&
+    data.captchaVerified &&
+    (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? !!data.captchaToken : true);
 
   function handleContinue() {
     if (canContinue) {

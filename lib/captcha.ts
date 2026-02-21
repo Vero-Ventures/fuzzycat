@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 interface TurnstileVerifyResponse {
   success: boolean;
   'error-codes'?: string[];
@@ -15,7 +17,7 @@ export async function verifyCaptcha(token: string): Promise<boolean> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
   if (!secretKey) {
-    console.error('verifyCaptcha: TURNSTILE_SECRET_KEY is not configured');
+    logger.error('verifyCaptcha: TURNSTILE_SECRET_KEY is not configured');
     return false;
   }
 
@@ -34,14 +36,14 @@ export async function verifyCaptcha(token: string): Promise<boolean> {
     });
 
     if (!response.ok) {
-      console.error(`verifyCaptcha: HTTP ${response.status} from Turnstile API`);
+      logger.error(`verifyCaptcha: HTTP ${response.status} from Turnstile API`);
       return false;
     }
 
     const data: TurnstileVerifyResponse = await response.json();
     return data.success;
   } catch (error) {
-    console.error('verifyCaptcha: Network error', error);
+    logger.error('verifyCaptcha: Network error', { error });
     return false;
   }
 }

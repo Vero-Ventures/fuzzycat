@@ -140,17 +140,22 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium
-      - name: Run E2E tests
-        run: bun run test:e2e --project=chromium
+      - name: Run E2E tests (local projects)
+        run: bun run test:e2e:local
         env:
-          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
-          SUPABASE_SERVICE_ROLE_KEY: placeholder
           STRIPE_SECRET_KEY: sk_test_placeholder
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          STRIPE_WEBHOOK_SECRET: whsec_placeholder
           TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+          E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
+          E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
@@ -162,4 +167,26 @@ jobs:
         with:
           name: test-results
           path: test-results/
+          retention-days: 14
+
+  e2e-production:
+    name: E2E Production Tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium
+      - name: Run production E2E tests
+        run: bun run test:e2e:prod
+        env:
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-production
+          path: playwright-report/
           retention-days: 14

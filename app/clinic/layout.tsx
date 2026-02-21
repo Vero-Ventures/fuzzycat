@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getUserRole } from '@/lib/auth';
 import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
+import { ClinicSidebar } from './_components/clinic-sidebar';
 
 export default async function ClinicLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -20,5 +21,10 @@ export default async function ClinicLayout({ children }: { children: React.React
 
   await enforceMfa(supabase);
 
-  return <>{children}</>;
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <ClinicSidebar />
+      <main className="flex-1 overflow-y-auto bg-background">{children}</main>
+    </div>
+  );
 }

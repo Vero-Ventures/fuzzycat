@@ -9,7 +9,17 @@ const AUTH_PAGES = ['/login', '/signup'];
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const env = publicEnv();
+  let env: ReturnType<typeof publicEnv>;
+  try {
+    env = publicEnv();
+  } catch (error) {
+    console.error(
+      '[middleware] env validation failed — passing through:',
+      error instanceof Error ? error.message : error,
+    );
+    return NextResponse.next({ request });
+  }
+
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

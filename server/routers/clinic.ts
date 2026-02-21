@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
@@ -12,7 +13,13 @@ import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const url = publicEnv().NEXT_PUBLIC_APP_URL;
+  if (!url && process.env.NODE_ENV === 'production') {
+    logger.error(
+      'NEXT_PUBLIC_APP_URL is not set — Stripe Connect URLs will use localhost fallback',
+    );
+  }
+  return url ?? 'http://localhost:3000';
 }
 
 /**

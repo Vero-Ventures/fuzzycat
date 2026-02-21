@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import { validateEnv } from '@/lib/env';
+import { _resetEnvCache, validateEnv } from '@/lib/env';
 
 describe('env validation', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
+    _resetEnvCache();
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = 'pk_test_abc123';
@@ -25,6 +28,7 @@ describe('env validation', () => {
   });
 
   afterEach(() => {
+    _resetEnvCache();
     for (const key of Object.keys(process.env)) {
       if (!(key in originalEnv)) {
         delete process.env[key];
@@ -81,5 +85,73 @@ describe('env validation', () => {
 
     const result = validateEnv(schema, { FOO: 'hello', BAR: 'world' });
     expect(result).toEqual({ FOO: 'hello', BAR: 'world' });
+  });
+});
+
+describe('env var parity — .env.example must list every schema key', () => {
+  /**
+   * Parse all env var keys defined in lib/env.ts Zod schemas and any
+   * direct process.env references used outside exempt files, then verify
+   * they all appear in .env.example. This ensures developers remember to
+   * document new env vars so Vercel config stays in sync.
+   */
+  it('every key in the Zod schemas appears in .env.example', () => {
+    const envExamplePath = resolve(__dirname, '../../.env.example');
+    const envExampleContent = readFileSync(envExamplePath, 'utf-8');
+
+    // Parse keys from .env.example (lines starting with VAR_NAME=)
+    const envExampleKeys = new Set(
+      envExampleContent
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .map((line) => line.split('=')[0].trim()),
+    );
+
+    // Read lib/env.ts and extract keys from z.object({ ... }) definitions
+    const envTsPath = resolve(__dirname, '../env.ts');
+    const envTsContent = readFileSync(envTsPath, 'utf-8');
+
+    // Match keys like NEXT_PUBLIC_SUPABASE_URL, DATABASE_URL, etc.
+    const schemaKeyRegex = /^\s+([A-Z][A-Z0-9_]+):\s*z\./gm;
+    const schemaKeys = Array.from(envTsContent.matchAll(schemaKeyRegex), (m) => m[1]);
+
+    expect(schemaKeys.length).toBeGreaterThan(0);
+
+    const missing = schemaKeys.filter((key) => !envExampleKeys.has(key));
+
+    if (missing.length > 0) {
+      throw new Error(
+        `These env vars are in lib/env.ts but missing from .env.example:\n${missing.map((k) => `  - ${k}`).join('\n')}`,
+      );
+    }
+  });
+
+  it('direct process.env keys (UPSTASH_*, NEXT_PUBLIC_APP_URL) appear in .env.example', () => {
+    const envExamplePath = resolve(__dirname, '../../.env.example');
+    const envExampleContent = readFileSync(envExamplePath, 'utf-8');
+
+    const envExampleKeys = new Set(
+      envExampleContent
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .map((line) => line.split('=')[0].trim()),
+    );
+
+    // Keys that are accessed via process.env directly (known usages)
+    const directKeys = [
+      'UPSTASH_REDIS_REST_URL',
+      'UPSTASH_REDIS_REST_TOKEN',
+      'NEXT_PUBLIC_APP_URL',
+    ];
+
+    const missing = directKeys.filter((key) => !envExampleKeys.has(key));
+
+    if (missing.length > 0) {
+      throw new Error(
+        `These directly-accessed env vars are missing from .env.example:\n${missing.map((k) => `  - ${k}`).join('\n')}`,
+      );
+    }
   });
 });

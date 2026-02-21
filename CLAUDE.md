@@ -89,6 +89,22 @@ bun run db:seed                  # Seed test data
 
 Target SAQ A: FuzzyCat servers never touch card data. Use Stripe Checkout (hosted) for deposits, Plaid Link (hosted) for bank connections. Never store PAN, CVV, bank account numbers, or routing numbers. Store only Stripe customer IDs and Plaid access tokens. MFA required for admin and clinic accounts.
 
+## Environment Variables
+
+- **All env vars must be declared in the Zod schemas** in `lib/env.ts` (`serverSchema` or `publicSchema`). Access them via `serverEnv()` or `publicEnv()`.
+- **Never access `process.env` directly** in application code. CI enforces this via `scripts/check-process-env.ts`. Exempt files: Sentry configs, `instrumentation.ts`, `drizzle.config.ts`, `playwright.config.ts`, `next.config.ts`, `lib/logger.ts` (NODE_ENV only).
+- **Every new env var must also be added to `.env.example`** with a comment. CI tests enforce parity between `lib/env.ts` schemas and `.env.example`.
+- **New required env vars must be configured in Vercel before merging the PR.** Optional vars (`z.string().optional()`) are safe to merge without Vercel config.
+- **Use `NEXT_PUBLIC_` prefix only for vars that must be available on the client.** These are inlined at build time.
+
+## Deployment
+
+- **Health check:** `GET /api/health` validates public env vars, server env vars, and database connectivity. Returns `200/ok` or `503/degraded`. Used by the post-deploy smoke test.
+- **Post-deploy smoke test:** `.github/workflows/post-deploy.yml` runs automatically after Vercel deployments. Hits `/api/health` and `/` — creates a visible failed check on GitHub if either returns non-200.
+- **Startup validation:** `instrumentation.ts` validates all env vars at cold start. Errors are logged to Vercel deploy logs but don't crash the app (so `/api/health` can report the failure).
+- **Middleware resilience:** `middleware.ts` catches env validation failures and passes through instead of crashing. Public pages stay accessible.
+- **Error boundaries:** Each portal (`/clinic`, `/owner`, `/admin`) has an `error.tsx` boundary that catches rendering errors, reports to Sentry, and shows a recovery UI.
+
 ## Project Structure
 
 ```
@@ -100,10 +116,13 @@ fuzzycat/
 │   ├── owner/                    # Pet owner portal (enroll, payments, settings) [implemented]
 │   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk) [stubs]
 │   └── api/
+│       ├── health/               # Health check endpoint (env + DB validation)
 │       ├── webhooks/stripe/      # Stripe webhook handler
 │       ├── webhooks/plaid/       # Plaid webhook handler
 │       └── trpc/                 # tRPC API handler
-├── components/ui/                # shadcn/ui components (14 installed)
+├── components/
+│   ├── ui/                       # shadcn/ui components (14 installed)
+│   └── shared/                   # Shared components (portal-error)
 ├── lib/
 │   ├── env.ts                    # Zod-validated env vars
 │   ├── logger.ts                 # Structured JSON logger

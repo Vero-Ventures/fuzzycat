@@ -33,6 +33,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         return;
       }
 
+      console.log('Login successful');
+
       const role = data.user ? getUserRole(data.user) : 'owner';
       const destination = redirectTo ?? ROLE_HOME[role];
       router.push(destination);

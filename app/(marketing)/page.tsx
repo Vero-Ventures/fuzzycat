@@ -42,7 +42,7 @@ export default function LandingPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-amber-50/50 to-background px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
+      <section className="relative overflow-hidden bg-gradient-to-b from-amber-50/50 to-background dark:from-amber-950/20 dark:to-background px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
         <div className="absolute inset-0 -z-10 opacity-[0.03]">
           <div className="absolute left-1/4 top-1/4">
             <PawPrint className="h-32 w-32 rotate-12" />
@@ -62,7 +62,9 @@ export default function LandingPage() {
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             Your pet deserves care.
             <br />
-            <span className="text-amber-600">You deserve a fair payment plan.</span>
+            <span className="text-amber-600 dark:text-amber-400">
+              You deserve a fair payment plan.
+            </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
             Split your vet bill into {NUM_INSTALLMENTS} easy biweekly payments over 12 weeks. Just a
@@ -133,7 +135,7 @@ export default function LandingPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <Card>
               <CardHeader className="text-center">
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <Shield className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">Flat {feePercent}% Fee</CardTitle>
@@ -147,7 +149,7 @@ export default function LandingPage() {
             </Card>
             <Card>
               <CardHeader className="text-center">
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <BadgeCheck className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">No Credit Check</CardTitle>
@@ -161,7 +163,7 @@ export default function LandingPage() {
             </Card>
             <Card>
               <CardHeader className="text-center">
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <Heart className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">12-Week Plan</CardTitle>
@@ -176,7 +178,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-10 text-center">
             <Link href="/how-it-works">
-              <Button variant="link" className="text-amber-700">
+              <Button variant="link" className="text-amber-700 dark:text-amber-400">
                 See a detailed payment example
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
@@ -242,7 +244,7 @@ export default function LandingPage() {
       {/* Pet Owner CTA */}
       <section className="border-t bg-muted/50 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <Cat className="mx-auto mb-6 h-12 w-12 text-amber-600" />
+          <Cat className="mx-auto mb-6 h-12 w-12 text-amber-600 dark:text-amber-400" />
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Ready to split your vet bill?
           </h2>
@@ -284,7 +286,7 @@ function StepCard({
   return (
     <div className="relative rounded-xl border bg-card p-6 shadow-sm">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
           {icon}
         </div>
         <span className="text-sm font-semibold text-muted-foreground">Step {step}</span>

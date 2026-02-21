@@ -75,12 +75,14 @@ export default function MfaSetupPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Set up two-factor authentication</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Scan the QR code with your authenticator app, then enter the verification code.
           </p>
         </div>
 
-        {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {error && (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        )}
 
         {qrCode && (
           <div className="flex justify-center">
@@ -91,7 +93,7 @@ export default function MfaSetupPage() {
 
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="code" className="block text-sm font-medium text-foreground">
               Verification code
             </label>
             <input
@@ -105,13 +107,13 @@ export default function MfaSetupPage() {
               value={verifyCode}
               onChange={(e) => setVerifyCode(e.target.value)}
               placeholder="000000"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !factorId}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? 'Verifying...' : 'Verify and enable'}
           </button>

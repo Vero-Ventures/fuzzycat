@@ -1,6 +1,7 @@
 import { Cat } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
@@ -18,7 +19,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <Cat className="h-7 w-7 text-amber-600" />
+          <Cat className="h-7 w-7 text-amber-600 dark:text-amber-400" />
           <span className="text-xl font-bold tracking-tight">FuzzyCat</span>
         </Link>
         <nav className="hidden items-center gap-6 md:flex">
@@ -28,6 +29,7 @@ function Header() {
           >
             How It Works
           </Link>
+          <ThemeToggle />
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Log in
@@ -38,6 +40,7 @@ function Header() {
           </Link>
         </nav>
         <nav className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Log in
@@ -59,7 +62,7 @@ function Footer() {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <div className="flex items-center gap-2">
-              <Cat className="h-6 w-6 text-amber-600" />
+              <Cat className="h-6 w-6 text-amber-600 dark:text-amber-400" />
               <span className="text-lg font-bold">FuzzyCat</span>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">

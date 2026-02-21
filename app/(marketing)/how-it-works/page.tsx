@@ -47,7 +47,7 @@ export default function HowItWorksPage() {
   return (
     <>
       {/* Page Header */}
-      <section className="bg-gradient-to-b from-amber-50/50 to-background px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-gradient-to-b from-amber-50/50 to-background dark:from-amber-950/20 dark:to-background px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">How FuzzyCat Works</h1>
           <p className="mt-4 text-lg text-muted-foreground">
@@ -102,21 +102,21 @@ export default function HowItWorksPage() {
             <h3 className="text-lg font-semibold">What you pay</h3>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
                   <strong className="text-foreground">Flat {feePercent}% platform fee</strong>{' '}
                   &mdash; added to your bill. This is the only cost. No interest.
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
                   <strong className="text-foreground">{depositPercent}% deposit up front</strong>{' '}
                   &mdash; charged immediately via debit card.
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
                   <strong className="text-foreground">
                     {NUM_INSTALLMENTS} biweekly installments
@@ -125,7 +125,7 @@ export default function HowItWorksPage() {
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>
                   <strong className="text-foreground">No credit check</strong> &mdash; your credit
                   score is never affected.
@@ -172,7 +172,7 @@ export default function HowItWorksPage() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <Card>
               <CardHeader>
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <HandCoins className="h-5 w-5" />
                 </div>
                 <CardTitle className="text-lg">
@@ -189,7 +189,7 @@ export default function HowItWorksPage() {
             </Card>
             <Card>
               <CardHeader>
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <Shield className="h-5 w-5" />
                 </div>
                 <CardTitle className="text-lg">Guaranteed payment</CardTitle>
@@ -203,7 +203,7 @@ export default function HowItWorksPage() {
             </Card>
             <Card>
               <CardHeader>
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <Banknote className="h-5 w-5" />
                 </div>
                 <CardTitle className="text-lg">Fast payouts</CardTitle>
@@ -406,7 +406,7 @@ function OwnerStep({
 }) {
   return (
     <div className="text-center">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
         {icon}
       </div>
       <span className="text-xs font-semibold text-muted-foreground">Step {step}</span>

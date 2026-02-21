@@ -57,14 +57,17 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-md space-y-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <CheckCircle2 className="h-6 w-6 text-green-700" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
+            <CheckCircle2 className="h-6 w-6 text-green-700 dark:text-green-400" />
           </div>
           <h1 className="text-2xl font-semibold">Password updated</h1>
           <p className="text-sm text-muted-foreground">
             Your password has been reset successfully. Redirecting you to login...
           </p>
-          <Link href="/login" className="text-sm font-medium text-amber-600 hover:text-amber-500">
+          <Link
+            href="/login"
+            className="text-sm font-medium text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300"
+          >
             Go to login now
           </Link>
         </div>
@@ -76,7 +79,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Cat className="mx-auto mb-4 h-10 w-10 text-amber-600" />
+          <Cat className="mx-auto mb-4 h-10 w-10 text-amber-600 dark:text-amber-400" />
           <h1 className="text-2xl font-semibold">Set a new password</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Enter your new password below. It must be at least 8 characters.

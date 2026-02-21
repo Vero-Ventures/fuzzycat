@@ -121,7 +121,9 @@ export function ProfileForm() {
               {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
             </Button>
             {saveStatus === 'saved' && (
-              <p className="text-sm text-green-600">Profile updated successfully.</p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Profile updated successfully.
+              </p>
             )}
             {saveStatus === 'error' && (
               <p className="text-sm text-destructive">

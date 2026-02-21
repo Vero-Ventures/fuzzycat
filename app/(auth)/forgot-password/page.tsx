@@ -40,8 +40,8 @@ export default function ForgotPasswordPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-md space-y-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-            <Mail className="h-6 w-6 text-amber-700" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+            <Mail className="h-6 w-6 text-amber-700 dark:text-amber-400" />
           </div>
           <h1 className="text-2xl font-semibold">Check your email</h1>
           <p className="text-sm text-muted-foreground">
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
             <button
               type="button"
               onClick={() => setSubmitted(false)}
-              className="font-medium text-amber-600 hover:text-amber-500"
+              className="font-medium text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300"
             >
               try again
             </button>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Cat className="mx-auto mb-4 h-10 w-10 text-amber-600" />
+          <Cat className="mx-auto mb-4 h-10 w-10 text-amber-600 dark:text-amber-400" />
           <h1 className="text-2xl font-semibold">Reset your password</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Enter your email address and we will send you a link to reset your password.

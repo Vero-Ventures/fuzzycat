@@ -229,13 +229,8 @@ describe('owner.getPlans', () => {
       totalPayments: 7,
     };
 
-    // First call: owner lookup, second call: plans + payments joined query
-    setupSelectChainSequence([[{ id: OWNER_ID }], [planWithStats]]);
-
-    // Verify owner lookup
-    const ownerChain = mockSelect();
-    const ownerResult = await ownerChain.from().where().limit();
-    expect(ownerResult[0].id).toBe(OWNER_ID);
+    // ownerId now comes from middleware context; single plans query
+    setupSelectChainSequence([[planWithStats]]);
 
     // Verify joined plans query (single query, no N+1)
     const plansChain = mockSelect();
@@ -248,10 +243,7 @@ describe('owner.getPlans', () => {
   });
 
   it('returns empty array when owner has no plans', async () => {
-    setupSelectChainSequence([[{ id: OWNER_ID }], []]);
-
-    const ownerChain = mockSelect();
-    await ownerChain.from().where().limit();
+    setupSelectChainSequence([[]]);
 
     const plansChain = mockSelect();
     const plansResult = await plansChain.from().where().limit();
@@ -291,17 +283,12 @@ describe('owner.getPaymentHistory', () => {
       },
     ];
 
+    // ownerId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: OWNER_ID }], // owner lookup
       [{ id: PLAN_ID, ownerId: OWNER_ID }], // plan lookup
       mockPayments, // payments query
       [{ count: 7 }], // count query
     ]);
-
-    // Verify owner lookup
-    const ownerChain = mockSelect();
-    const ownerResult = await ownerChain.from().where().limit();
-    expect(ownerResult[0].id).toBe(OWNER_ID);
 
     // Verify plan lookup
     const planChain = mockSelect();
@@ -319,14 +306,10 @@ describe('owner.getPaymentHistory', () => {
   it('denies access to plan owned by different owner', async () => {
     const DIFFERENT_OWNER_ID = '22222222-2222-2222-2222-999999999999';
 
+    // ownerId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: OWNER_ID }], // owner lookup
       [{ id: PLAN_ID, ownerId: DIFFERENT_OWNER_ID }], // plan owned by someone else
     ]);
-
-    const ownerChain = mockSelect();
-    const ownerResult = await ownerChain.from().where().limit();
-    expect(ownerResult[0].id).toBe(OWNER_ID);
 
     const planChain = mockSelect();
     const planResult = await planChain.from().where().limit();
@@ -352,17 +335,12 @@ describe('owner.getDashboardSummary', () => {
       sequenceNum: 2,
     };
 
+    // ownerId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: OWNER_ID }], // owner lookup
       [nextPayment], // next payment
       [{ totalPaidCents: 63600, totalRemainingCents: 63600 }], // totals
       [{ activePlans: 1, totalPlans: 2 }], // plan counts
     ]);
-
-    // Verify owner lookup
-    const ownerChain = mockSelect();
-    const ownerResult = await ownerChain.from().where().limit();
-    expect(ownerResult[0].id).toBe(OWNER_ID);
 
     // Verify next payment query
     const paymentChain = mockSelect();
@@ -372,15 +350,12 @@ describe('owner.getDashboardSummary', () => {
   });
 
   it('returns null next payment when none pending', async () => {
+    // ownerId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: OWNER_ID }], // owner lookup
       [], // no next payment
       [{ totalPaidCents: 127200, totalRemainingCents: 0 }], // all paid
       [{ activePlans: 0, totalPlans: 1 }], // no active plans
     ]);
-
-    const ownerChain = mockSelect();
-    await ownerChain.from().where().limit();
 
     const paymentChain = mockSelect();
     const paymentResult = await paymentChain.from().where().limit();

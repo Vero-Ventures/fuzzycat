@@ -1,8 +1,10 @@
 import { and, count, desc, eq, sum } from 'drizzle-orm';
 import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { logger } from '@/lib/logger';
+import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { payments, payouts } from '@/server/db/schema';
+import { auditLog, clinics, payments, payouts } from '@/server/db/schema';
 import { transferToClinic } from '@/server/services/stripe/connect';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -42,6 +44,20 @@ export interface ClinicEarnings {
   totalClinicShareCents: number;
   pendingPayoutCents: number;
   completedPayoutCount: number;
+}
+
+export interface ProcessedPayoutResult {
+  payoutId: string;
+  status: 'succeeded' | 'failed';
+  stripeTransferId?: string;
+  error?: string;
+}
+
+export interface ProcessPendingPayoutsResult {
+  processed: number;
+  succeeded: number;
+  failed: number;
+  results: ProcessedPayoutResult[];
 }
 
 // ── Payout calculation ───────────────────────────────────────────────
@@ -172,6 +188,143 @@ export async function processClinicPayout(paymentId: string): Promise<PayoutResu
     stripeTransferId: transferId,
     breakdown,
   };
+}
+
+// ── Background worker ────────────────────────────────────────────────
+
+interface PendingPayoutRow {
+  id: string;
+  clinicId: string | null;
+  planId: string | null;
+  paymentId: string | null;
+  amountCents: number;
+  clinicShareCents: number;
+}
+
+async function executeSinglePayout(payout: PendingPayoutRow): Promise<ProcessedPayoutResult> {
+  if (!payout.clinicId) {
+    throw new Error(`Payout ${payout.id} has no clinic ID`);
+  }
+
+  const [clinic] = await db
+    .select({ stripeAccountId: clinics.stripeAccountId })
+    .from(clinics)
+    .where(eq(clinics.id, payout.clinicId))
+    .limit(1);
+
+  if (!clinic?.stripeAccountId) {
+    throw new Error(`Clinic ${payout.clinicId} has no Stripe Connect account`);
+  }
+
+  const transfer = await stripe().transfers.create(
+    {
+      amount: payout.amountCents,
+      currency: 'usd',
+      destination: clinic.stripeAccountId,
+      metadata: {
+        payoutId: payout.id,
+        paymentId: payout.paymentId ?? '',
+        planId: payout.planId ?? '',
+        clinicId: payout.clinicId,
+      },
+    },
+    { idempotencyKey: `payout_${payout.id}` },
+  );
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(payouts)
+      .set({ stripeTransferId: transfer.id, status: 'succeeded' })
+      .where(eq(payouts.id, payout.id));
+
+    await tx.insert(auditLog).values({
+      entityType: 'payout',
+      entityId: payout.id,
+      action: 'status_changed',
+      oldValue: JSON.stringify({ status: 'pending' }),
+      newValue: JSON.stringify({ status: 'succeeded', stripeTransferId: transfer.id }),
+      actorType: 'system',
+    });
+  });
+
+  return { payoutId: payout.id, status: 'succeeded', stripeTransferId: transfer.id };
+}
+
+async function markPayoutFailed(payoutId: string, errorMessage: string): Promise<void> {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(payouts).set({ status: 'failed' }).where(eq(payouts.id, payoutId));
+
+      await tx.insert(auditLog).values({
+        entityType: 'payout',
+        entityId: payoutId,
+        action: 'status_changed',
+        oldValue: JSON.stringify({ status: 'pending' }),
+        newValue: JSON.stringify({ status: 'failed', error: errorMessage }),
+        actorType: 'system',
+      });
+    });
+  } catch (auditErr) {
+    logger.error('Failed to update payout status after error', {
+      payoutId,
+      error: auditErr instanceof Error ? auditErr.message : String(auditErr),
+    });
+  }
+}
+
+/**
+ * Process all pending payouts by initiating Stripe Connect transfers.
+ *
+ * For each pending payout:
+ *   1. Looks up the clinic's Stripe Connect account
+ *   2. Initiates a Stripe transfer with an idempotency key (payout ID)
+ *   3. Updates the payout status to succeeded or failed
+ *   4. Logs all state changes to the audit trail
+ *
+ * Each payout is processed independently — a failure in one does not
+ * affect others. Uses Stripe idempotency keys to prevent duplicate transfers.
+ */
+export async function processPendingPayouts(): Promise<ProcessPendingPayoutsResult> {
+  const pendingPayouts = await db
+    .select({
+      id: payouts.id,
+      clinicId: payouts.clinicId,
+      planId: payouts.planId,
+      paymentId: payouts.paymentId,
+      amountCents: payouts.amountCents,
+      clinicShareCents: payouts.clinicShareCents,
+    })
+    .from(payouts)
+    .where(eq(payouts.status, 'pending'));
+
+  const results: ProcessedPayoutResult[] = [];
+
+  for (const payout of pendingPayouts) {
+    try {
+      const result = await executeSinglePayout(payout);
+      results.push(result);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to process payout', {
+        payoutId: payout.id,
+        clinicId: payout.clinicId,
+        error: errorMessage,
+      });
+      await markPayoutFailed(payout.id, errorMessage);
+      results.push({ payoutId: payout.id, status: 'failed', error: errorMessage });
+    }
+  }
+
+  const succeeded = results.filter((r) => r.status === 'succeeded').length;
+  const failed = results.filter((r) => r.status === 'failed').length;
+
+  logger.info('Pending payouts processing complete', {
+    processed: results.length,
+    succeeded,
+    failed,
+  });
+
+  return { processed: results.length, succeeded, failed, results };
 }
 
 // ── Query functions ──────────────────────────────────────────────────

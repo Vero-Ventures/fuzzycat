@@ -6,11 +6,11 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 
 ## Key Business Rules
 
-- **Minimum bill**: $500 (below this, processing costs exceed margin)
+- **Bill range**: $500 minimum (processing costs exceed margin below this), $25,000 maximum (risk exposure cap). Enforced in `lib/constants.ts` and enrollment router Zod schema.
 - **Fee structure**: 6% platform fee to pet owner, 3% revenue share to clinic, 1% to risk pool
 - **Deposit**: 25% of total (incl. fee), charged immediately via debit card (not ACH — too slow)
 - **Installments**: remaining 75% split into 6 biweekly ACH debits
-- **Default handling**: 3 failed retries -> plan marked "defaulted" -> risk pool reimburses clinic
+- **Default handling**: 3 failed retries -> plan marked "defaulted" -> risk pool reimburses clinic. Retries are payday-aligned (next Friday, 1st, or 15th at least 2 days out).
 - **Soft collection**: Escalating email reminders at day 1, 7, and 14 after a missed payment before hard default
 - **Clinic 3% share**: Structure as "platform administration compensation", never "referral commission" (anti-kickback risk)
 - **No NY launch** until DFS finalizes BNPL Act regulations (expected late 2026)
@@ -57,12 +57,20 @@ All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Ve
 - **GitHub Actions**: All pinned to commit SHAs for supply chain protection.
 - **CI permissions**: Least-privilege (`contents: read`) on all workflows.
 - **Root layout**: `force-dynamic` to ensure all pages go through SSR for nonce injection.
+- **Authorization**: All tRPC procedures guarded by `assertClinicOwnership()`, `assertPlanAccess()`, or `assertPlanOwnership()`. IDOR vulnerabilities in payout, plaid, and payment routers fixed (PRs #141–#142).
+- **Webhook verification**: Plaid webhook signatures cryptographically verified via `plaid.webhookVerificationKeyGet()` + JWT validation. Stripe webhooks return 200 after signature verification even on handler errors (prevents retry storms).
+- **MFA**: Feature-flagged via `ENABLE_MFA` env var. Enforced at middleware level for clinic/admin routes. `enforceMfa()` checks AAL2 level.
+- **ILIKE escaping**: All user search inputs passed through `escapeIlike()` helper before use in SQL ILIKE patterns (prevents `%`/`_` wildcard injection).
+- **Stripe Connect safety**: `stripeAccountId` validated as non-null before Connect API calls. Account creation uses `db.transaction()` with conditional UPDATE for race safety.
+- **Request ID tracing**: Middleware sets `x-request-id` header (reuses CSP nonce UUID). Available in tRPC context for log correlation.
+- **Sentry audit alerting**: Audit events with `action: 'status_changed'` and default/write-off actions can trigger Sentry alerts for compliance monitoring.
 
 ## Repository Rules
 
 - **`main` branch is protected.** No direct commits to main — ever. All changes go through feature branches and pull requests. PRs require CI checks to pass before merging.
 - **All work goes through PRs.** Even documentation-only changes (like CLAUDE.md updates) must be on their own branch with a PR.
 - **Squash merge** is the standard merge strategy. Use `gh pr merge N --squash --auto` or `gh pr merge N --squash --delete-branch`.
+- **Required CI checks** (3): `Lint & Format (Biome)`, `Type Check`, `Build`. CodeQL is informational only (not required for merge).
 
 ## Commands
 
@@ -73,7 +81,7 @@ bun run build                    # Production build
 bun run typecheck                # tsc --noEmit
 bun run check                    # Biome lint + format check
 bun run check:fix                # Biome auto-fix
-bun test                         # Unit tests
+bun run test                     # Unit tests (scoped to lib/ server/ app/)
 bun run test:e2e                 # Playwright E2E (all projects)
 bun run test:e2e:local           # E2E localhost projects only
 bun run test:e2e:prod            # E2E production (fuzzycatapp.com)
@@ -91,12 +99,13 @@ bun run db:seed                  # Seed test data
 - **TypeScript strict mode** everywhere. No `any` types in payment/financial logic.
 - **Next.js App Router** (not Pages). Server Components by default.
 - **Tailwind CSS v4** + shadcn/ui. No CSS modules or styled-components.
-- **Biome** for linting + formatting. No ESLint, no Prettier. Run `bun run check:fix` before committing.
+- **Biome** for linting + formatting. No ESLint, no Prettier. Run `bun run check:fix` before committing. `noNonNullAssertion` is error-level — use `as Type` assertions with prior null checks instead of `!`.
 - **tRPC** for type-safe API. Stripe/Plaid webhooks via Next.js API routes.
-- **Drizzle ORM** for all queries. All financial operations must use `db.transaction()`.
+- **Drizzle ORM** for all queries. All financial operations must use `db.transaction()`. Stripe Connect account creation uses conditional UPDATE with `isNull()` guard for race safety.
 - **Integer cents** for all monetary values (`amountCents: number`, not `amount: number`). Display formatting via `formatCents()` at UI layer only.
+- **ILIKE escaping**: Always use `escapeIlike()` helper when interpolating user input into SQL ILIKE patterns. Escapes `%` and `_` wildcards.
 - **Naming**: `camelCase` variables/functions, `PascalCase` components/types, `SCREAMING_SNAKE` env vars.
-- **Bun test runner** (`bun test`). Jest-compatible API (`describe`, `it`, `expect`).
+- **Bun test runner** (`bun run test`). Jest-compatible API (`describe`, `it`, `expect`). Note: `bun test` without args picks up `node_modules` — always use `bun run test` which scopes to `lib server app`.
 - **Error handling**: All Stripe/Plaid calls in try/catch with structured logging. Never expose internals to users.
 - **Audit trail** (NON-NEGOTIABLE): Every payment state change must be logged to `audit_log` with timestamp, actor, previous state, and new state.
 
@@ -118,18 +127,22 @@ Target SAQ A: FuzzyCat servers never touch card data. Use Stripe Checkout (hoste
 - **Post-deploy smoke test:** `.github/workflows/post-deploy.yml` runs automatically after Vercel deployments. Hits `/api/health` and `/` — creates a visible failed check on GitHub if either returns non-200.
 - **Startup validation:** `instrumentation.ts` validates all env vars at cold start. Errors are logged to Vercel deploy logs but don't crash the app (so `/api/health` can report the failure).
 - **Middleware resilience:** `middleware.ts` catches env validation failures and passes through instead of crashing. Public pages stay accessible.
-- **Error boundaries:** Each portal (`/clinic`, `/owner`, `/admin`) has an `error.tsx` boundary that catches rendering errors, reports to Sentry, and shows a recovery UI.
+- **Error boundaries:** Each portal (`/clinic`, `/owner`, `/admin`) and route group (`(auth)`, `(marketing)`) has an `error.tsx` boundary that catches rendering errors, reports to Sentry, and shows a recovery UI. Root `not-found.tsx` handles 404s.
+- **robots.txt:** Generated via Next.js Metadata API (`app/robots.ts`). Allows `/`, disallows `/clinic/`, `/owner/`, `/admin/`, `/api/`.
+- **SEO:** `metadataBase` set to `https://fuzzycatapp.com` in root layout. OpenGraph tags on marketing pages.
 
 ## Project Structure
 
 ```
 fuzzycat/
 ├── app/
-│   ├── (marketing)/              # Public pages (landing, how-it-works)
-│   ├── (auth)/                   # Login, signup, password reset flows
+│   ├── (marketing)/              # Public pages (landing, how-it-works) + error.tsx
+│   ├── (auth)/                   # Login, signup, password reset flows + error.tsx
 │   ├── clinic/                   # Clinic portal (onboarding, dashboard, clients, payouts, settings)
 │   ├── owner/                    # Pet owner portal (enroll, payments, settings)
 │   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk)
+│   ├── not-found.tsx             # Custom 404 page
+│   ├── robots.ts                 # robots.txt via Next.js Metadata API
 │   └── api/
 │       ├── health/               # Health check endpoint (env + DB validation)
 │       ├── webhooks/stripe/      # Stripe webhook handler
@@ -142,17 +155,17 @@ fuzzycat/
 │   └── theme-toggle.tsx          # Dark/light mode toggle
 ├── lib/
 │   ├── env.ts                    # Zod-validated env vars
-│   ├── logger.ts                 # Structured JSON logger
+│   ├── logger.ts                 # Structured JSON logger + withRequestId() for correlated logging
 │   ├── rate-limit.ts             # Upstash Redis rate limiter (optional, graceful fallback)
 │   ├── stripe.ts                 # Stripe client singleton
 │   ├── plaid.ts                  # Plaid client singleton
 │   ├── resend.ts                 # Resend email client singleton
 │   ├── twilio.ts                 # Twilio SMS client singleton
-│   ├── constants.ts              # Business constants (fees, rates)
+│   ├── constants.ts              # Business constants (fees, rates, min/max bill)
 │   ├── auth.ts                   # Role extraction + role-based routing
 │   ├── supabase/                 # Supabase client (browser, server, admin, mfa)
 │   ├── posthog/                  # PostHog analytics (client, server, provider)
-│   ├── trpc/                     # tRPC client + React Query provider
+│   ├── trpc/                     # tRPC client + React Query provider (staleTime: 60s, gcTime: 5min)
 │   └── utils/
 │       ├── money.ts              # Integer cents helpers (formatCents, toCents, etc.)
 │       ├── phone.ts              # Phone number validation (E.164)
@@ -162,7 +175,7 @@ fuzzycat/
 │       └── payday.ts             # Payday calculation
 ├── server/
 │   ├── db/
-│   │   ├── index.ts              # Drizzle client
+│   │   ├── index.ts              # Drizzle client (pool: max 20, idle_timeout 20s, connect_timeout 10s)
 │   │   └── schema.ts             # Drizzle schema (source of truth)
 │   ├── emails/                   # React Email templates (10 templates)
 │   │   ├── clinic-payout.tsx, clinic-welcome.tsx
@@ -187,7 +200,6 @@ fuzzycat/
 │   │   ├── guarantee.ts          # Risk pool (contributions, claims, recoveries)
 │   │   └── sms.ts                # SMS notifications (Twilio)
 │   └── trpc.ts                   # tRPC init
-├── types/                        # Shared TypeScript types
 ├── scripts/                      # seed.ts, create-admin.ts, e2e-create-test-users.ts
 ├── drizzle/                      # Migration files + config
 ├── e2e/                          # Playwright E2E tests (30 spec files)
@@ -289,8 +301,8 @@ Always **review Gemini output** before applying — treat it as a draft, not fin
 
 - All new features must include unit tests
 - Mock external services (Stripe, Plaid, Twilio, Resend) — never call real APIs in tests
-- Bun's `mock.module()` is **global across test files** in the same process — be careful not to poison mocks between test files
-- Run the full suite (`bun test`) before pushing, not just individual test files
+- **`mock.module()` cross-contamination**: Bun's `mock.module()` is **global across all test files** in the same process. Mocking `@/lib/supabase/mfa` in one file will poison every other file that imports it. **Preferred pattern**: Instead of `mock.module('@/lib/env')` or `mock.module('@/lib/supabase/mfa')`, set environment variables directly via `process.env` and call `_resetEnvCache()` from `@/lib/env` to clear the cached singleton. Use `delete process.env.VAR_NAME` (with `// biome-ignore lint/performance/noDelete`) to truly unset — `process.env.VAR = undefined` becomes the string `"undefined"`.
+- Run the full suite (`bun run test`) before pushing, not just individual test files — cross-contamination only shows up when files run together
 
 ### PR Review Comment Protocol
 
@@ -320,23 +332,37 @@ When addressing review comments:
 | Admin dashboard (metrics, clinic management, payments, risk) | #28 | Done |
 | Cat-themed UI design system + CAPTCHA | #29 | Done |
 | Security hardening (CSP, HSTS, SHA pinning, CI permissions) | #104 | Done |
+| Performance & observability (DB pool, staleTime, request IDs, PostHog) | #127, #134 | Done |
+| Security audit — CRITICAL (auth bypass, double payouts, N+1 query) | #136, #137 | Done (PR #141) |
+| Security audit — HIGH (IDOR, SQLi, missing indexes, rate limiting) | #136, #138 | Done (PR #142) |
+| Security audit — MEDIUM (race conditions, payout calc, error handling) | #136, #139 | Done (PR #143) |
+| Security audit — LOW (a11y, testing, code quality, frontend) | #136, #140 | Done (PR #144) |
 
-### Open — Security (Priority)
+### Open — Security (Remaining)
 
 | Issue | Severity | Summary |
 |-------|----------|---------|
-| #96 | HIGH | IDOR: Payout router allows any clinic to read other clinic's data |
-| #97 | HIGH | IDOR: Plaid router allows any user to link bank account to any owner |
-| #98 | HIGH | Missing AuthZ: Any authenticated user can trigger ACH charges |
-| #99 | HIGH | Plaid webhook signature not cryptographically verified |
 | #100 | MEDIUM | MFA bypass: tRPC API layer does not enforce AAL2 |
 | #101 | — | DevSecOps: Integrate security tooling into CI/CD pipeline |
 | #102 | — | Add authorization test harness for all tRPC procedures |
+
+Issues #96–#99 (IDOR, missing AuthZ, Plaid webhook forgery) were resolved in PRs #141–#142.
 
 ### Open — Human/Legal (Blocks Production)
 
 Issues #1–#5, #7: Regulatory attorney, business entity, DFPI registration, NDAs, trademarks, legal disclaimers.
 Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
+
+### Open — Bugs & Enhancements
+
+| Issue | Summary |
+|-------|---------|
+| #123 | /owner/payments dashboard and plan list failing to load |
+| #125 | Enable "Update Payment Method" in owner settings |
+| #130 | Initiate Enrollment button on Clinic Dashboard non-functional |
+| #131 | Improve Clinic Dashboard empty state and error handling |
+| #132 | Investigate and fix slow loading of Clinic Portal pages |
+| #133 | Comprehensive E2E data population and user workflow documentation |
 
 ### Open — Future Phases
 
@@ -348,7 +374,7 @@ Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
 
 ### Test Suite
 
-485 unit tests across 34 test files. Bun test runner. All external services mocked.
+493 unit tests across 36 test files. Bun test runner. All external services mocked. Run via `bun run test` (not bare `bun test`, which picks up `node_modules`).
 
 **E2E Tests:** 30 Playwright spec files covering all page routes + API health endpoint.
 

@@ -55,3 +55,6 @@ e2e/screenshots/
 
 # misc
 *.pem
+
+# generated lockfiles (CI audit generates package-lock.json from bun.lock)
+package-lock.json

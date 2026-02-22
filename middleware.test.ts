@@ -19,6 +19,11 @@ mock.module('@/lib/auth', () => ({
     admin: '/admin/dashboard',
     owner: '/owner/payments',
   },
+  ROLE_PREFIXES: {
+    clinic: ['/clinic'],
+    admin: ['/admin'],
+    owner: ['/owner'],
+  },
   SAFE_REDIRECT_PREFIXES: ['/clinic', '/owner', '/admin', '/mfa'],
 }));
 
@@ -166,5 +171,46 @@ describe('middleware', () => {
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
     expect(location).toContain('/login');
+  });
+
+  const roleRedirectCases = [
+    { role: 'owner' as const, path: '/admin/dashboard', status: 307, redirect: '/owner/payments' },
+    {
+      role: 'clinic' as const,
+      path: '/owner/payments',
+      status: 307,
+      redirect: '/clinic/dashboard',
+    },
+    {
+      role: 'admin' as const,
+      path: '/clinic/dashboard',
+      status: 307,
+      redirect: '/admin/dashboard',
+    },
+    { role: 'owner' as const, path: '/owner/payments', status: 200, redirect: null },
+  ];
+
+  it.each(roleRedirectCases)('authenticated $role accessing $path → $status', async ({
+    role,
+    path,
+    status,
+    redirect,
+  }) => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: { user: { id: 'user-1', app_metadata: { role } } },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest(`http://localhost:3000${path}`);
+    const response = await middleware(req);
+
+    expect(response.status).toBe(status);
+    if (redirect) {
+      const location = response.headers.get('location');
+      expect(location).toContain(redirect);
+    }
   });
 });

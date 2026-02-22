@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
-import { getUserRole, ROLE_HOME } from '@/lib/auth';
+import { getUserRole, ROLE_HOME, ROLE_PREFIXES } from '@/lib/auth';
 import { publicEnv } from '@/lib/env';
 
 const PROTECTED_PREFIXES = ['/clinic', '/owner', '/admin'];
@@ -119,6 +119,18 @@ export async function middleware(request: NextRequest) {
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect authenticated users accessing a portal that doesn't match their role
+  if (isProtected && user) {
+    const role = getUserRole(user);
+    const allowed = ROLE_PREFIXES[role];
+    const hasAccess = allowed.some((prefix) => pathname.startsWith(prefix));
+    if (!hasAccess) {
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = ROLE_HOME[role];
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   // Redirect authenticated users away from auth pages to their portal

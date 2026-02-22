@@ -1,9 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import { logger } from '@/lib/logger';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
-import { createMockChain, dbMock, mockInsert, mockInsertValues, resetDbMocks } from './db-mock';
+const mockLoggerError = mock();
+
+mock.module('@/lib/logger', () => ({
+  logger: {
+    info: mock(),
+    warn: mock(),
+    error: mockLoggerError,
+  },
+}));
+
+import { createMockChain, dbMock, resetDbMocks } from './db-mock';
 
 mock.module('@/server/db', () => ({
   db: dbMock,
@@ -19,24 +28,39 @@ const { logAuditEvent, getAuditLogByEntity, getAuditLogByType } = await import(
 
 // ── Setup / teardown ─────────────────────────────────────────────────
 
-beforeEach(resetDbMocks);
-afterEach(resetDbMocks);
+beforeEach(() => {
+  resetDbMocks();
+  mockLoggerError.mockClear();
+});
+afterEach(() => {
+  resetDbMocks();
+  mockLoggerError.mockClear();
+});
 
 // ── logAuditEvent tests ──────────────────────────────────────────────
 
 describe('logAuditEvent', () => {
   it('inserts audit log entry with all required fields', async () => {
-    await logAuditEvent({
-      entityType: 'payment',
-      entityId: 'pay-123',
-      action: 'status_changed',
-      oldValue: { status: 'pending' },
-      newValue: { status: 'processing' },
-      actorType: 'system',
-    });
+    // Use an explicit tx mock to avoid cross-test db mock contamination.
+    const txInsertValues = mock(() => Promise.resolve([]));
+    const txInsert = mock(() => ({ values: txInsertValues }));
+    // biome-ignore lint/suspicious/noExplicitAny: test mock
+    const tx = { insert: txInsert } as any;
 
-    expect(mockInsert).toHaveBeenCalled();
-    expect(mockInsertValues).toHaveBeenCalledWith(
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: 'pay-123',
+        action: 'status_changed',
+        oldValue: { status: 'pending' },
+        newValue: { status: 'processing' },
+        actorType: 'system',
+      },
+      tx,
+    );
+
+    expect(txInsert).toHaveBeenCalled();
+    expect(txInsertValues).toHaveBeenCalledWith(
       expect.objectContaining({
         entityType: 'payment',
         entityId: 'pay-123',
@@ -49,17 +73,24 @@ describe('logAuditEvent', () => {
   });
 
   it('does not throw when db insert fails', async () => {
-    mockInsertValues.mockRejectedValue(new Error('DB connection failed'));
-    const logSpy = spyOn(logger, 'error');
+    // Use an explicit tx mock that rejects to test error handling,
+    // avoiding cross-test db mock contamination.
+    const txInsertValues = mock(() => Promise.reject(new Error('DB connection failed')));
+    const txInsert = mock(() => ({ values: txInsertValues }));
+    // biome-ignore lint/suspicious/noExplicitAny: test mock
+    const tx = { insert: txInsert } as any;
 
-    await logAuditEvent({
-      entityType: 'payment',
-      entityId: 'pay-1',
-      action: 'status_changed',
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: 'pay-1',
+        action: 'status_changed',
+        actorType: 'system',
+      },
+      tx,
+    );
 
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mockLoggerError).toHaveBeenCalledWith(
       'Failed to write audit log entry',
       expect.objectContaining({
         entityType: 'payment',
@@ -67,8 +98,6 @@ describe('logAuditEvent', () => {
         error: 'DB connection failed',
       }),
     );
-
-    logSpy.mockRestore();
   });
 });
 

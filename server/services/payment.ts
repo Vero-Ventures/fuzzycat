@@ -238,23 +238,27 @@ async function saveCardPaymentMethod(
   tx: DrizzleTx,
   ownerId: string | null,
   stripePaymentMethodId: string | undefined,
+  stripeCustomerId?: string | null,
 ): Promise<void> {
   if (!stripePaymentMethodId || !ownerId) return;
+
   await tx
     .update(owners)
     .set({ stripeCardPaymentMethodId: stripePaymentMethodId })
     .where(eq(owners.id, ownerId));
 
-  const [owner] = await tx
-    .select({ stripeCustomerId: owners.stripeCustomerId })
-    .from(owners)
-    .where(eq(owners.id, ownerId))
-    .limit(1);
-
-  if (owner?.stripeCustomerId) {
-    await stripe().customers.update(owner.stripeCustomerId, {
-      invoice_settings: { default_payment_method: stripePaymentMethodId },
-    });
+  if (stripeCustomerId) {
+    try {
+      await stripe().customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: stripePaymentMethodId },
+      });
+    } catch (error) {
+      logger.error('Failed to update Stripe customer default payment method', {
+        ownerId,
+        stripeCustomerId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }
 
@@ -416,30 +420,37 @@ export async function handlePaymentSuccess(
 
     if (!payment.planId) return;
 
-    // Fetch plan + clinic info for payout
-    const [plan] = await tx
+    // Fetch plan + owner + clinic info for payout and card storage
+    const [planRow] = await tx
       .select({
         id: plans.id,
         ownerId: plans.ownerId,
         clinicId: plans.clinicId,
         status: plans.status,
         totalBillCents: plans.totalBillCents,
+        stripeCustomerId: owners.stripeCustomerId,
       })
       .from(plans)
+      .leftJoin(owners, eq(plans.ownerId, owners.id))
       .where(eq(plans.id, payment.planId))
       .limit(1);
 
-    if (!plan?.clinicId) return;
+    if (!planRow?.clinicId) return;
 
     // Deposit payment: activate the plan and save card for future use
     if (payment.type === 'deposit') {
-      await activatePlanForDeposit(tx, payment.planId, plan.status);
-      await saveCardPaymentMethod(tx, plan.ownerId, stripePaymentMethodId);
+      await activatePlanForDeposit(tx, payment.planId, planRow.status);
+      await saveCardPaymentMethod(
+        tx,
+        planRow.ownerId,
+        stripePaymentMethodId,
+        planRow.stripeCustomerId,
+      );
     }
 
     // Installment payment: check if all payments are now succeeded -> complete plan
     if (payment.type === 'installment') {
-      await completePlanIfAllPaid(tx, payment.planId, plan.status);
+      await completePlanIfAllPaid(tx, payment.planId, planRow.status);
     }
 
     // Risk pool contribution: 1% of payment amount
@@ -447,7 +458,7 @@ export async function handlePaymentSuccess(
 
     // Create a pending payout record for the background worker to process
     await createPendingPayout(tx, {
-      clinicId: plan.clinicId,
+      clinicId: planRow.clinicId,
       planId: payment.planId,
       paymentId: payment.id,
       amountCents: payment.amountCents,

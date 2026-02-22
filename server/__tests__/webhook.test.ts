@@ -71,7 +71,10 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
   };
   mockTxSelectLimit.mockReturnValue([]);
   mockTxSelectWhere.mockReturnValue({ limit: mockTxSelectLimit });
-  mockTxSelectFrom.mockReturnValue({ where: mockTxSelectWhere });
+  mockTxSelectFrom.mockReturnValue({
+    where: mockTxSelectWhere,
+    leftJoin: () => ({ where: mockTxSelectWhere }),
+  });
   mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
 
   mockTxUpdateWhere.mockResolvedValue([]);
@@ -311,7 +314,7 @@ describe('Stripe webhook handler', () => {
             type: 'deposit',
           },
         ])
-        // 2. fetch plan (includes ownerId for card storage)
+        // 2. fetch plan + owner (leftJoin)
         .mockResolvedValueOnce([
           {
             id: 'plan-1',
@@ -319,11 +322,10 @@ describe('Stripe webhook handler', () => {
             clinicId: 'clinic-1',
             status: 'pending',
             totalBillCents: 106_000,
+            stripeCustomerId: 'cus_owner_123',
           },
         ])
-        // 3. fetch owner stripeCustomerId (for saving card as default)
-        .mockResolvedValueOnce([{ stripeCustomerId: 'cus_owner_123' }])
-        // 4. payout duplicate check
+        // 3. payout duplicate check
         .mockResolvedValueOnce([]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
@@ -394,11 +396,19 @@ describe('Stripe webhook handler', () => {
           },
         ])
         .mockResolvedValueOnce([
-          { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+          {
+            id: 'plan-1',
+            ownerId: 'owner-1',
+            clinicId: 'clinic-1',
+            status: 'active',
+            totalBillCents: 106_000,
+            stripeCustomerId: 'cus_owner_1',
+          },
         ])
         // completePlanIfAllPaid select (not all succeeded)
         .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
-        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+        // payout duplicate check
+        .mockResolvedValueOnce([]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 

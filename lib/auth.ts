@@ -23,5 +23,12 @@ export const ROLE_HOME: Readonly<Record<UserRole, string>> = {
   owner: '/owner/payments',
 };
 
+/** Maps each role to its allowed route prefixes. */
+export const ROLE_PREFIXES: Readonly<Record<UserRole, readonly string[]>> = {
+  clinic: ['/clinic'],
+  admin: ['/admin'],
+  owner: ['/owner'],
+};
+
 /** Allowed path prefixes for post-auth redirects. */
 export const SAFE_REDIRECT_PREFIXES = ['/clinic', '/owner', '/admin', '/mfa'] as const;

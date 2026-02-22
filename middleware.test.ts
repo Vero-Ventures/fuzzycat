@@ -19,6 +19,11 @@ mock.module('@/lib/auth', () => ({
     admin: '/admin/dashboard',
     owner: '/owner/payments',
   },
+  ROLE_PREFIXES: {
+    clinic: ['/clinic'],
+    admin: ['/admin'],
+    owner: ['/owner'],
+  },
   SAFE_REDIRECT_PREFIXES: ['/clinic', '/owner', '/admin', '/mfa'],
 }));
 
@@ -166,5 +171,92 @@ describe('middleware', () => {
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
     expect(location).toContain('/login');
+  });
+
+  it('redirects authenticated owner accessing /admin to owner home', async () => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: {
+          user: {
+            id: 'user-1',
+            app_metadata: { role: 'owner' },
+          },
+        },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/admin/dashboard');
+    const response = await middleware(req);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toContain('/owner/payments');
+  });
+
+  it('redirects authenticated clinic accessing /owner to clinic home', async () => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: {
+          user: {
+            id: 'user-2',
+            app_metadata: { role: 'clinic' },
+          },
+        },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/owner/payments');
+    const response = await middleware(req);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toContain('/clinic/dashboard');
+  });
+
+  it('redirects authenticated admin accessing /clinic to admin home', async () => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: {
+          user: {
+            id: 'user-3',
+            app_metadata: { role: 'admin' },
+          },
+        },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/clinic/dashboard');
+    const response = await middleware(req);
+
+    expect(response.status).toBe(307);
+    const location = response.headers.get('location');
+    expect(location).toContain('/admin/dashboard');
+  });
+
+  it('allows authenticated owner to access their own portal', async () => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: {
+          user: {
+            id: 'user-1',
+            app_metadata: { role: 'owner' },
+          },
+        },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/owner/payments');
+    const response = await middleware(req);
+
+    // Should pass through (200), not redirect
+    expect(response.status).toBe(200);
   });
 });

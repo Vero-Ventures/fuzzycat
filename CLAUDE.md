@@ -30,7 +30,7 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 | Linting | Biome (not ESLint/Prettier) |
 | Testing | Bun test runner (not Jest/Vitest) |
 | Email / SMS | Resend / Twilio |
-| Monitoring | Sentry (errors) + PostHog (analytics) |
+| Monitoring | Sentry (errors) + PostHog (analytics) + Vercel Analytics + Speed Insights |
 | Hosting | Vercel + Supabase |
 
 ## Infrastructure
@@ -130,6 +130,50 @@ Target SAQ A: FuzzyCat servers never touch card data. Use Stripe Checkout (hoste
 - **Error boundaries:** Each portal (`/clinic`, `/owner`, `/admin`) and route group (`(auth)`, `(marketing)`) has an `error.tsx` boundary that catches rendering errors, reports to Sentry, and shows a recovery UI. Root `not-found.tsx` handles 404s.
 - **robots.txt:** Generated via Next.js Metadata API (`app/robots.ts`). Allows `/`, disallows `/clinic/`, `/owner/`, `/admin/`, `/api/`.
 - **SEO:** `metadataBase` set to `https://fuzzycatapp.com` in root layout. OpenGraph tags on marketing pages.
+- **Vercel Analytics:** `<Analytics />` and `<SpeedInsights />` in root layout. Both use first-party routing (`/_vercel/insights/*`, `/_vercel/speed-insights/*`) — no CSP changes needed.
+
+## Vercel CLI (Observability)
+
+The Vercel CLI (`vercel`, v32+) is installed locally and authenticated. Use it to inspect deployments, view logs, and debug issues.
+
+**Web Analytics and Speed Insights are dashboard-only** — no CLI or API access. View them at:
+- **Analytics:** https://vercel.com/fuzzy-cat-apps-projects/fuzzycat/analytics
+- **Speed Insights:** https://vercel.com/fuzzy-cat-apps-projects/fuzzycat/speed-insights
+
+### Deployment Commands
+
+```bash
+# List recent deployments (production or preview)
+vercel ls                                    # All deployments
+vercel ls --environment production           # Production only
+vercel ls -m githubCommitSha=<sha>           # Filter by commit SHA
+
+# Inspect a specific deployment
+vercel inspect <deployment-url>              # Show deployment info
+vercel inspect <deployment-url> --wait       # Wait for build to finish
+
+# View deployment logs
+vercel logs <deployment-url>                 # Last 100 log entries
+vercel logs <deployment-url> -f              # Stream live logs
+vercel logs <deployment-url> -n 50           # Limit entries
+vercel logs <deployment-url> --since 1h      # Logs from last hour
+vercel logs <deployment-url> --output raw    # Full untruncated output
+
+# Bisect to find which deployment introduced a regression
+vercel bisect --good <good-url> --bad <bad-url> --path /api/health
+vercel bisect --run ./test.sh                # Automated regression test
+```
+
+### Post-PR Deployment Review
+
+After merging a PR, follow this process to verify the deployment:
+
+1. **Find the deployment:** `vercel ls --environment production` — newest entry is the latest deploy
+2. **Wait for it:** `vercel inspect <url> --wait` — blocks until READY
+3. **Check logs for errors:** `vercel logs <url> -n 20` — scan for 5xx or errors
+4. **Verify health:** `curl -sL https://fuzzycatapp.com/api/health | jq .status`
+5. **Check Analytics dashboard** (manual): Open the Vercel Analytics tab to confirm data is flowing
+6. **Check Speed Insights dashboard** (manual): Open the Speed Insights tab for Core Web Vitals
 
 ## Project Structure
 
@@ -283,10 +327,11 @@ After all sub-agents complete their work and all PRs are merged to main:
 1. **Verify no open PRs** — `gh pr list --state open` must return empty
 2. **Pull latest main** — `git checkout main && git pull origin main`
 3. **Clean up worktrees** — `git worktree remove /path/to/worktree` for each
-4. **Run full test suite** — `bun test` (all tests must pass)
-5. **Review project state** — check file structure, test coverage, and overall consistency
-6. **Update CLAUDE.md** — update implementation status, fix any stale documentation, add new utilities/components/routers that were added
-7. **Commit via PR** — create a `chore/` maintenance branch, commit changes, create PR, merge
+4. **Run full test suite** — `bun run test` (all tests must pass)
+5. **Verify deployment** — `vercel ls --environment production` to find latest deploy, then `vercel inspect <url> --wait` and `vercel logs <url> -n 20` to check for errors. Verify `curl -sL https://fuzzycatapp.com/api/health | jq .status` returns `"ok"`.
+6. **Review project state** — check file structure, test coverage, and overall consistency
+7. **Update CLAUDE.md** — update implementation status, fix any stale documentation, add new utilities/components/routers that were added
+8. **Commit via PR** — create a `chore/` maintenance branch, commit changes, create PR, merge
 
 ### Gemini CLI Offloading
 
@@ -337,6 +382,7 @@ When addressing review comments:
 | Security audit — HIGH (IDOR, SQLi, missing indexes, rate limiting) | #136, #138 | Done (PR #142) |
 | Security audit — MEDIUM (race conditions, payout calc, error handling) | #136, #139 | Done (PR #143) |
 | Security audit — LOW (a11y, testing, code quality, frontend) | #136, #140 | Done (PR #144) |
+| Vercel Web Analytics + Speed Insights | #154, #155 | Done (PR #156) |
 
 ### Open — Security (Remaining)
 
@@ -357,12 +403,11 @@ Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
 
 | Issue | Summary |
 |-------|---------|
-| #123 | /owner/payments dashboard and plan list failing to load |
 | #125 | Enable "Update Payment Method" in owner settings |
-| #130 | Initiate Enrollment button on Clinic Dashboard non-functional |
-| #131 | Improve Clinic Dashboard empty state and error handling |
-| #132 | Investigate and fix slow loading of Clinic Portal pages |
-| #133 | Comprehensive E2E data population and user workflow documentation |
+| #150 | Fix non-functional "Initiate Enrollment" button on Clinic Dashboard (supersedes #130) |
+| #151 | All dashboards show "Unable to load" — tRPC identity resolution failures (supersedes #123, #131) |
+| #152 | Clinic portal pages stuck in loading state (blocked by #151, supersedes #132) |
+| #153 | Comprehensive E2E data population, workflow testing, and documentation (supersedes #133) |
 
 ### Open — Future Phases
 

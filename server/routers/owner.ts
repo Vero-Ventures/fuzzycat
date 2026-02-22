@@ -21,6 +21,8 @@ export const ownerRouter = router({
         phone: owners.phone,
         petName: owners.petName,
         paymentMethod: owners.paymentMethod,
+        stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+        stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
         addressLine1: owners.addressLine1,
         addressCity: owners.addressCity,
         addressState: owners.addressState,

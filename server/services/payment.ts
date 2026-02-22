@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
+import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
@@ -233,6 +234,30 @@ async function completePlanIfAllPaid(
   );
 }
 
+async function saveCardPaymentMethod(
+  tx: DrizzleTx,
+  ownerId: string | null,
+  stripePaymentMethodId: string | undefined,
+): Promise<void> {
+  if (!stripePaymentMethodId || !ownerId) return;
+  await tx
+    .update(owners)
+    .set({ stripeCardPaymentMethodId: stripePaymentMethodId })
+    .where(eq(owners.id, ownerId));
+
+  const [owner] = await tx
+    .select({ stripeCustomerId: owners.stripeCustomerId })
+    .from(owners)
+    .where(eq(owners.id, ownerId))
+    .limit(1);
+
+  if (owner?.stripeCustomerId) {
+    await stripe().customers.update(owner.stripeCustomerId, {
+      invoice_settings: { default_payment_method: stripePaymentMethodId },
+    });
+  }
+}
+
 async function recordRiskPoolContribution(
   tx: DrizzleTx,
   planId: string,
@@ -339,6 +364,7 @@ async function createPendingPayout(
 export async function handlePaymentSuccess(
   paymentId: string,
   stripePaymentIntentId: string,
+  stripePaymentMethodId?: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     // Fetch current payment state
@@ -394,6 +420,7 @@ export async function handlePaymentSuccess(
     const [plan] = await tx
       .select({
         id: plans.id,
+        ownerId: plans.ownerId,
         clinicId: plans.clinicId,
         status: plans.status,
         totalBillCents: plans.totalBillCents,
@@ -404,9 +431,10 @@ export async function handlePaymentSuccess(
 
     if (!plan?.clinicId) return;
 
-    // Deposit payment: activate the plan
+    // Deposit payment: activate the plan and save card for future use
     if (payment.type === 'deposit') {
       await activatePlanForDeposit(tx, payment.planId, plan.status);
+      await saveCardPaymentMethod(tx, plan.ownerId, stripePaymentMethodId);
     }
 
     // Installment payment: check if all payments are now succeeded -> complete plan

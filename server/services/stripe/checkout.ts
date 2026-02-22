@@ -21,6 +21,9 @@ export async function createDepositCheckoutSession(params: {
     mode: 'payment',
     payment_method_types: ['card'],
     customer: params.stripeCustomerId,
+    payment_intent_data: {
+      setup_future_usage: 'off_session',
+    },
     line_items: [
       {
         price_data: {

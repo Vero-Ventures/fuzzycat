@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 // ── Mocks ────────────────────────────────────────────────────────────
 
 const mockConstructEvent = mock();
+const mockPaymentIntentRetrieve = mock();
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     webhooks: { constructEvent: mockConstructEvent },
     transfers: { create: mock(() => Promise.resolve({ id: 'tr_test' })) },
+    paymentIntents: { retrieve: mockPaymentIntentRetrieve },
+    customers: { update: mock(() => Promise.resolve({})) },
   }),
 }));
 
@@ -95,7 +98,12 @@ mock.module('@/server/db', () => ({
 }));
 
 mock.module('@/server/db/schema', () => ({
-  owners: { id: 'owners.id', stripeCustomerId: 'owners.stripe_customer_id' },
+  owners: {
+    id: 'owners.id',
+    stripeCustomerId: 'owners.stripe_customer_id',
+    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
+  },
   clinics: {
     id: 'clinics.id',
     stripeAccountId: 'clinics.stripe_account_id',
@@ -105,8 +113,8 @@ mock.module('@/server/db/schema', () => ({
     id: 'plans.id',
     status: 'plans.status',
     clinicId: 'plans.clinic_id',
-    totalBillCents: 'plans.total_bill_cents',
     ownerId: 'plans.owner_id',
+    totalBillCents: 'plans.total_bill_cents',
     depositCents: 'plans.deposit_cents',
     remainingCents: 'plans.remaining_cents',
   },
@@ -232,6 +240,7 @@ describe('Stripe webhook handler', () => {
       mockTxInsert,
       mockTxInsertValues,
       mockTransaction,
+      mockPaymentIntentRetrieve,
     ]) {
       m.mockClear();
     }
@@ -281,6 +290,12 @@ describe('Stripe webhook handler', () => {
       });
       mockConstructEvent.mockReturnValue(event);
 
+      // Stripe PaymentIntent retrieve (to get payment_method)
+      mockPaymentIntentRetrieve.mockResolvedValueOnce({
+        id: 'pi_deposit_123',
+        payment_method: 'pm_card_123',
+      });
+
       // findPaymentByStripeId lookup (db.select chain)
       mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-1', status: 'processing' }]);
 
@@ -296,12 +311,20 @@ describe('Stripe webhook handler', () => {
             type: 'deposit',
           },
         ])
-        // 2. fetch plan
+        // 2. fetch plan (includes ownerId for card storage)
         .mockResolvedValueOnce([
-          { id: 'plan-1', clinicId: 'clinic-1', status: 'pending', totalBillCents: 106_000 },
+          {
+            id: 'plan-1',
+            ownerId: 'owner-1',
+            clinicId: 'clinic-1',
+            status: 'pending',
+            totalBillCents: 106_000,
+          },
         ])
-        // 3. fetch clinic
-        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+        // 3. fetch owner stripeCustomerId (for saving card as default)
+        .mockResolvedValueOnce([{ stripeCustomerId: 'cus_owner_123' }])
+        // 4. payout duplicate check
+        .mockResolvedValueOnce([]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 

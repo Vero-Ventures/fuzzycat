@@ -8,10 +8,9 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 const mockGetUser = mock();
 
 mock.module('@/lib/supabase/server', () => ({
-  createClient: () =>
-    Promise.resolve({
-      auth: { getUser: mockGetUser },
-    }),
+  createClient: async () => ({
+    auth: { getUser: mockGetUser },
+  }),
 }));
 
 mock.module('@/server/db', () => ({

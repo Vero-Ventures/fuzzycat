@@ -1,15 +1,13 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 import superjson from 'superjson';
-import { getUserRole, type UserRole } from '@/lib/auth';
+import { getUserRole, type UserRole, VALID_ROLES } from '@/lib/auth';
 import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
 import { clinics, owners } from '@/server/db/schema';
 
 export type { UserRole };
-
-const VALID_ROLES: ReadonlySet<string> = new Set<string>(['owner', 'clinic', 'admin']);
 
 /**
  * tRPC context — created fresh for every request.

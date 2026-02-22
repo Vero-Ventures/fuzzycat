@@ -227,6 +227,98 @@ async function completePlanIfAllPaid(
   );
 }
 
+async function recordRiskPoolContribution(
+  tx: DrizzleTx,
+  planId: string,
+  amountCents: number,
+): Promise<void> {
+  const riskContributionCents = percentOfCents(amountCents, RISK_POOL_RATE);
+
+  await tx.insert(riskPool).values({
+    planId: planId,
+    contributionCents: riskContributionCents,
+    type: 'contribution',
+  });
+
+  await logAuditEvent(
+    {
+      entityType: 'risk_pool',
+      entityId: planId,
+      action: 'contribution',
+      newValue: { contributionCents: riskContributionCents },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
+async function createPendingPayout(
+  tx: DrizzleTx,
+  params: {
+    clinicId: string;
+    planId: string;
+    paymentId: string;
+    amountCents: number;
+  },
+): Promise<void> {
+  // Check for existing payout to avoid duplicates
+  const existingPayout = await tx
+    .select({ id: payouts.id })
+    .from(payouts)
+    .where(eq(payouts.paymentId, params.paymentId))
+    .limit(1);
+
+  if (existingPayout.length > 0) {
+    logger.warn('Payout already exists for payment, skipping creation', {
+      paymentId: params.paymentId,
+      payoutId: existingPayout[0].id,
+    });
+    return;
+  }
+
+  // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
+  const riskContributionCents = percentOfCents(params.amountCents, RISK_POOL_RATE);
+  const platformRetainedCents = percentOfCents(params.amountCents, PLATFORM_FEE_RATE / 2);
+  const transferAmountCents = params.amountCents - platformRetainedCents - riskContributionCents;
+  const clinicShareCents = percentOfCents(params.amountCents, CLINIC_SHARE_RATE);
+
+  if (transferAmountCents <= 0) {
+    logger.warn('Transfer amount is zero or negative, skipping payout', {
+      paymentId: params.paymentId,
+      transferAmountCents,
+    });
+    return;
+  }
+
+  // Create a pending payout record for the background worker to process
+  const [payoutRecord] = await tx
+    .insert(payouts)
+    .values({
+      clinicId: params.clinicId,
+      planId: params.planId,
+      paymentId: params.paymentId,
+      amountCents: transferAmountCents,
+      clinicShareCents,
+      status: 'pending',
+    })
+    .returning();
+
+  await logAuditEvent(
+    {
+      entityType: 'payout',
+      entityId: payoutRecord.id,
+      action: 'created',
+      newValue: {
+        amountCents: transferAmountCents,
+        clinicShareCents,
+        status: 'pending',
+      },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
 /**
  * Handle a successful payment. Updates the payment status to succeeded,
  * logs an audit entry, contributes to the risk pool, and triggers a payout
@@ -317,80 +409,15 @@ export async function handlePaymentSuccess(
     }
 
     // Risk pool contribution: 1% of payment amount
-    const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
-
-    await tx.insert(riskPool).values({
-      planId: payment.planId,
-      contributionCents: riskContributionCents,
-      type: 'contribution',
-    });
-
-    await logAuditEvent(
-      {
-        entityType: 'risk_pool',
-        entityId: payment.planId,
-        action: 'contribution',
-        newValue: { contributionCents: riskContributionCents },
-        actorType: 'system',
-      },
-      tx,
-    );
-
-    // Check for existing payout to avoid duplicates
-    const existingPayout = await tx
-      .select({ id: payouts.id })
-      .from(payouts)
-      .where(eq(payouts.paymentId, paymentId))
-      .limit(1);
-
-    if (existingPayout.length > 0) {
-      logger.warn('Payout already exists for payment, skipping creation', {
-        paymentId,
-        payoutId: existingPayout[0].id,
-      });
-      return;
-    }
-
-    // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
-    const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
-    const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
-    const clinicShareCents = percentOfCents(payment.amountCents, CLINIC_SHARE_RATE);
-
-    if (transferAmountCents <= 0) {
-      logger.warn('Transfer amount is zero or negative, skipping payout', {
-        paymentId,
-        transferAmountCents,
-      });
-      return;
-    }
+    await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
 
     // Create a pending payout record for the background worker to process
-    const [payoutRecord] = await tx
-      .insert(payouts)
-      .values({
-        clinicId: plan.clinicId,
-        planId: payment.planId,
-        paymentId,
-        amountCents: transferAmountCents,
-        clinicShareCents,
-        status: 'pending',
-      })
-      .returning();
-
-    await logAuditEvent(
-      {
-        entityType: 'payout',
-        entityId: payoutRecord.id,
-        action: 'created',
-        newValue: {
-          amountCents: transferAmountCents,
-          clinicShareCents,
-          status: 'pending',
-        },
-        actorType: 'system',
-      },
-      tx,
-    );
+    await createPendingPayout(tx, {
+      clinicId: plan.clinicId,
+      planId: payment.planId,
+      paymentId: payment.id,
+      amountCents: payment.amountCents,
+    });
   });
 }
 

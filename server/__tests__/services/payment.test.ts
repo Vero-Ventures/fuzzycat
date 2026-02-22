@@ -75,11 +75,16 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
   mockTxUpdateSet.mockReturnValue({ where: mockTxUpdateWhere });
   mockTxUpdate.mockReturnValue({ set: mockTxUpdateSet });
 
-  mockTxInsertValues.mockResolvedValue([]);
+  mockTxInsertReturning.mockResolvedValue([{ id: 'mock-id' }]);
+  mockTxInsertValues.mockReturnValue({ returning: mockTxInsertReturning });
   mockTxInsert.mockReturnValue({ values: mockTxInsertValues });
 
   return fn(tx);
 });
+
+mock.module('@/server/services/audit', () => ({
+  logAuditEvent: mock(() => Promise.resolve()),
+}));
 
 mock.module('@/server/db', () => ({
   db: {

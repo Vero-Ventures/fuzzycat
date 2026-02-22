@@ -9,30 +9,19 @@ import { clinics, owners } from '@/server/db/schema';
 
 export type { UserRole };
 
-const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['owner', 'clinic', 'admin']);
-
 /**
  * tRPC context — created fresh for every request.
- * Reuses auth from middleware headers when available to avoid redundant getUser() calls.
+ * Always validates auth via Supabase getUser() since middleware does not
+ * run for /api/ routes and header-based auth could be spoofed.
  */
 export async function createTRPCContext(opts: { req: Request; resHeaders: Headers }) {
   const supabase = await createClient();
 
-  // Reuse auth from middleware headers to avoid redundant getUser() (~100-200ms)
-  const middlewareUserId = opts.req.headers.get('x-user-id');
-  const middlewareRole = opts.req.headers.get('x-user-role');
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  let session: { userId: string; role: UserRole } | null = null;
-
-  if (middlewareUserId && middlewareRole && VALID_ROLES.has(middlewareRole)) {
-    session = { userId: middlewareUserId, role: middlewareRole as UserRole };
-  } else {
-    // Fallback: validate via Supabase (non-middleware routes, tests, etc.)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    session = user ? { userId: user.id, role: getUserRole(user) } : null;
-  }
+  const session = user ? { userId: user.id, role: getUserRole(user) } : null;
 
   return {
     db,

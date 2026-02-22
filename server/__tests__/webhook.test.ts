@@ -303,14 +303,6 @@ describe('Stripe webhook handler', () => {
         // 3. fetch clinic
         .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
 
-      // triggerPayout lookup
-      mockSelectLimit
-        .mockResolvedValueOnce([
-          { id: 'pay-1', planId: 'plan-1', amountCents: 26_500, status: 'succeeded' },
-        ])
-        .mockResolvedValueOnce([{ clinicId: 'clinic-1' }])
-        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
-
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
@@ -383,14 +375,6 @@ describe('Stripe webhook handler', () => {
         ])
         // completePlanIfAllPaid select (not all succeeded)
         .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
-        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
-
-      // triggerPayout lookups
-      mockSelectLimit
-        .mockResolvedValueOnce([
-          { id: 'pay-2', planId: 'plan-1', amountCents: 13_250, status: 'succeeded' },
-        ])
-        .mockResolvedValueOnce([{ clinicId: 'clinic-1' }])
         .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));

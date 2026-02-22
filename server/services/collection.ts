@@ -273,28 +273,12 @@ export async function escalateDefault(planId: string): Promise<void> {
  */
 export async function identifyPlansForEscalation(): Promise<string[]> {
   const result = await db
-    .select({ planId: payments.planId })
+    .selectDistinct({ planId: payments.planId })
     .from(payments)
-    .where(eq(payments.status, 'written_off'))
-    .groupBy(payments.planId);
+    .innerJoin(plans, eq(payments.planId, plans.id))
+    .where(and(eq(payments.status, 'written_off'), eq(plans.status, 'active')));
 
-  const planIds: string[] = [];
-  for (const row of result) {
-    if (!row.planId) continue;
-
-    // Check if plan is still active
-    const [plan] = await db
-      .select({ status: plans.status })
-      .from(plans)
-      .where(eq(plans.id, row.planId))
-      .limit(1);
-
-    if (plan?.status === 'active') {
-      planIds.push(row.planId);
-    }
-  }
-
-  return planIds;
+  return result.filter((row) => row.planId !== null).map((row) => row.planId!);
 }
 
 /**

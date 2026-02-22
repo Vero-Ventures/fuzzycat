@@ -16,6 +16,10 @@ const mockSelectWhere = mock();
 const mockSelectFrom = mock();
 const mockSelectGroupBy = mock();
 const mockSelect = mock();
+const mockSelectDistinctWhere = mock();
+const mockSelectDistinctInnerJoin = mock();
+const mockSelectDistinctFrom = mock();
+const mockSelectDistinct = mock();
 const mockUpdateSet = mock();
 const mockUpdateWhere = mock();
 const mockUpdate = mock();
@@ -57,6 +61,7 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
 mock.module('@/server/db', () => ({
   db: {
     select: mockSelect,
+    selectDistinct: mockSelectDistinct,
     update: mockUpdate,
     insert: mockInsert,
     transaction: mockTransaction,
@@ -149,6 +154,12 @@ function setupSelectChain() {
     groupBy: mockSelectGroupBy,
   });
   mockSelect.mockReturnValue({ from: mockSelectFrom });
+
+  // selectDistinct chain: selectDistinct().from().innerJoin().where()
+  mockSelectDistinctWhere.mockReturnValue([]);
+  mockSelectDistinctInnerJoin.mockReturnValue({ where: mockSelectDistinctWhere });
+  mockSelectDistinctFrom.mockReturnValue({ innerJoin: mockSelectDistinctInnerJoin });
+  mockSelectDistinct.mockReturnValue({ from: mockSelectDistinctFrom });
 }
 
 function clearAllMocks() {
@@ -158,6 +169,10 @@ function clearAllMocks() {
     mockSelectWhere,
     mockSelectLimit,
     mockSelectGroupBy,
+    mockSelectDistinct,
+    mockSelectDistinctFrom,
+    mockSelectDistinctInnerJoin,
+    mockSelectDistinctWhere,
     mockUpdate,
     mockUpdateSet,
     mockUpdateWhere,
@@ -491,27 +506,32 @@ describe('identifyPlansForEscalation', () => {
   afterEach(clearAllMocks);
 
   it('returns active plan IDs that have written-off payments', async () => {
-    // First select: get plans with written_off payments
-    mockSelectGroupBy.mockReturnValueOnce([{ planId: 'plan-1' }, { planId: 'plan-2' }]);
-
-    // Re-setup select chain for subsequent plan status lookups
-    // Plan-1: active
-    mockSelectLimit
-      .mockResolvedValueOnce([{ status: 'active' }])
-      // Plan-2: already defaulted
-      .mockResolvedValueOnce([{ status: 'defaulted' }]);
+    // Single JOIN query returns only active plans with written-off payments
+    mockSelectDistinctWhere.mockReturnValueOnce([{ planId: 'plan-1' }, { planId: 'plan-2' }]);
 
     const result = await identifyPlansForEscalation();
 
-    expect(result).toEqual(['plan-1']);
+    expect(result).toEqual(['plan-1', 'plan-2']);
   });
 
   it('returns empty array when no plans have written-off payments', async () => {
-    mockSelectGroupBy.mockReturnValueOnce([]);
+    mockSelectDistinctWhere.mockReturnValueOnce([]);
 
     const result = await identifyPlansForEscalation();
 
     expect(result).toEqual([]);
+  });
+
+  it('filters out null planIds from results', async () => {
+    mockSelectDistinctWhere.mockReturnValueOnce([
+      { planId: 'plan-1' },
+      { planId: null },
+      { planId: 'plan-3' },
+    ]);
+
+    const result = await identifyPlansForEscalation();
+
+    expect(result).toEqual(['plan-1', 'plan-3']);
   });
 });
 

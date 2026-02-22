@@ -1,24 +1,18 @@
 import { redirect } from 'next/navigation';
-import { getUserRole } from '@/lib/auth';
+import { getAuthFromMiddleware } from '@/lib/auth-from-middleware';
 import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { ClinicSidebar } from './_components/clinic-sidebar';
 
 export default async function ClinicLayout({ children }: { children: React.ReactNode }) {
+  const auth = await getAuthFromMiddleware();
+
+  if (!auth || (auth.role !== 'clinic' && auth.role !== 'admin')) {
+    redirect('/login');
+  }
+
+  // Supabase client still needed for MFA enforcement (no getUser() call)
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  const role = getUserRole(user);
-  if (role !== 'clinic' && role !== 'admin') {
-    redirect('/login');
-  }
-
   await enforceMfa(supabase);
 
   return (

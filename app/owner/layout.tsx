@@ -4,21 +4,12 @@ import { redirect } from 'next/navigation';
 import { signOut } from '@/app/(auth)/signout/actions';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { getUserRole } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthFromMiddleware } from '@/lib/auth-from-middleware';
 
 export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await getAuthFromMiddleware();
 
-  if (!user) {
-    redirect('/login');
-  }
-
-  const role = getUserRole(user);
-  if (role !== 'owner' && role !== 'admin') {
+  if (!auth || (auth.role !== 'owner' && auth.role !== 'admin')) {
     redirect('/login');
   }
 

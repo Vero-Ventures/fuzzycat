@@ -122,6 +122,23 @@ mock.module('@/server/db/schema', () => ({
   },
 }));
 
+mock.module('@/server/services/audit', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: test mock
+  logAuditEvent: async (params: Record<string, unknown>, tx?: any) => {
+    const executor = tx ?? { insert: mockInsert };
+    await executor.insert('auditLog').values({
+      entityType: params.entityType,
+      entityId: params.entityId,
+      action: params.action,
+      oldValue: params.oldValue ?? null,
+      newValue: params.newValue ?? null,
+      actorType: params.actorType,
+      ...(params.actorId !== undefined && { actorId: params.actorId }),
+      ...(params.ipAddress !== undefined && { ipAddress: params.ipAddress }),
+    });
+  },
+}));
+
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
@@ -258,8 +275,8 @@ describe('Stripe webhook handler', () => {
       expect(mockInsertValues).toHaveBeenCalledWith(
         expect.objectContaining({
           entityType: 'payment',
-          oldValue: JSON.stringify({ status: 'processing' }),
-          newValue: JSON.stringify({ status: 'succeeded' }),
+          oldValue: { status: 'processing' },
+          newValue: { status: 'succeeded' },
         }),
       );
     });
@@ -433,8 +450,8 @@ describe('Stripe webhook handler', () => {
       expect(mockInsertValues).toHaveBeenCalledWith(
         expect.objectContaining({
           entityType: 'payment',
-          oldValue: JSON.stringify({ status: 'processing' }),
-          newValue: JSON.stringify({ status: 'failed', failureReason: 'Insufficient funds' }),
+          oldValue: { status: 'processing' },
+          newValue: { status: 'failed', failureReason: 'Insufficient funds' },
         }),
       );
     });
@@ -463,12 +480,12 @@ describe('Stripe webhook handler', () => {
           entityType: 'clinic',
           entityId: 'clinic-1',
           action: 'status_changed',
-          oldValue: JSON.stringify({ status: 'pending' }),
-          newValue: JSON.stringify({
+          oldValue: { status: 'pending' },
+          newValue: {
             status: 'active',
             chargesEnabled: true,
             payoutsEnabled: true,
-          }),
+          },
           actorType: 'system',
         }),
       );

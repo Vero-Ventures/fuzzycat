@@ -44,6 +44,23 @@ import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
+mock.module('@/server/services/audit', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: test mock
+  logAuditEvent: async (params: Record<string, unknown>, tx?: any) => {
+    const executor = tx ?? { insert: mockInsert };
+    await executor.insert('auditLog').values({
+      entityType: params.entityType,
+      entityId: params.entityId,
+      action: params.action,
+      oldValue: params.oldValue ?? null,
+      newValue: params.newValue ?? null,
+      actorType: params.actorType,
+      ...(params.actorId !== undefined && { actorId: params.actorId }),
+      ...(params.ipAddress !== undefined && { ipAddress: params.ipAddress }),
+    });
+  },
+}));
+
 // Must be imported AFTER mocks are set up
 const { createEnrollment, getEnrollmentSummary, cancelEnrollment } = await import(
   '@/server/services/enrollment'

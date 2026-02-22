@@ -2,7 +2,8 @@ import { and, eq, inArray, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { getNextLikelyPaydayAfterDays } from '@/lib/utils/payday';
 import { db } from '@/server/db';
-import { auditLog, payments, plans, riskPool } from '@/server/db/schema';
+import { payments, plans, riskPool } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 
 /** Maximum number of retry attempts before escalating to default. */
 const MAX_RETRIES = 3;
@@ -115,19 +116,22 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
       })
       .where(eq(payments.id, paymentId));
 
-    await tx.insert(auditLog).values({
-      entityType: 'payment',
-      entityId: paymentId,
-      action: 'retried',
-      oldValue: JSON.stringify({ status: oldStatus, retryCount: currentRetryCount }),
-      newValue: JSON.stringify({
-        status: 'retried',
-        retryCount: newRetryCount,
-        scheduledAt: nextRetryDate.toISOString(),
-        urgencyLevel,
-      }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: paymentId,
+        action: 'retried',
+        oldValue: { status: oldStatus, retryCount: currentRetryCount },
+        newValue: {
+          status: 'retried',
+          retryCount: newRetryCount,
+          scheduledAt: nextRetryDate.toISOString(),
+          urgencyLevel,
+        },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     logger.info('Payment scheduled for retry on next likely payday', {
       paymentId,
@@ -195,14 +199,17 @@ export async function escalateDefault(planId: string): Promise<void> {
     await tx.update(plans).set({ status: 'defaulted' }).where(eq(plans.id, planId));
 
     // Audit log for plan default
-    await tx.insert(auditLog).values({
-      entityType: 'plan',
-      entityId: planId,
-      action: 'status_changed',
-      oldValue: JSON.stringify({ status: oldStatus }),
-      newValue: JSON.stringify({ status: 'defaulted', unpaidCents }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'plan',
+        entityId: planId,
+        action: 'status_changed',
+        oldValue: { status: oldStatus },
+        newValue: { status: 'defaulted', unpaidCents },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     // Create risk pool claim if there's unpaid balance
     if (unpaidCents > 0) {
@@ -212,16 +219,19 @@ export async function escalateDefault(planId: string): Promise<void> {
         type: 'claim',
       });
 
-      await tx.insert(auditLog).values({
-        entityType: 'risk_pool',
-        entityId: planId,
-        action: 'claim_created',
-        newValue: JSON.stringify({
-          claimAmountCents: unpaidCents,
-          clinicId: plan.clinicId,
-        }),
-        actorType: 'system',
-      });
+      await logAuditEvent(
+        {
+          entityType: 'risk_pool',
+          entityId: planId,
+          action: 'claim_created',
+          newValue: {
+            claimAmountCents: unpaidCents,
+            clinicId: plan.clinicId,
+          },
+          actorType: 'system',
+        },
+        tx,
+      );
 
       logger.info('Risk pool claim created for defaulted plan', {
         planId,
@@ -241,13 +251,16 @@ export async function escalateDefault(planId: string): Promise<void> {
         ),
       );
 
-    await tx.insert(auditLog).values({
-      entityType: 'plan',
-      entityId: planId,
-      action: 'payments_written_off',
-      newValue: JSON.stringify({ unpaidCents }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'plan',
+        entityId: planId,
+        action: 'payments_written_off',
+        newValue: { unpaidCents },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     logger.info('Plan escalated to defaulted', { planId, unpaidCents });
   });

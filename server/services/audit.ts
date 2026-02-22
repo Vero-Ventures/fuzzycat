@@ -29,6 +29,10 @@ export const AUDIT_ACTIONS = [
   'claimed',
   'contributed',
   'recovered',
+  'contribution',
+  'payout_initiated',
+  'claim_created',
+  'payments_written_off',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -74,11 +78,11 @@ export async function logAuditEvent(params: AuditEventParams, tx?: DrizzleTx): P
       entityType: params.entityType,
       entityId: params.entityId,
       action: params.action,
-      oldValue: params.oldValue ? JSON.stringify(params.oldValue) : null,
-      newValue: params.newValue ? JSON.stringify(params.newValue) : null,
+      oldValue: params.oldValue ?? null,
+      newValue: params.newValue ?? null,
       actorType: params.actorType,
-      actorId: params.actorId ?? undefined,
-      ipAddress: params.ipAddress ?? undefined,
+      ...(params.actorId !== undefined && { actorId: params.actorId }),
+      ...(params.ipAddress !== undefined && { ipAddress: params.ipAddress }),
     });
   } catch (error) {
     // Never throw from audit logging — log to application logger instead.

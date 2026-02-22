@@ -3,7 +3,8 @@ import { PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { auditLog, clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
 import { transferToClinic } from '@/server/services/stripe/connect';
@@ -210,14 +211,17 @@ export async function handlePaymentSuccess(
       .where(eq(payments.id, paymentId));
 
     // Audit log for payment success
-    await tx.insert(auditLog).values({
-      entityType: 'payment',
-      entityId: paymentId,
-      action: 'status_changed',
-      oldValue: JSON.stringify({ status: oldStatus }),
-      newValue: JSON.stringify({ status: 'succeeded' }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: paymentId,
+        action: 'status_changed',
+        oldValue: { status: oldStatus },
+        newValue: { status: 'succeeded' },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     if (!payment.planId) return;
 
@@ -243,13 +247,16 @@ export async function handlePaymentSuccess(
       type: 'contribution',
     });
 
-    await tx.insert(auditLog).values({
-      entityType: 'risk_pool',
-      entityId: payment.planId,
-      action: 'contribution',
-      newValue: JSON.stringify({ contributionCents: riskContributionCents }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'risk_pool',
+        entityId: payment.planId,
+        action: 'contribution',
+        newValue: { contributionCents: riskContributionCents },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     // Fetch clinic's Stripe Connect account
     const [clinic] = await tx
@@ -277,17 +284,20 @@ export async function handlePaymentSuccess(
 
     // Trigger payout outside transaction (Stripe API call)
     // We store the intent to pay and handle the actual transfer after commit
-    await tx.insert(auditLog).values({
-      entityType: 'payment',
-      entityId: paymentId,
-      action: 'payout_initiated',
-      newValue: JSON.stringify({
-        clinicId: plan.clinicId,
-        transferAmountCents,
-        riskContributionCents,
-      }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: paymentId,
+        action: 'payout_initiated',
+        newValue: {
+          clinicId: plan.clinicId,
+          transferAmountCents,
+          riskContributionCents,
+        },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     // Note: The actual Stripe transfer call happens outside this function
     // to avoid holding the transaction open during an external API call.
@@ -404,18 +414,21 @@ export async function handlePaymentFailure(paymentId: string, reason: string): P
       })
       .where(eq(payments.id, paymentId));
 
-    await tx.insert(auditLog).values({
-      entityType: 'payment',
-      entityId: paymentId,
-      action: 'status_changed',
-      oldValue: JSON.stringify({ status: oldStatus }),
-      newValue: JSON.stringify({
-        status: isMaxRetries ? 'written_off' : 'failed',
-        failureReason: reason,
-        retryCount: currentRetryCount,
-      }),
-      actorType: 'system',
-    });
+    await logAuditEvent(
+      {
+        entityType: 'payment',
+        entityId: paymentId,
+        action: 'status_changed',
+        oldValue: { status: oldStatus },
+        newValue: {
+          status: isMaxRetries ? 'written_off' : 'failed',
+          failureReason: reason,
+          retryCount: currentRetryCount,
+        },
+        actorType: 'system',
+      },
+      tx,
+    );
 
     if (isMaxRetries) {
       logger.warn('Payment exhausted retries, written off', {

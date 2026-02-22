@@ -41,8 +41,8 @@ describe('logAuditEvent', () => {
         entityType: 'payment',
         entityId: 'pay-123',
         action: 'status_changed',
-        oldValue: JSON.stringify({ status: 'pending' }),
-        newValue: JSON.stringify({ status: 'processing' }),
+        oldValue: { status: 'pending' },
+        newValue: { status: 'processing' },
         actorType: 'system',
       }),
     );

@@ -33,6 +33,19 @@ import { schemaMock } from './_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
+mock.module('@/server/services/audit', () => ({
+  logAuditEvent: async (params: Record<string, unknown>) => {
+    await mockInsert('auditLog').values({
+      entityType: params.entityType,
+      entityId: params.entityId,
+      action: params.action,
+      oldValue: params.oldValue ?? null,
+      newValue: params.newValue ?? null,
+      actorType: params.actorType,
+    });
+  },
+}));
+
 const { createInstallmentPaymentIntent } = await import('@/server/services/stripe/ach');
 
 // ── Tests ────────────────────────────────────────────────────────────

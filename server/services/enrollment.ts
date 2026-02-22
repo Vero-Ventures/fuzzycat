@@ -7,7 +7,8 @@ import { MIN_BILL_CENTS, RISK_POOL_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
-import { auditLog, clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -201,37 +202,43 @@ export async function createEnrollment(
 
     // 5. Audit log entries
     // Log plan creation
-    await tx.insert(auditLog).values({
-      entityType: 'plan',
-      entityId: plan.id,
-      action: 'created',
-      oldValue: null,
-      newValue: {
-        status: 'pending',
-        totalBillCents: schedule.totalBillCents,
-        totalWithFeeCents: schedule.totalWithFeeCents,
-        depositCents: schedule.depositCents,
-        numInstallments: schedule.numInstallments,
-        clinicId,
-        ownerId,
+    await logAuditEvent(
+      {
+        entityType: 'plan',
+        entityId: plan.id,
+        action: 'created',
+        oldValue: null,
+        newValue: {
+          status: 'pending',
+          totalBillCents: schedule.totalBillCents,
+          totalWithFeeCents: schedule.totalWithFeeCents,
+          depositCents: schedule.depositCents,
+          numInstallments: schedule.numInstallments,
+          clinicId,
+          ownerId,
+        },
+        actorType: actorId ? 'clinic' : 'system',
+        actorId: actorId ?? null,
       },
-      actorType: actorId ? 'clinic' : 'system',
-      actorId: actorId ?? null,
-    });
+      tx,
+    );
 
     // Log risk pool contribution
-    await tx.insert(auditLog).values({
-      entityType: 'risk_pool',
-      entityId: plan.id,
-      action: 'contribution',
-      oldValue: null,
-      newValue: {
-        contributionCents: riskPoolContributionCents,
-        planId: plan.id,
+    await logAuditEvent(
+      {
+        entityType: 'risk_pool',
+        entityId: plan.id,
+        action: 'contribution',
+        oldValue: null,
+        newValue: {
+          contributionCents: riskPoolContributionCents,
+          planId: plan.id,
+        },
+        actorType: 'system',
+        actorId: null,
       },
-      actorType: 'system',
-      actorId: null,
-    });
+      tx,
+    );
 
     return {
       planId: plan.id,
@@ -342,14 +349,17 @@ export async function cancelEnrollment(
       .where(and(eq(payments.planId, planId), eq(payments.status, 'pending')));
 
     // Audit log
-    await tx.insert(auditLog).values({
-      entityType: 'plan',
-      entityId: planId,
-      action: 'status_changed',
-      oldValue: { status: 'pending' },
-      newValue: { status: 'cancelled' },
-      actorType,
-      actorId: actorId ?? null,
-    });
+    await logAuditEvent(
+      {
+        entityType: 'plan',
+        entityId: planId,
+        action: 'status_changed',
+        oldValue: { status: 'pending' },
+        newValue: { status: 'cancelled' },
+        actorType,
+        actorId: actorId ?? null,
+      },
+      tx,
+    );
   });
 }

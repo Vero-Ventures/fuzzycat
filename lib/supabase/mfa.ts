@@ -7,13 +7,13 @@ import { redirect } from 'next/navigation';
  * - If a TOTP factor exists but the session is not AAL2, redirects to /mfa/verify.
  */
 export async function enforceMfa(supabase: SupabaseClient) {
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.currentLevel === 'aal2') return;
+
   const { data: mfaFactors } = await supabase.auth.mfa.listFactors();
   const hasTotp = mfaFactors?.totp?.some((f) => f.status === 'verified');
   if (!hasTotp) {
     redirect('/mfa/setup');
   }
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel !== 'aal2') {
-    redirect('/mfa/verify');
-  }
+  redirect('/mfa/verify');
 }

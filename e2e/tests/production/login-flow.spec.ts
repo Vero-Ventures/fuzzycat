@@ -48,7 +48,7 @@ test.describe('Production login flow', () => {
   });
 
   test('captures screenshots', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('prod-login-page', {
       body: await page.screenshot({ fullPage: true }),

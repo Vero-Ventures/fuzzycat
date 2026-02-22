@@ -18,7 +18,7 @@ jobs:
 
       - name: Check /api/health
         run: |
-          url="${{ github.event.deployment_status.target_url }}"
+          url="https://fuzzycatapp.com"
           status=$(curl -s -o /dev/null -w '%{http_code}' "${url}/api/health")
           echo "GET /api/health → HTTP $status"
           if [ "$status" -ne 200 ]; then
@@ -29,7 +29,7 @@ jobs:
 
       - name: Check / (landing page)
         run: |
-          url="${{ github.event.deployment_status.target_url }}"
+          url="https://fuzzycatapp.com"
           status=$(curl -s -o /dev/null -w '%{http_code}' "${url}/")
           echo "GET / → HTTP $status"
           if [ "$status" -ne 200 ]; then

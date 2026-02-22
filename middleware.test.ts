@@ -173,90 +173,44 @@ describe('middleware', () => {
     expect(location).toContain('/login');
   });
 
-  it('redirects authenticated owner accessing /admin to owner home', async () => {
+  const roleRedirectCases = [
+    { role: 'owner' as const, path: '/admin/dashboard', status: 307, redirect: '/owner/payments' },
+    {
+      role: 'clinic' as const,
+      path: '/owner/payments',
+      status: 307,
+      redirect: '/clinic/dashboard',
+    },
+    {
+      role: 'admin' as const,
+      path: '/clinic/dashboard',
+      status: 307,
+      redirect: '/admin/dashboard',
+    },
+    { role: 'owner' as const, path: '/owner/payments', status: 200, redirect: null },
+  ];
+
+  it.each(roleRedirectCases)('authenticated $role accessing $path → $status', async ({
+    role,
+    path,
+    status,
+    redirect,
+  }) => {
     mockGetUser.mockImplementation(() =>
       Promise.resolve({
-        data: {
-          user: {
-            id: 'user-1',
-            app_metadata: { role: 'owner' },
-          },
-        },
+        data: { user: { id: 'user-1', app_metadata: { role } } },
         error: null,
       }),
     );
 
     const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/admin/dashboard');
+    const req = new NextRequest(`http://localhost:3000${path}`);
     const response = await middleware(req);
 
-    expect(response.status).toBe(307);
-    const location = response.headers.get('location');
-    expect(location).toContain('/owner/payments');
-  });
-
-  it('redirects authenticated clinic accessing /owner to clinic home', async () => {
-    mockGetUser.mockImplementation(() =>
-      Promise.resolve({
-        data: {
-          user: {
-            id: 'user-2',
-            app_metadata: { role: 'clinic' },
-          },
-        },
-        error: null,
-      }),
-    );
-
-    const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/owner/payments');
-    const response = await middleware(req);
-
-    expect(response.status).toBe(307);
-    const location = response.headers.get('location');
-    expect(location).toContain('/clinic/dashboard');
-  });
-
-  it('redirects authenticated admin accessing /clinic to admin home', async () => {
-    mockGetUser.mockImplementation(() =>
-      Promise.resolve({
-        data: {
-          user: {
-            id: 'user-3',
-            app_metadata: { role: 'admin' },
-          },
-        },
-        error: null,
-      }),
-    );
-
-    const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/clinic/dashboard');
-    const response = await middleware(req);
-
-    expect(response.status).toBe(307);
-    const location = response.headers.get('location');
-    expect(location).toContain('/admin/dashboard');
-  });
-
-  it('allows authenticated owner to access their own portal', async () => {
-    mockGetUser.mockImplementation(() =>
-      Promise.resolve({
-        data: {
-          user: {
-            id: 'user-1',
-            app_metadata: { role: 'owner' },
-          },
-        },
-        error: null,
-      }),
-    );
-
-    const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/owner/payments');
-    const response = await middleware(req);
-
-    // Should pass through (200), not redirect
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(status);
+    if (redirect) {
+      const location = response.headers.get('location');
+      expect(location).toContain(redirect);
+    }
   });
 });

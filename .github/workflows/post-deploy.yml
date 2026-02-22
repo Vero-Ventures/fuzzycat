@@ -36,3 +36,22 @@ jobs:
             echo "::error::Landing page returned HTTP $status"
             exit 1
           fi
+
+      - name: Verify security headers
+        run: |
+          url="https://fuzzycatapp.com"
+          headers=$(curl -sI -L "$url")
+          echo "$headers"
+          failed=0
+          for h in "strict-transport-security" "x-content-type-options" "x-frame-options" "referrer-policy" "permissions-policy"; do
+            if echo "$headers" | grep -qi "^$h:"; then
+              echo "✓ $h present"
+            else
+              echo "::error::Missing security header: $h"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          echo "All required security headers present."

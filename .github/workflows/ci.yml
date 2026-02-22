@@ -90,6 +90,23 @@ jobs:
       - run: go install github.com/zricethezav/gitleaks/v8@latest
       - run: gitleaks detect --source . --no-banner
 
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Generate package-lock.json for audit
+        run: npm i --package-lock-only --ignore-scripts
+      - name: Audit dependencies (critical severity blocks, high warns)
+        run: |
+          npm audit --omit=dev 2>&1 || true
+          npm audit --audit-level=critical --omit=dev
+
   security:
     name: Security Scan (Semgrep)
     runs-on: ubuntu-latest

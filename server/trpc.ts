@@ -1,8 +1,10 @@
 import { initTRPC, TRPCError } from '@trpc/server';
+import { eq } from 'drizzle-orm';
 import superjson from 'superjson';
 import { getUserRole, type UserRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
+import { clinics, owners } from '@/server/db/schema';
 
 export type { UserRole };
 
@@ -85,6 +87,32 @@ function roleProcedure(...allowedRoles: UserRole[]) {
   });
 }
 
-export const ownerProcedure = roleProcedure('owner', 'admin');
-export const clinicProcedure = roleProcedure('clinic', 'admin');
 export const adminProcedure = roleProcedure('admin');
+
+export const clinicProcedure = roleProcedure('clinic', 'admin').use(async ({ ctx, next }) => {
+  const [clinic] = await ctx.db
+    .select({ id: clinics.id })
+    .from(clinics)
+    .where(eq(clinics.authId, ctx.session.userId))
+    .limit(1);
+
+  if (!clinic && ctx.session.role !== 'admin') {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Clinic profile not found' });
+  }
+
+  return next({ ctx: { ...ctx, clinicId: clinic?.id } });
+});
+
+export const ownerProcedure = roleProcedure('owner', 'admin').use(async ({ ctx, next }) => {
+  const [owner] = await ctx.db
+    .select({ id: owners.id })
+    .from(owners)
+    .where(eq(owners.authId, ctx.session.userId))
+    .limit(1);
+
+  if (!owner && ctx.session.role !== 'admin') {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
+  }
+
+  return next({ ctx: { ...ctx, ownerId: owner?.id } });
+});

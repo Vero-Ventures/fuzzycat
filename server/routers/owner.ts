@@ -27,7 +27,7 @@ export const ownerRouter = router({
         addressZip: owners.addressZip,
       })
       .from(owners)
-      .where(eq(owners.authId, ctx.session.userId))
+      .where(eq(owners.id, ctx.ownerId))
       .limit(1);
 
     if (!owner) {
@@ -52,16 +52,6 @@ export const ownerRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [owner] = await ctx.db
-        .select({ id: owners.id })
-        .from(owners)
-        .where(eq(owners.authId, ctx.session.userId))
-        .limit(1);
-
-      if (!owner) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
-      }
-
       const updateData: Record<string, string> = {};
       if (input.name !== undefined) updateData.name = input.name;
       if (input.email !== undefined) updateData.email = input.email;
@@ -74,7 +64,7 @@ export const ownerRouter = router({
       const [updated] = await ctx.db
         .update(owners)
         .set(updateData)
-        .where(eq(owners.id, owner.id))
+        .where(eq(owners.id, ctx.ownerId))
         .returning({
           id: owners.id,
           name: owners.name,
@@ -91,16 +81,6 @@ export const ownerRouter = router({
    * Get all payment plans for the authenticated owner, with payment progress.
    */
   getPlans: ownerProcedure.query(async ({ ctx }) => {
-    const [owner] = await ctx.db
-      .select({ id: owners.id })
-      .from(owners)
-      .where(eq(owners.authId, ctx.session.userId))
-      .limit(1);
-
-    if (!owner) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
-    }
-
     const plansWithProgress = await ctx.db
       .select({
         id: plans.id,
@@ -125,7 +105,7 @@ export const ownerRouter = router({
       .from(plans)
       .leftJoin(clinics, eq(plans.clinicId, clinics.id))
       .leftJoin(payments, eq(plans.id, payments.planId))
-      .where(eq(plans.ownerId, owner.id))
+      .where(eq(plans.ownerId, ctx.ownerId))
       .groupBy(plans.id, clinics.id)
       .orderBy(desc(plans.createdAt));
 
@@ -150,17 +130,6 @@ export const ownerRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Verify the owner owns this plan
-      const [owner] = await ctx.db
-        .select({ id: owners.id })
-        .from(owners)
-        .where(eq(owners.authId, ctx.session.userId))
-        .limit(1);
-
-      if (!owner) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
-      }
-
       const [plan] = await ctx.db
         .select({ id: plans.id, ownerId: plans.ownerId })
         .from(plans)
@@ -172,7 +141,7 @@ export const ownerRouter = router({
       }
 
       // Admin bypass is handled by ownerProcedure allowing admin role
-      if (ctx.session.role !== 'admin' && plan.ownerId !== owner.id) {
+      if (ctx.session.role !== 'admin' && plan.ownerId !== ctx.ownerId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this plan' });
       }
 
@@ -220,16 +189,6 @@ export const ownerRouter = router({
    * Get a summary of active plans with next upcoming payment.
    */
   getDashboardSummary: ownerProcedure.query(async ({ ctx }) => {
-    const [owner] = await ctx.db
-      .select({ id: owners.id })
-      .from(owners)
-      .where(eq(owners.authId, ctx.session.userId))
-      .limit(1);
-
-    if (!owner) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
-    }
-
     // Get the next upcoming payment across all active plans
     const [nextPayment] = await ctx.db
       .select({
@@ -242,7 +201,7 @@ export const ownerRouter = router({
       })
       .from(payments)
       .innerJoin(plans, eq(payments.planId, plans.id))
-      .where(and(eq(plans.ownerId, owner.id), eq(payments.status, 'pending')))
+      .where(and(eq(plans.ownerId, ctx.ownerId), eq(payments.status, 'pending')))
       .orderBy(payments.scheduledAt)
       .limit(1);
 
@@ -254,7 +213,7 @@ export const ownerRouter = router({
       })
       .from(payments)
       .innerJoin(plans, eq(payments.planId, plans.id))
-      .where(eq(plans.ownerId, owner.id));
+      .where(eq(plans.ownerId, ctx.ownerId));
 
     // Count active plans
     const [planCounts] = await ctx.db
@@ -263,7 +222,7 @@ export const ownerRouter = router({
         totalPlans: sql<number>`count(*)`,
       })
       .from(plans)
-      .where(eq(plans.ownerId, owner.id));
+      .where(eq(plans.ownerId, ctx.ownerId));
 
     return {
       nextPayment: nextPayment ?? null,

@@ -8,7 +8,6 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
-import { resolveClinicId } from '@/server/services/authorization';
 import { sendClinicWelcome } from '@/server/services/email';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
@@ -26,10 +25,10 @@ function getAppUrl(): string {
 }
 
 /**
- * Look up the clinic record for the authenticated user.
- * Throws NOT_FOUND if no clinic is linked to this auth user.
+ * Look up the clinic record by its database ID.
+ * Throws NOT_FOUND if no clinic is found.
  */
-async function getClinicForUser(
+async function getClinicById(
   db: Parameters<typeof clinicProcedure.query>[0] extends (opts: infer O) => unknown
     ? O extends { ctx: infer C }
       ? C extends { db: infer D }
@@ -37,7 +36,7 @@ async function getClinicForUser(
         : never
       : never
     : never,
-  userId: string,
+  clinicId: string,
 ) {
   const [clinic] = await db
     .select({
@@ -53,7 +52,7 @@ async function getClinicForUser(
       status: clinics.status,
     })
     .from(clinics)
-    .where(eq(clinics.authId, userId))
+    .where(eq(clinics.id, clinicId))
     .limit(1);
 
   if (!clinic) {
@@ -107,7 +106,7 @@ export const clinicRouter = router({
    * Get the authenticated clinic's profile information.
    */
   getProfile: clinicProcedure.query(async ({ ctx }) => {
-    return getClinicForUser(ctx.db, ctx.session.userId);
+    return getClinicById(ctx.db, ctx.clinicId);
   }),
 
   /**
@@ -128,7 +127,7 @@ export const clinicRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const clinic = await getClinicForUser(ctx.db, ctx.session.userId);
+      const clinic = await getClinicById(ctx.db, ctx.clinicId);
 
       const updateData: Record<string, string> = {};
       if (input.name !== undefined) updateData.name = input.name;
@@ -169,7 +168,7 @@ export const clinicRouter = router({
    * onboarding link that redirects the user to Stripe's hosted onboarding.
    */
   startStripeOnboarding: clinicProcedure.mutation(async ({ ctx }) => {
-    const clinic = await getClinicForUser(ctx.db, ctx.session.userId);
+    const clinic = await getClinicById(ctx.db, ctx.clinicId);
     const appUrl = getAppUrl();
 
     let stripeAccountId = clinic.stripeAccountId;
@@ -222,7 +221,7 @@ export const clinicRouter = router({
    * Checks Stripe account status, profile completeness, and MFA enrollment.
    */
   getOnboardingStatus: clinicProcedure.query(async ({ ctx }) => {
-    const clinic = await getClinicForUser(ctx.db, ctx.session.userId);
+    const clinic = await getClinicById(ctx.db, ctx.clinicId);
 
     // Check profile completeness
     const profileComplete = Boolean(
@@ -288,7 +287,7 @@ export const clinicRouter = router({
    * Sends a welcome email on successful activation.
    */
   completeOnboarding: clinicProcedure.mutation(async ({ ctx }) => {
-    const clinic = await getClinicForUser(ctx.db, ctx.session.userId);
+    const clinic = await getClinicById(ctx.db, ctx.clinicId);
 
     // Don't allow completing onboarding if already active
     if (clinic.status === 'active') {
@@ -397,7 +396,7 @@ export const clinicRouter = router({
    * pending payouts, and recent enrollments.
    */
   getDashboardStats: clinicProcedure.query(async ({ ctx }) => {
-    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    const { clinicId } = ctx;
 
     // Run all queries in parallel for performance
     const [planCounts, earningsResult, pendingPayoutsResult, recentEnrollments] = await Promise.all(
@@ -478,7 +477,7 @@ export const clinicRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const { clinicId } = ctx;
 
       const offset = (input.page - 1) * input.pageSize;
 
@@ -559,7 +558,7 @@ export const clinicRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const { clinicId } = ctx;
 
       // Get the plan and verify it belongs to this clinic
       const [plan] = await ctx.db
@@ -638,7 +637,7 @@ export const clinicRouter = router({
    * Returns the last 12 months of aggregated payout data.
    */
   getMonthlyRevenue: clinicProcedure.query(async ({ ctx }) => {
-    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    const { clinicId } = ctx;
 
     const monthlyData = await ctx.db
       .select({
@@ -680,7 +679,7 @@ export const clinicRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const { clinicId } = ctx;
       const fromDate = new Date(input.dateFrom);
       const toDate = new Date(input.dateTo);
 
@@ -762,7 +761,7 @@ export const clinicRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const { clinicId } = ctx;
       const monthsBack = input?.months ?? 12;
 
       const trendData = await ctx.db
@@ -790,7 +789,7 @@ export const clinicRouter = router({
    * Get the clinic's default rate (defaulted plans / total plans).
    */
   getDefaultRate: clinicProcedure.query(async ({ ctx }) => {
-    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    const { clinicId } = ctx;
 
     const [result] = await ctx.db
       .select({
@@ -815,7 +814,7 @@ export const clinicRouter = router({
    * Export all clients as a CSV string.
    */
   exportClientsCSV: clinicProcedure.query(async ({ ctx }) => {
-    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    const { clinicId } = ctx;
 
     const clientRows = await ctx.db
       .select({
@@ -868,7 +867,7 @@ export const clinicRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+      const { clinicId } = ctx;
       const fromDate = new Date(input.dateFrom);
       const toDate = new Date(input.dateTo);
 
@@ -906,7 +905,7 @@ export const clinicRouter = router({
    * Export payout history as CSV.
    */
   exportPayoutsCSV: clinicProcedure.query(async ({ ctx }) => {
-    const clinicId = await resolveClinicId(ctx.db, ctx.session.userId);
+    const { clinicId } = ctx;
 
     const payoutRows = await ctx.db
       .select({

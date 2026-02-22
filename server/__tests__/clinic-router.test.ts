@@ -614,19 +614,13 @@ describe('clinic.getDashboardStats', () => {
       pendingAmountCents: 30000,
     };
 
-    // Query sequence: clinic lookup, then 4 parallel queries
+    // Query sequence: 4 parallel queries (clinicId now comes from middleware context)
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }], // resolveClinicId
       [planCounts], // plan counts
       [earningsResult], // earnings
       [pendingPayoutsResult], // pending payouts
       [MOCK_ENROLLMENT], // recent enrollments
     ]);
-
-    // Verify clinic lookup
-    const clinicChain = mockSelect();
-    const clinicResult = await clinicChain.from().where().limit();
-    expect(clinicResult[0].id).toBe(CLINIC_ID);
 
     // Verify plan counts
     const plansChain = mockSelect();
@@ -637,15 +631,11 @@ describe('clinic.getDashboardStats', () => {
 
   it('returns zeros when clinic has no data', async () => {
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }],
       [{ activePlans: 0, completedPlans: 0, defaultedPlans: 0, totalPlans: 0 }],
       [{ totalRevenueCents: 0, totalPayoutCents: 0 }],
       [{ pendingCount: 0, pendingAmountCents: 0 }],
       [],
     ]);
-
-    const clinicChain = mockSelect();
-    await clinicChain.from().where().limit();
 
     const plansChain = mockSelect();
     const plansResult = await plansChain.from().where().limit();
@@ -675,16 +665,11 @@ describe('clinic.getClients', () => {
       totalPaidCents: 47700,
     };
 
+    // clinicId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }], // resolveClinicId
       [clientRow], // clients query
       [{ total: 1 }], // count query
     ]);
-
-    // Verify clinic lookup
-    const clinicChain = mockSelect();
-    const clinicResult = await clinicChain.from().where().limit();
-    expect(clinicResult[0].id).toBe(CLINIC_ID);
 
     // Verify client data
     const clientsChain = mockSelect();
@@ -696,13 +681,9 @@ describe('clinic.getClients', () => {
 
   it('returns empty when no clients match search', async () => {
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }],
       [], // no matching clients
       [{ total: 0 }],
     ]);
-
-    const clinicChain = mockSelect();
-    await clinicChain.from().where().limit();
 
     const clientsChain = mockSelect();
     const clientsResult = await clientsChain.from().where().limit();
@@ -717,17 +698,12 @@ describe('clinic.getClientPlanDetails', () => {
   afterEach(clearAllMocks);
 
   it('returns plan details with payments and payouts', async () => {
+    // clinicId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }], // resolveClinicId
       [MOCK_PLAN_WITH_OWNER], // plan query
       [MOCK_PAYMENT], // payments query
       [MOCK_PAYOUT], // payouts query
     ]);
-
-    // Verify clinic lookup
-    const clinicChain = mockSelect();
-    const clinicResult = await clinicChain.from().where().limit();
-    expect(clinicResult[0].id).toBe(CLINIC_ID);
 
     // Verify plan data
     const planChain = mockSelect();
@@ -739,12 +715,8 @@ describe('clinic.getClientPlanDetails', () => {
 
   it('returns empty when plan not found at clinic', async () => {
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }],
       [], // plan not found
     ]);
-
-    const clinicChain = mockSelect();
-    await clinicChain.from().where().limit();
 
     const planChain = mockSelect();
     const planResult = await planChain.from().where().limit();
@@ -774,15 +746,10 @@ describe('clinic.getMonthlyRevenue', () => {
       },
     ];
 
+    // clinicId now comes from middleware context
     setupSelectChainSequence([
-      [{ id: CLINIC_ID }], // resolveClinicId
       monthlyData, // monthly revenue data
     ]);
-
-    // Verify clinic lookup
-    const clinicChain = mockSelect();
-    const clinicResult = await clinicChain.from().where().limit();
-    expect(clinicResult[0].id).toBe(CLINIC_ID);
 
     // Verify monthly data
     const revenueChain = mockSelect();
@@ -793,10 +760,7 @@ describe('clinic.getMonthlyRevenue', () => {
   });
 
   it('returns empty when no payout history', async () => {
-    setupSelectChainSequence([[{ id: CLINIC_ID }], []]);
-
-    const clinicChain = mockSelect();
-    await clinicChain.from().where().limit();
+    setupSelectChainSequence([[]]);
 
     const revenueChain = mockSelect();
     const revenueResult = await revenueChain.from().where().limit();

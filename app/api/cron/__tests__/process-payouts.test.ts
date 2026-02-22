@@ -77,14 +77,14 @@ describe('GET /api/cron/process-payouts', () => {
     expect(body.results).toHaveLength(2);
   });
 
-  it('skips auth check when CRON_SECRET is not configured', async () => {
+  it('returns 401 when CRON_SECRET is not configured', async () => {
     mockCronSecret = undefined;
 
     const request = new Request('http://localhost/api/cron/process-payouts');
     const response = await GET(request);
 
-    expect(response.status).toBe(200);
-    expect(mockProcessPendingPayouts).toHaveBeenCalled();
+    expect(response.status).toBe(401);
+    expect(mockProcessPendingPayouts).not.toHaveBeenCalled();
   });
 
   it('returns 500 when processPendingPayouts throws', async () => {

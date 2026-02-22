@@ -297,22 +297,30 @@ export async function processPendingPayouts(): Promise<ProcessPendingPayoutsResu
     .from(payouts)
     .where(eq(payouts.status, 'pending'));
 
-  const results: ProcessedPayoutResult[] = await Promise.all(
-    pendingPayouts.map(async (payout): Promise<ProcessedPayoutResult> => {
-      try {
-        return await executeSinglePayout(payout);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        logger.error('Failed to process payout', {
-          payoutId: payout.id,
-          clinicId: payout.clinicId,
-          error: errorMessage,
-        });
-        await markPayoutFailed(payout.id, errorMessage);
-        return { payoutId: payout.id, status: 'failed', error: errorMessage };
-      }
-    }),
-  );
+  // Process payouts in batches of 5 to avoid Stripe rate limits and DB pool exhaustion
+  const BATCH_SIZE = 5;
+  const results: ProcessedPayoutResult[] = [];
+
+  for (let i = 0; i < pendingPayouts.length; i += BATCH_SIZE) {
+    const batch = pendingPayouts.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (payout): Promise<ProcessedPayoutResult> => {
+        try {
+          return await executeSinglePayout(payout);
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          logger.error('Failed to process payout', {
+            payoutId: payout.id,
+            clinicId: payout.clinicId,
+            error: errorMessage,
+          });
+          await markPayoutFailed(payout.id, errorMessage);
+          return { payoutId: payout.id, status: 'failed', error: errorMessage };
+        }
+      }),
+    );
+    results.push(...batchResults);
+  }
 
   const succeeded = results.filter((r) => r.status === 'succeeded').length;
   const failed = results.filter((r) => r.status === 'failed').length;

@@ -21,9 +21,10 @@ export const paymentRouter = router({
         cancelUrl: z.string().url(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const result = await processDeposit({
         planId: input.planId,
+        ownerId: ctx.ownerId,
         successUrl: input.successUrl,
         cancelUrl: input.cancelUrl,
       });

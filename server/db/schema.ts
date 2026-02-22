@@ -135,6 +135,7 @@ export const payments = pgTable(
     index('idx_payments_plan').on(table.planId),
     index('idx_payments_scheduled').on(table.scheduledAt),
     index('idx_payments_status').on(table.status),
+    index('idx_payments_stripe_pi').on(table.stripePaymentIntentId),
     unique('uq_payments_plan_sequence').on(table.planId, table.sequenceNum),
     check('ck_payments_amount_positive', sql`${table.amountCents} > 0`),
   ],

@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
 import { payments } from '@/server/db/schema';
@@ -45,22 +46,31 @@ export async function createDepositCheckoutSession(params: {
       ? session.payment_intent
       : (session.payment_intent?.id ?? null);
 
-  await db
-    .update(payments)
-    .set({
-      status: 'processing',
-      stripePaymentIntentId: paymentIntentId,
-    })
-    .where(eq(payments.id, params.paymentId));
+  try {
+    await db
+      .update(payments)
+      .set({
+        status: 'processing',
+        stripePaymentIntentId: paymentIntentId,
+      })
+      .where(eq(payments.id, params.paymentId));
 
-  await logAuditEvent({
-    entityType: 'payment',
-    entityId: params.paymentId,
-    action: 'status_changed',
-    oldValue: { status: 'pending' },
-    newValue: { status: 'processing' },
-    actorType: 'system',
-  });
+    await logAuditEvent({
+      entityType: 'payment',
+      entityId: params.paymentId,
+      action: 'status_changed',
+      oldValue: { status: 'pending' },
+      newValue: { status: 'processing' },
+      actorType: 'system',
+    });
+  } catch (dbError) {
+    logger.error('DB update failed after Stripe Checkout session created', {
+      paymentId: params.paymentId,
+      stripeSessionId: session.id,
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    throw dbError;
+  }
 
   return {
     sessionId: session.id,

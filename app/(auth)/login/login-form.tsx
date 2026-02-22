@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { getUserRole, ROLE_HOME } from '@/lib/auth';
+import { getUserRole, ROLE_HOME, SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
@@ -34,7 +34,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       }
 
       const role = data.user ? getUserRole(data.user) : 'owner';
-      const destination = redirectTo ?? ROLE_HOME[role];
+      const isSafeRedirect =
+        redirectTo && SAFE_REDIRECT_PREFIXES.some((p) => redirectTo.startsWith(p));
+      const destination = isSafeRedirect ? redirectTo : ROLE_HOME[role];
       router.push(destination);
       router.refresh();
     } catch (error) {
@@ -48,7 +50,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-foreground">

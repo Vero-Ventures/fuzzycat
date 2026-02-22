@@ -787,7 +787,7 @@ export const clinicRouter = router({
         .where(
           and(
             eq(plans.clinicId, clinicId),
-            sql`${plans.createdAt} >= now() - interval '${sql.raw(String(monthsBack))} months'`,
+            sql`${plans.createdAt} >= now() - make_interval(months => ${monthsBack})`,
           ),
         )
         .groupBy(sql`to_char(${plans.createdAt}, 'YYYY-MM')`)

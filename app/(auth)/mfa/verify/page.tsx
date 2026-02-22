@@ -63,7 +63,9 @@ export default function MfaVerifyPage() {
         </div>
 
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+          <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
         )}
 
         <form onSubmit={handleVerify} className="space-y-4">

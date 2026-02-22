@@ -17,7 +17,10 @@ export default async function LoginPage({
           </p>
         </div>
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive"
+          >
             {error === 'auth_callback_failed'
               ? 'Authentication failed. Please try again.'
               : 'An error occurred. Please try again.'}

@@ -69,7 +69,7 @@ test.describe('Production public pages', () => {
 
     for (const { url, name } of pages) {
       await page.goto(url);
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await testInfo.attach(name, {
         body: await page.screenshot({ fullPage: true }),
         contentType: 'image/png',

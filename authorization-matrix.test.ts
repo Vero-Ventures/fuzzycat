@@ -412,7 +412,7 @@ function allowedRoles(base: Base): string[] {
 // biome-ignore lint/suspicious/noExplicitAny: dynamic procedure access
 function resolveProcedure(caller: any, path: string) {
   // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop
-  return path.split('.').reduce((obj, key) => obj[key], caller);
+  return path.split('.').reduce((obj, key) => (obj ? obj[key] : undefined), caller);
 }
 
 async function callAndGetErrorCode(
@@ -420,8 +420,13 @@ async function callAndGetErrorCode(
   caller: any,
   path: string,
 ): Promise<string | null> {
+  const fn = resolveProcedure(caller, path);
+  if (typeof fn !== 'function') {
+    throw new Error(
+      `Procedure not found at path: ${path}. Check for typos in the PROCEDURES list.`,
+    );
+  }
   try {
-    const fn = resolveProcedure(caller, path);
     await fn();
     return null; // No error — auth passed
   } catch (err: unknown) {
@@ -446,13 +451,21 @@ describe('Authorization matrix', () => {
 
   for (const proc of PROCEDURES) {
     describe(proc.path, () => {
-      if (proc.base !== 'public') {
-        it('rejects unauthenticated callers', async () => {
+      it(
+        proc.base === 'public'
+          ? 'allows unauthenticated callers'
+          : 'rejects unauthenticated callers',
+        async () => {
           const caller = createCaller(unauthCtx);
           const code = await callAndGetErrorCode(caller, proc.path);
-          expect(code).toBe('UNAUTHORIZED');
-        });
-      }
+          if (proc.base === 'public') {
+            expect(code).not.toBe('UNAUTHORIZED');
+            expect(code).not.toBe('FORBIDDEN');
+          } else {
+            expect(code).toBe('UNAUTHORIZED');
+          }
+        },
+      );
 
       for (const role of ['owner', 'clinic', 'admin'] as const) {
         const allowed = allowedRoles(proc.base);

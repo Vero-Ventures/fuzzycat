@@ -1,12 +1,18 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
-import { clinics, payments, plans } from '@/server/db/schema';
+import { clinics } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
+import {
+  findPaymentByStripeId,
+  handlePaymentFailure,
+  handlePaymentSuccess,
+  triggerPayout,
+} from '@/server/services/payment';
 
 /**
  * Stripe webhook handler.
@@ -72,9 +78,10 @@ export async function POST(request: Request) {
 
 /**
  * Handle successful Checkout Session (deposit payment).
- * Fetches current state before updating for accurate audit logs.
- * Updates the payment record and transitions the plan to active.
- * Skips processing if the payment is already succeeded (idempotency).
+ * Resolves the Stripe PaymentIntent ID to the internal payment record,
+ * then delegates to the canonical handlePaymentSuccess service function
+ * which handles status update, audit logging, risk pool contribution,
+ * plan activation, and payout initiation.
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const paymentIntentId =
@@ -84,188 +91,47 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   if (!paymentIntentId) return;
 
-  // Fetch current payment state before updating
-  const [existingPayment] = await db
-    .select({ id: payments.id, status: payments.status, planId: payments.planId })
-    .from(payments)
-    .where(eq(payments.stripePaymentIntentId, paymentIntentId))
-    .limit(1);
-
+  const existingPayment = await findPaymentByStripeId(paymentIntentId);
   if (!existingPayment) return;
 
   // Idempotency: skip if already processed
   if (existingPayment.status === 'succeeded') return;
 
-  const oldPaymentStatus = existingPayment.status;
-
-  await db
-    .update(payments)
-    .set({
-      status: 'succeeded',
-      stripePaymentIntentId: paymentIntentId,
-      processedAt: new Date(),
-    })
-    .where(eq(payments.stripePaymentIntentId, paymentIntentId));
-
-  await logAuditEvent({
-    entityType: 'payment',
-    entityId: existingPayment.id,
-    action: 'status_changed',
-    oldValue: { status: oldPaymentStatus },
-    newValue: { status: 'succeeded' },
-    actorType: 'system',
-  });
-
-  if (!existingPayment.planId) return;
-
-  // Fetch current plan state before updating
-  const [existingPlan] = await db
-    .select({ id: plans.id, status: plans.status })
-    .from(plans)
-    .where(eq(plans.id, existingPayment.planId))
-    .limit(1);
-
-  if (!existingPlan) return;
-
-  // Idempotency: skip if plan is already active or beyond
-  if (existingPlan.status !== 'pending' && existingPlan.status !== 'deposit_paid') return;
-
-  const oldPlanStatus = existingPlan.status;
-
-  await db
-    .update(plans)
-    .set({
-      status: 'active',
-      depositPaidAt: new Date(),
-    })
-    .where(eq(plans.id, existingPayment.planId));
-
-  await logAuditEvent({
-    entityType: 'plan',
-    entityId: existingPayment.planId,
-    action: 'status_changed',
-    oldValue: { status: oldPlanStatus },
-    newValue: { status: 'active' },
-    actorType: 'system',
-  });
+  await handlePaymentSuccess(existingPayment.id, paymentIntentId);
+  await triggerPayout(existingPayment.id);
 }
 
 /**
  * Handle successful PaymentIntent (installment ACH payment).
- * Fetches current state before updating for accurate audit logs.
- * Uses a transaction for plan completion to prevent race conditions.
- * Skips processing if the payment is already succeeded (idempotency).
+ * Resolves the Stripe PaymentIntent ID to the internal payment record,
+ * then delegates to the canonical handlePaymentSuccess service function
+ * which handles status update, audit logging, risk pool contribution,
+ * plan completion check, and payout initiation.
  */
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  // Fetch current payment state before updating
-  const [existingPayment] = await db
-    .select({
-      id: payments.id,
-      status: payments.status,
-      planId: payments.planId,
-    })
-    .from(payments)
-    .where(eq(payments.stripePaymentIntentId, paymentIntent.id))
-    .limit(1);
-
+  const existingPayment = await findPaymentByStripeId(paymentIntent.id);
   if (!existingPayment) return;
 
   // Idempotency: skip if already processed
   if (existingPayment.status === 'succeeded') return;
 
-  const oldPaymentStatus = existingPayment.status;
-
-  await db
-    .update(payments)
-    .set({
-      status: 'succeeded',
-      processedAt: new Date(),
-    })
-    .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
-
-  await logAuditEvent({
-    entityType: 'payment',
-    entityId: existingPayment.id,
-    action: 'status_changed',
-    oldValue: { status: oldPaymentStatus },
-    newValue: { status: 'succeeded' },
-    actorType: 'system',
-  });
-
-  // Check if all installments are now paid -> complete the plan.
-  // Wrapped in a transaction to prevent race conditions from concurrent webhooks.
-  if (existingPayment.planId) {
-    await db.transaction(async (tx) => {
-      const planPayments = await tx.query.payments.findMany({
-        where: eq(payments.planId, existingPayment.planId ?? ''),
-      });
-
-      const allSucceeded = planPayments.every((p) => p.status === 'succeeded');
-      if (!allSucceeded) return;
-
-      const [currentPlan] = await tx
-        .select({ id: plans.id, status: plans.status })
-        .from(plans)
-        .where(eq(plans.id, existingPayment.planId ?? ''));
-
-      if (!currentPlan || currentPlan.status === 'completed') return;
-
-      await tx
-        .update(plans)
-        .set({ status: 'completed', completedAt: new Date() })
-        .where(eq(plans.id, existingPayment.planId ?? ''));
-
-      await logAuditEvent(
-        {
-          entityType: 'plan',
-          entityId: existingPayment.planId ?? '',
-          action: 'status_changed',
-          oldValue: { status: currentPlan.status },
-          newValue: { status: 'completed' },
-          actorType: 'system',
-        },
-        tx,
-      );
-    });
-  }
+  await handlePaymentSuccess(existingPayment.id, paymentIntent.id);
+  await triggerPayout(existingPayment.id);
 }
 
 /**
  * Handle failed PaymentIntent (installment ACH failure).
- * Fetches current state before updating for accurate audit logs.
- * Increments retry count and logs the failure reason.
+ * Resolves the Stripe PaymentIntent ID to the internal payment record,
+ * then delegates to the canonical handlePaymentFailure service function
+ * which handles status update, retry logic, and audit logging.
  */
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   const failureReason = paymentIntent.last_payment_error?.message ?? 'Unknown failure';
 
-  // Fetch current payment state before updating
-  const [existingPayment] = await db
-    .select({ id: payments.id, status: payments.status })
-    .from(payments)
-    .where(eq(payments.stripePaymentIntentId, paymentIntent.id))
-    .limit(1);
-
+  const existingPayment = await findPaymentByStripeId(paymentIntent.id);
   if (!existingPayment) return;
 
-  const oldPaymentStatus = existingPayment.status;
-
-  await db
-    .update(payments)
-    .set({
-      status: 'failed',
-      failureReason,
-      retryCount: sql`coalesce(${payments.retryCount}, 0) + 1`,
-    })
-    .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
-
-  await logAuditEvent({
-    entityType: 'payment',
-    entityId: existingPayment.id,
-    action: 'status_changed',
-    oldValue: { status: oldPaymentStatus },
-    newValue: { status: 'failed', failureReason },
-    actorType: 'system',
-  });
+  await handlePaymentFailure(existingPayment.id, failureReason);
 }
 
 /**

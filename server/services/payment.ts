@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
@@ -7,6 +8,9 @@ import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db
 import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
+
+// biome-ignore lint/suspicious/noExplicitAny: Drizzle transaction types are complex generics that vary by driver; using `any` here avoids coupling to a specific driver implementation.
+type DrizzleTx = PgTransaction<any, any, any>;
 
 /** Maximum number of retry attempts for a failed payment. */
 const MAX_RETRIES = 3;
@@ -163,10 +167,166 @@ export async function processInstallment(params: {
   });
 }
 
+async function activatePlanForDeposit(
+  tx: DrizzleTx,
+  planId: string,
+  currentStatus: string,
+): Promise<void> {
+  if (currentStatus !== 'pending' && currentStatus !== 'deposit_paid') return;
+
+  await tx
+    .update(plans)
+    .set({ status: 'active', depositPaidAt: new Date() })
+    .where(eq(plans.id, planId));
+
+  await logAuditEvent(
+    {
+      entityType: 'plan',
+      entityId: planId,
+      action: 'status_changed',
+      oldValue: { status: currentStatus },
+      newValue: { status: 'active' },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
+async function completePlanIfAllPaid(
+  tx: DrizzleTx,
+  planId: string,
+  currentStatus: string,
+): Promise<void> {
+  if (currentStatus === 'completed') return;
+
+  // 7 = 1 deposit + 6 installments (max payments per plan)
+  const planPayments = await tx
+    .select({ status: payments.status })
+    .from(payments)
+    .where(eq(payments.planId, planId))
+    .limit(7);
+
+  const allSucceeded = planPayments.every((p) => p.status === 'succeeded');
+  if (!allSucceeded) return;
+
+  await tx
+    .update(plans)
+    .set({ status: 'completed', completedAt: new Date() })
+    .where(eq(plans.id, planId));
+
+  await logAuditEvent(
+    {
+      entityType: 'plan',
+      entityId: planId,
+      action: 'status_changed',
+      oldValue: { status: currentStatus },
+      newValue: { status: 'completed' },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
+async function recordRiskPoolContribution(
+  tx: DrizzleTx,
+  planId: string,
+  amountCents: number,
+): Promise<void> {
+  const riskContributionCents = percentOfCents(amountCents, RISK_POOL_RATE);
+
+  await tx.insert(riskPool).values({
+    planId: planId,
+    contributionCents: riskContributionCents,
+    type: 'contribution',
+  });
+
+  await logAuditEvent(
+    {
+      entityType: 'risk_pool',
+      entityId: planId,
+      action: 'contribution',
+      newValue: { contributionCents: riskContributionCents },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
+async function createPendingPayout(
+  tx: DrizzleTx,
+  params: {
+    clinicId: string;
+    planId: string;
+    paymentId: string;
+    amountCents: number;
+  },
+): Promise<void> {
+  // Check for existing payout to avoid duplicates
+  const existingPayout = await tx
+    .select({ id: payouts.id })
+    .from(payouts)
+    .where(eq(payouts.paymentId, params.paymentId))
+    .limit(1);
+
+  if (existingPayout.length > 0) {
+    logger.warn('Payout already exists for payment, skipping creation', {
+      paymentId: params.paymentId,
+      payoutId: existingPayout[0].id,
+    });
+    return;
+  }
+
+  // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
+  const riskContributionCents = percentOfCents(params.amountCents, RISK_POOL_RATE);
+  const platformRetainedCents = percentOfCents(params.amountCents, PLATFORM_FEE_RATE / 2);
+  const transferAmountCents = params.amountCents - platformRetainedCents - riskContributionCents;
+  const clinicShareCents = percentOfCents(params.amountCents, CLINIC_SHARE_RATE);
+
+  if (transferAmountCents <= 0) {
+    logger.warn('Transfer amount is zero or negative, skipping payout', {
+      paymentId: params.paymentId,
+      transferAmountCents,
+    });
+    return;
+  }
+
+  // Create a pending payout record for the background worker to process
+  const [payoutRecord] = await tx
+    .insert(payouts)
+    .values({
+      clinicId: params.clinicId,
+      planId: params.planId,
+      paymentId: params.paymentId,
+      amountCents: transferAmountCents,
+      clinicShareCents,
+      status: 'pending',
+    })
+    .returning();
+
+  await logAuditEvent(
+    {
+      entityType: 'payout',
+      entityId: payoutRecord.id,
+      action: 'created',
+      newValue: {
+        amountCents: transferAmountCents,
+        clinicShareCents,
+        status: 'pending',
+      },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
 /**
  * Handle a successful payment. Updates the payment status to succeeded,
  * logs an audit entry, contributes to the risk pool, and triggers a payout
  * to the clinic via Stripe Connect.
+ *
+ * For deposit payments, also activates the plan.
+ * For installment payments, checks if all payments are now succeeded and
+ * completes the plan if so.
  *
  * All database operations run inside a transaction.
  */
@@ -229,6 +389,7 @@ export async function handlePaymentSuccess(
       .select({
         id: plans.id,
         clinicId: plans.clinicId,
+        status: plans.status,
         totalBillCents: plans.totalBillCents,
       })
       .from(plans)
@@ -237,81 +398,26 @@ export async function handlePaymentSuccess(
 
     if (!plan?.clinicId) return;
 
+    // Deposit payment: activate the plan
+    if (payment.type === 'deposit') {
+      await activatePlanForDeposit(tx, payment.planId, plan.status);
+    }
+
+    // Installment payment: check if all payments are now succeeded -> complete plan
+    if (payment.type === 'installment') {
+      await completePlanIfAllPaid(tx, payment.planId, plan.status);
+    }
+
     // Risk pool contribution: 1% of payment amount
-    const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
-
-    await tx.insert(riskPool).values({
-      planId: payment.planId,
-      contributionCents: riskContributionCents,
-      type: 'contribution',
-    });
-
-    await logAuditEvent(
-      {
-        entityType: 'risk_pool',
-        entityId: payment.planId,
-        action: 'contribution',
-        newValue: { contributionCents: riskContributionCents },
-        actorType: 'system',
-      },
-      tx,
-    );
-
-    // Check for existing payout to avoid duplicates
-    const existingPayout = await tx
-      .select({ id: payouts.id })
-      .from(payouts)
-      .where(eq(payouts.paymentId, paymentId))
-      .limit(1);
-
-    if (existingPayout.length > 0) {
-      logger.warn('Payout already exists for payment, skipping creation', {
-        paymentId,
-        payoutId: existingPayout[0].id,
-      });
-      return;
-    }
-
-    // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
-    const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
-    const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
-    const clinicShareCents = percentOfCents(payment.amountCents, CLINIC_SHARE_RATE);
-
-    if (transferAmountCents <= 0) {
-      logger.warn('Transfer amount is zero or negative, skipping payout', {
-        paymentId,
-        transferAmountCents,
-      });
-      return;
-    }
+    await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
 
     // Create a pending payout record for the background worker to process
-    const [payoutRecord] = await tx
-      .insert(payouts)
-      .values({
-        clinicId: plan.clinicId,
-        planId: payment.planId,
-        paymentId,
-        amountCents: transferAmountCents,
-        clinicShareCents,
-        status: 'pending',
-      })
-      .returning();
-
-    await logAuditEvent(
-      {
-        entityType: 'payout',
-        entityId: payoutRecord.id,
-        action: 'created',
-        newValue: {
-          amountCents: transferAmountCents,
-          clinicShareCents,
-          status: 'pending',
-        },
-        actorType: 'system',
-      },
-      tx,
-    );
+    await createPendingPayout(tx, {
+      clinicId: plan.clinicId,
+      planId: payment.planId,
+      paymentId: payment.id,
+      amountCents: payment.amountCents,
+    });
   });
 }
 
@@ -453,4 +559,21 @@ export async function handlePaymentFailure(paymentId: string, reason: string): P
       });
     }
   });
+}
+
+/**
+ * Look up a payment by its Stripe PaymentIntent ID.
+ * Returns the internal payment ID and status, or null if not found.
+ * Used by the webhook handler to resolve Stripe IDs to internal IDs.
+ */
+export async function findPaymentByStripeId(
+  stripePaymentIntentId: string,
+): Promise<{ id: string; status: string } | null> {
+  const [payment] = await db
+    .select({ id: payments.id, status: payments.status })
+    .from(payments)
+    .where(eq(payments.stripePaymentIntentId, stripePaymentIntentId))
+    .limit(1);
+
+  return payment ?? null;
 }

@@ -113,12 +113,6 @@ describe('MFA enforcement in tRPC procedures', () => {
   });
 
   describe('when MFA is disabled', () => {
-    beforeEach(() => {
-      // biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
-      delete process.env.ENABLE_MFA;
-      _resetEnvCache();
-    });
-
     it('admin procedure passes without MFA checks', async () => {
       const supabaseMock = makeMfaMock({ hasVerifiedTotp: false, currentLevel: 'aal1' });
       const caller = createCaller(makeContext('admin', supabaseMock));
@@ -162,6 +156,7 @@ describe('MFA enforcement in tRPC procedures', () => {
       const result = await caller.clinicAction();
       expect(result.ok).toBe(true);
       expect(supabaseMock.auth.mfa.listFactors).toHaveBeenCalledTimes(1);
+      expect(supabaseMock.auth.mfa.getAuthenticatorAssuranceLevel).toHaveBeenCalledTimes(1);
     });
 
     it('admin without verified TOTP throws MFA enrollment required', async () => {
@@ -212,12 +207,6 @@ describe('MFA enforcement in tRPC procedures', () => {
   });
 
   describe('role enforcement (independent of MFA)', () => {
-    beforeEach(() => {
-      // biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
-      delete process.env.ENABLE_MFA;
-      _resetEnvCache();
-    });
-
     it('owner cannot access admin procedures', async () => {
       const supabaseMock = makeMfaMock({ hasVerifiedTotp: false, currentLevel: 'aal1' });
       const caller = createCaller(makeContext('owner', supabaseMock));

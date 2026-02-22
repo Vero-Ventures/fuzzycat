@@ -33,22 +33,9 @@ import { schemaMock } from './_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
-mock.module('@/server/services/audit', () => ({
-  logAuditEvent: async (params: Record<string, unknown>) => {
-    try {
-      await mockInsert('auditLog').values({
-        entityType: params.entityType,
-        entityId: params.entityId,
-        action: params.action,
-        oldValue: params.oldValue ?? null,
-        newValue: params.newValue ?? null,
-        actorType: params.actorType,
-      });
-    } catch {
-      // Mirror real implementation: never throw from audit logging
-    }
-  },
-}));
+import { createAuditMock } from '../audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
 
 const { createDepositCheckoutSession } = await import('@/server/services/stripe/checkout');
 

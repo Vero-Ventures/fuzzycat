@@ -223,9 +223,9 @@ async function executeSinglePayout(payout: PendingPayoutRow): Promise<ProcessedP
       destination: clinic.stripeAccountId,
       metadata: {
         payoutId: payout.id,
-        paymentId: payout.paymentId ?? '',
-        planId: payout.planId ?? '',
         clinicId: payout.clinicId,
+        ...(payout.paymentId && { paymentId: payout.paymentId }),
+        ...(payout.planId && { planId: payout.planId }),
       },
     },
     { idempotencyKey: `payout_${payout.id}` },
@@ -297,23 +297,22 @@ export async function processPendingPayouts(): Promise<ProcessPendingPayoutsResu
     .from(payouts)
     .where(eq(payouts.status, 'pending'));
 
-  const results: ProcessedPayoutResult[] = [];
-
-  for (const payout of pendingPayouts) {
-    try {
-      const result = await executeSinglePayout(payout);
-      results.push(result);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to process payout', {
-        payoutId: payout.id,
-        clinicId: payout.clinicId,
-        error: errorMessage,
-      });
-      await markPayoutFailed(payout.id, errorMessage);
-      results.push({ payoutId: payout.id, status: 'failed', error: errorMessage });
-    }
-  }
+  const results: ProcessedPayoutResult[] = await Promise.all(
+    pendingPayouts.map(async (payout): Promise<ProcessedPayoutResult> => {
+      try {
+        return await executeSinglePayout(payout);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error('Failed to process payout', {
+          payoutId: payout.id,
+          clinicId: payout.clinicId,
+          error: errorMessage,
+        });
+        await markPayoutFailed(payout.id, errorMessage);
+        return { payoutId: payout.id, status: 'failed', error: errorMessage };
+      }
+    }),
+  );
 
   const succeeded = results.filter((r) => r.status === 'succeeded').length;
   const failed = results.filter((r) => r.status === 'failed').length;

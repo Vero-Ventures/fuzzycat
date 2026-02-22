@@ -26,11 +26,5 @@
   ],
   "github": {
     "silent": true
-  },
-  "crons": [
-    {
-      "path": "/api/cron/process-payouts",
-      "schedule": "0 * * * *"
-    }
-  ]
+  }
 }

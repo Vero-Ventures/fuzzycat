@@ -20,11 +20,14 @@ const mockPaymentIntentsCreate = mock(() =>
 
 const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_transfer_789' }));
 
+const mockCustomersUpdate = mock(() => Promise.resolve({}));
+
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     checkout: { sessions: { create: mockCheckoutSessionsCreate } },
     paymentIntents: { create: mockPaymentIntentsCreate },
     transfers: { create: mockTransfersCreate },
+    customers: { update: mockCustomersUpdate },
   }),
 }));
 
@@ -68,7 +71,10 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
   };
   mockTxSelectLimit.mockReturnValue([]);
   mockTxSelectWhere.mockReturnValue({ limit: mockTxSelectLimit });
-  mockTxSelectFrom.mockReturnValue({ where: mockTxSelectWhere });
+  mockTxSelectFrom.mockReturnValue({
+    where: mockTxSelectWhere,
+    leftJoin: () => ({ where: mockTxSelectWhere }),
+  });
   mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
 
   mockTxUpdateWhere.mockResolvedValue([]);
@@ -99,6 +105,8 @@ mock.module('@/server/db/schema', () => ({
   owners: {
     id: 'owners.id',
     stripeCustomerId: 'owners.stripe_customer_id',
+    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
   },
   clinics: {
     id: 'clinics.id',
@@ -221,6 +229,7 @@ function clearAllMocks() {
     mockCheckoutSessionsCreate,
     mockPaymentIntentsCreate,
     mockTransfersCreate,
+    mockCustomersUpdate,
   ]) {
     m.mockClear();
   }
@@ -442,10 +451,21 @@ describe('handlePaymentSuccess', () => {
           type: 'installment',
         },
       ])
-      // Fetch plan
-      .mockResolvedValueOnce([{ id: 'plan-1', clinicId: 'clinic-1', totalBillCents: 120_000 }])
-      // Fetch clinic
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      // Fetch plan + owner (leftJoin)
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 120_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // completePlanIfAllPaid — not all succeeded
+      .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-1', 'pi_succeeded_123');
 
@@ -498,8 +518,20 @@ describe('handlePaymentSuccess', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ id: 'plan-1', clinicId: 'clinic-1', totalBillCents: 120_000 }])
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 120_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // completePlanIfAllPaid — not all succeeded
+      .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-1', 'pi_ok_123');
 
@@ -604,12 +636,19 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
           type: 'deposit',
         },
       ])
-      // Fetch plan (pending status)
+      // Fetch plan + owner (leftJoin, pending status)
       .mockResolvedValueOnce([
-        { id: 'plan-1', clinicId: 'clinic-1', status: 'pending', totalBillCents: 106_000 },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'pending',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
       ])
-      // Fetch clinic
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-dep-1', 'pi_deposit_ok');
 
@@ -641,11 +680,19 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
           type: 'deposit',
         },
       ])
-      // Plan already active
+      // Plan already active (leftJoin with owner)
       .mockResolvedValueOnce([
-        { id: 'plan-2', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+        {
+          id: 'plan-2',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
       ])
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-dep-2', 'pi_deposit_ok');
 
@@ -676,9 +723,16 @@ describe('handlePaymentSuccess — installment plan completion', () => {
           type: 'installment',
         },
       ])
-      // Fetch plan
+      // Fetch plan + owner (leftJoin)
       .mockResolvedValueOnce([
-        { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
       ])
       // All plan payments succeeded (completePlanIfAllPaid select)
       .mockResolvedValueOnce([
@@ -690,8 +744,8 @@ describe('handlePaymentSuccess — installment plan completion', () => {
         { status: 'succeeded' },
         { status: 'succeeded' },
       ])
-      // Fetch clinic
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-inst-7', 'pi_last_ok');
 
@@ -716,7 +770,14 @@ describe('handlePaymentSuccess — installment plan completion', () => {
         },
       ])
       .mockResolvedValueOnce([
-        { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
       ])
       // Not all payments succeeded
       .mockResolvedValueOnce([
@@ -728,7 +789,8 @@ describe('handlePaymentSuccess — installment plan completion', () => {
         { status: 'pending' },
         { status: 'pending' },
       ])
-      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
 
     await handlePaymentSuccess('pay-inst-3', 'pi_mid_ok');
 

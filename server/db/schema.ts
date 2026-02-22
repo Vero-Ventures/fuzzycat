@@ -80,6 +80,8 @@ export const owners = pgTable(
     addressZip: text('address_zip'),
     petName: text('pet_name').notNull(),
     stripeCustomerId: text('stripe_customer_id'),
+    stripeCardPaymentMethodId: text('stripe_card_payment_method_id'),
+    stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
     plaidAccessToken: text('plaid_access_token'),
     plaidItemId: text('plaid_item_id'),
     paymentMethod: paymentMethodEnum('payment_method').notNull(),

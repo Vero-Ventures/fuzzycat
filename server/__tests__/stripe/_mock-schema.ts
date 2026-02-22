@@ -10,6 +10,8 @@ export const schemaMock = {
   owners: {
     id: 'owners.id',
     stripeCustomerId: 'owners.stripe_customer_id',
+    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
     plaidAccessToken: 'owners.plaid_access_token',
     plaidItemId: 'owners.plaid_item_id',
   },

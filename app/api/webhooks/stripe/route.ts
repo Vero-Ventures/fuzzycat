@@ -98,7 +98,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // Idempotency: skip if already processed
   if (existingPayment.status === 'succeeded') return;
 
-  await handlePaymentSuccess(existingPayment.id, paymentIntentId);
+  // Retrieve the full PaymentIntent to get the saved payment method
+  const paymentIntent = await stripe().paymentIntents.retrieve(paymentIntentId);
+  const paymentMethodId =
+    typeof paymentIntent.payment_method === 'string'
+      ? paymentIntent.payment_method
+      : paymentIntent.payment_method?.id;
+
+  await handlePaymentSuccess(existingPayment.id, paymentIntentId, paymentMethodId);
 }
 
 /**
@@ -115,7 +122,12 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   // Idempotency: skip if already processed
   if (existingPayment.status === 'succeeded') return;
 
-  await handlePaymentSuccess(existingPayment.id, paymentIntent.id);
+  const paymentMethodId =
+    typeof paymentIntent.payment_method === 'string'
+      ? paymentIntent.payment_method
+      : paymentIntent.payment_method?.id;
+
+  await handlePaymentSuccess(existingPayment.id, paymentIntent.id, paymentMethodId);
 }
 
 /**

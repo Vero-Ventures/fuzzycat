@@ -124,11 +124,10 @@ export async function createEnrollment(
 
     if (existingOwner) {
       ownerId = existingOwner.id;
-      // Update owner details (including clinicId) in case they changed or are enrolling at a new clinic
+      // Update owner details in case they changed
       await tx
         .update(owners)
         .set({
-          clinicId,
           name: ownerData.name,
           phone: ownerData.phone,
           petName: ownerData.petName,
@@ -143,7 +142,6 @@ export async function createEnrollment(
       const [newOwner] = await tx
         .insert(owners)
         .values({
-          clinicId,
           name: ownerData.name,
           email: ownerData.email,
           phone: ownerData.phone,

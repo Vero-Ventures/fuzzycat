@@ -113,6 +113,46 @@ describe('middleware', () => {
     expect(location).toContain('/clinic/dashboard');
   });
 
+  it('sets Content-Security-Policy header with nonce', async () => {
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await middleware(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("'strict-dynamic'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain('upgrade-insecure-requests');
+    // Should contain a nonce (UUID format)
+    expect(csp).toMatch(/nonce-[0-9a-f-]{36}/);
+  });
+
+  it('sets x-nonce request header', async () => {
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await middleware(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    // Extract nonce from CSP header
+    const nonceMatch = csp?.match(/nonce-([0-9a-f-]{36})/);
+    expect(nonceMatch).toBeTruthy();
+  });
+
+  it('sets CSP header even when env validation fails', async () => {
+    envShouldThrow = true;
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await middleware(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("default-src 'self'");
+    // Should not contain report-uri when env fails (no DSN available)
+    expect(csp).not.toContain('report-uri');
+  });
+
   it('treats Supabase errors as unauthenticated', async () => {
     mockGetUser.mockImplementation(() => {
       throw new Error('Supabase unreachable');

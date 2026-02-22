@@ -18,3 +18,6 @@ export const NUM_INSTALLMENTS = 6;
 
 /** Minimum bill amount in cents ($500). Below this, FuzzyCat loses money. */
 export const MIN_BILL_CENTS = 50_000;
+
+/** Maximum bill amount in cents ($25,000). Above this, risk exposure is too high. */
+export const MAX_BILL_CENTS = 2_500_000;

@@ -15,8 +15,7 @@ test.describe('Signup Page', () => {
   });
 
   test('shows pet owner tab by default', async ({ page }, testInfo) => {
-    // Tab buttons are styled <button> elements (not role="tab")
-    const ownerTab = page.getByRole('button', { name: /pet owner/i });
+    const ownerTab = page.getByRole('tab', { name: /pet owner/i });
     await expect(ownerTab).toBeVisible();
     // Active tab has bg-primary class
     await expect(ownerTab).toHaveClass(/bg-primary/);
@@ -32,7 +31,7 @@ test.describe('Signup Page', () => {
   });
 
   test('can switch to clinic tab', async ({ page }, testInfo) => {
-    const clinicTab = page.getByRole('button', {
+    const clinicTab = page.getByRole('tab', {
       name: /veterinary clinic/i,
     });
     await clinicTab.click();
@@ -62,7 +61,7 @@ test.describe('Signup Page', () => {
   });
 
   test('clinic form has required fields', async ({ page }) => {
-    const clinicTab = page.getByRole('button', {
+    const clinicTab = page.getByRole('tab', {
       name: /veterinary clinic/i,
     });
     await clinicTab.click();

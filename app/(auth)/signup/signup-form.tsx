@@ -98,9 +98,12 @@ export function SignupForm() {
 
   return (
     <div className="space-y-4">
-      <div className="flex rounded-md border border-input">
+      <div role="tablist" aria-label="Account type" className="flex rounded-md border border-input">
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === 'owner'}
+          aria-controls="signup-panel"
           onClick={() => setTab('owner')}
           className={`flex-1 rounded-l-md px-4 py-2 text-sm font-medium ${
             tab === 'owner'
@@ -112,6 +115,9 @@ export function SignupForm() {
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === 'clinic'}
+          aria-controls="signup-panel"
           onClick={() => setTab('clinic')}
           className={`flex-1 rounded-r-md px-4 py-2 text-sm font-medium ${
             tab === 'clinic'
@@ -123,7 +129,7 @@ export function SignupForm() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="signup-panel" role="tabpanel" onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}

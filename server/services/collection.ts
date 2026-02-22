@@ -278,7 +278,7 @@ export async function identifyPlansForEscalation(): Promise<string[]> {
     .innerJoin(plans, eq(payments.planId, plans.id))
     .where(and(eq(payments.status, 'written_off'), eq(plans.status, 'active')));
 
-  return result.filter((row) => row.planId !== null).map((row) => row.planId!);
+  return result.filter((row) => row.planId !== null).map((row) => row.planId as string);
 }
 
 /**

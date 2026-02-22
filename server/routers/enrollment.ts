@@ -3,7 +3,7 @@
 
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { MIN_BILL_CENTS } from '@/lib/constants';
+import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
 import { assertClinicOwnership, assertPlanAccess } from '@/server/services/authorization';
 import {
   cancelEnrollment,
@@ -39,6 +39,10 @@ export const enrollmentRouter = router({
           .min(
             MIN_BILL_CENTS,
             `Bill must be at least ${MIN_BILL_CENTS} cents ($${MIN_BILL_CENTS / 100})`,
+          )
+          .max(
+            MAX_BILL_CENTS,
+            `Bill must not exceed ${MAX_BILL_CENTS} cents ($${MAX_BILL_CENTS / 100})`,
           ),
       }),
     )

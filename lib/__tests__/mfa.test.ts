@@ -1,14 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
-// Mock serverEnv before importing mfa module
-let mockEnableMfa: string | undefined;
-
-mock.module('@/lib/env', () => ({
-  serverEnv: () => ({
-    ENABLE_MFA: mockEnableMfa,
-  }),
-}));
-
 // Mock next/navigation to capture redirects
 const mockRedirect = mock((url: string): never => {
   throw new Error(`NEXT_REDIRECT:${url}`);
@@ -18,6 +9,16 @@ mock.module('next/navigation', () => ({
 }));
 
 const { isMfaEnabled, enforceMfa } = await import('@/lib/supabase/mfa');
+
+const originalEnableMfa = process.env.ENABLE_MFA;
+
+function setMfaEnv(value: string | undefined) {
+  if (value === undefined) {
+    process.env.ENABLE_MFA = undefined as unknown as string;
+  } else {
+    process.env.ENABLE_MFA = value;
+  }
+}
 
 function createMockSupabase(opts: {
   currentLevel?: 'aal1' | 'aal2';
@@ -37,26 +38,26 @@ function createMockSupabase(opts: {
 
 describe('isMfaEnabled', () => {
   afterEach(() => {
-    mockEnableMfa = undefined;
+    setMfaEnv(originalEnableMfa);
   });
 
   it('returns false when ENABLE_MFA is undefined', () => {
-    mockEnableMfa = undefined;
+    setMfaEnv(undefined);
     expect(isMfaEnabled()).toBe(false);
   });
 
   it('returns false when ENABLE_MFA is empty string', () => {
-    mockEnableMfa = '';
+    setMfaEnv('');
     expect(isMfaEnabled()).toBe(false);
   });
 
   it('returns false when ENABLE_MFA is "false"', () => {
-    mockEnableMfa = 'false';
+    setMfaEnv('false');
     expect(isMfaEnabled()).toBe(false);
   });
 
   it('returns true when ENABLE_MFA is "true"', () => {
-    mockEnableMfa = 'true';
+    setMfaEnv('true');
     expect(isMfaEnabled()).toBe(true);
   });
 });
@@ -67,22 +68,21 @@ describe('enforceMfa', () => {
   });
 
   afterEach(() => {
-    mockEnableMfa = undefined;
+    setMfaEnv(originalEnableMfa);
   });
 
   it('skips all checks when MFA is disabled', async () => {
-    mockEnableMfa = undefined;
+    setMfaEnv(undefined);
     const supabase = createMockSupabase({ currentLevel: 'aal1', totpFactors: [] });
 
     await enforceMfa(supabase);
 
-    // Should not have called any Supabase MFA methods
     expect(supabase.auth.mfa.getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
     expect(supabase.auth.mfa.listFactors).not.toHaveBeenCalled();
   });
 
   it('allows access when MFA is enabled and user has AAL2', async () => {
-    mockEnableMfa = 'true';
+    setMfaEnv('true');
     const supabase = createMockSupabase({ currentLevel: 'aal2' });
 
     await enforceMfa(supabase);
@@ -92,14 +92,14 @@ describe('enforceMfa', () => {
   });
 
   it('redirects to /mfa/setup when MFA is enabled and no TOTP factor', async () => {
-    mockEnableMfa = 'true';
+    setMfaEnv('true');
     const supabase = createMockSupabase({ currentLevel: 'aal1', totpFactors: [] });
 
     await expect(enforceMfa(supabase)).rejects.toThrow('NEXT_REDIRECT:/mfa/setup');
   });
 
   it('redirects to /mfa/verify when MFA is enabled and TOTP exists but not AAL2', async () => {
-    mockEnableMfa = 'true';
+    setMfaEnv('true');
     const supabase = createMockSupabase({
       currentLevel: 'aal1',
       totpFactors: [{ status: 'verified' }],

@@ -27,6 +27,7 @@ const EXEMPT_PATTERNS = [
   'next.config.ts',
   'lib/env.ts',
   'lib/logger.ts',
+  'lib/supabase/mfa.ts',
   'lib/posthog/',
   'scripts/',
   '.test.',

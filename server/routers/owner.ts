@@ -78,6 +78,28 @@ export const ownerRouter = router({
     }),
 
   /**
+   * Update the authenticated owner's payment method preference.
+   */
+  updatePaymentMethod: ownerProcedure
+    .input(
+      z.object({
+        paymentMethod: z.enum(['debit_card', 'bank_account']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [updated] = await ctx.db
+        .update(owners)
+        .set({ paymentMethod: input.paymentMethod })
+        .where(eq(owners.id, ctx.ownerId))
+        .returning({
+          id: owners.id,
+          paymentMethod: owners.paymentMethod,
+        });
+
+      return updated;
+    }),
+
+  /**
    * Get all payment plans for the authenticated owner, with payment progress.
    */
   getPlans: ownerProcedure.query(async ({ ctx }) => {

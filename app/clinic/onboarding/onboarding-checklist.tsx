@@ -25,6 +25,7 @@ interface OnboardingStatus {
     accountId: string | null;
   };
   mfaEnabled: boolean;
+  mfaRequired: boolean;
   allComplete: boolean;
 }
 
@@ -82,15 +83,18 @@ function ProgressBar({ status }: { status: OnboardingStatus }) {
   const steps = [
     { key: 'profile', complete: status.profileComplete },
     { key: 'stripe', complete: stripeComplete },
-    { key: 'mfa', complete: status.mfaEnabled },
+    ...(status.mfaRequired ? [{ key: 'mfa', complete: status.mfaEnabled }] : []),
   ];
   const completedSteps = steps.filter((s) => s.complete).length;
+  const totalSteps = steps.length;
 
   return (
     <Card>
       <CardContent className="py-4">
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{completedSteps} of 3 steps completed</p>
+          <p className="text-sm text-muted-foreground">
+            {completedSteps} of {totalSteps} steps completed
+          </p>
           <div className="flex gap-1.5">
             {steps.map((step) => (
               <div
@@ -329,8 +333,12 @@ export function OnboardingChecklist() {
       <ProfileStep complete={status.profileComplete} />
       <Separator />
       <StripeStep status={status} mutation={stripeMutation} />
-      <Separator />
-      <MfaStep enabled={status.mfaEnabled} />
+      {status.mfaRequired && (
+        <>
+          <Separator />
+          <MfaStep enabled={status.mfaEnabled} />
+        </>
+      )}
       <Separator />
       <div className="flex flex-col items-center gap-3 pt-2 pb-4">
         <OnboardingFooter status={status} mutation={completeMutation} />

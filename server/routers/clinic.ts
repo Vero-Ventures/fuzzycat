@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
+import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
@@ -60,6 +61,39 @@ async function getClinicById(
   }
 
   return clinic;
+}
+
+/** Verify the Stripe Connect account is fully active. Throws on failure. */
+async function verifyStripeReady(clinic: { id: string; stripeAccountId: string | null }) {
+  if (!clinic.stripeAccountId) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Please connect your Stripe account before finishing onboarding.',
+    });
+  }
+
+  let stripeReady = false;
+  try {
+    const account = await stripe().accounts.retrieve(clinic.stripeAccountId);
+    stripeReady = (account.charges_enabled && account.payouts_enabled) ?? false;
+  } catch (error) {
+    logger.error('Failed to verify Stripe account during onboarding completion', {
+      clinicId: clinic.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Unable to verify payment account status. Please try again.',
+    });
+  }
+
+  if (!stripeReady) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message:
+        'Your Stripe account is still being verified. Please complete Stripe onboarding first.',
+    });
+  }
 }
 
 // ── Router ───────────────────────────────────────────────────────────
@@ -261,9 +295,13 @@ export const clinicRouter = router({
       }
     }
 
-    // Check MFA status from Supabase
-    const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
-    const mfaEnabled = mfaFactors?.totp?.some((f) => f.status === 'verified') ?? false;
+    // Check MFA status from Supabase (skip when MFA feature flag is off)
+    const mfaRequired = isMfaEnabled();
+    let mfaEnabled = true; // default to true when MFA is disabled
+    if (mfaRequired) {
+      const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
+      mfaEnabled = mfaFactors?.totp?.some((f) => f.status === 'verified') ?? false;
+    }
 
     return {
       clinicId: clinic.id,
@@ -277,6 +315,7 @@ export const clinicRouter = router({
         accountId: clinic.stripeAccountId,
       },
       mfaEnabled,
+      mfaRequired,
       allComplete: profileComplete && stripeStatus === 'active' && mfaEnabled,
     };
   }),
@@ -313,45 +352,19 @@ export const clinicRouter = router({
     }
 
     // Verify Stripe Connect is active
-    if (!clinic.stripeAccountId) {
-      throw new TRPCError({
-        code: 'PRECONDITION_FAILED',
-        message: 'Please connect your Stripe account before finishing onboarding.',
-      });
-    }
+    await verifyStripeReady(clinic);
 
-    let stripeReady = false;
-    try {
-      const account = await stripe().accounts.retrieve(clinic.stripeAccountId);
-      stripeReady = (account.charges_enabled && account.payouts_enabled) ?? false;
-    } catch (error) {
-      logger.error('Failed to verify Stripe account during onboarding completion', {
-        clinicId: clinic.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Unable to verify payment account status. Please try again.',
-      });
-    }
+    // Verify MFA is enabled (skip when MFA feature flag is off)
+    if (isMfaEnabled()) {
+      const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
+      const mfaEnabled = mfaFactors?.totp?.some((f) => f.status === 'verified') ?? false;
 
-    if (!stripeReady) {
-      throw new TRPCError({
-        code: 'PRECONDITION_FAILED',
-        message:
-          'Your Stripe account is still being verified. Please complete Stripe onboarding first.',
-      });
-    }
-
-    // Verify MFA is enabled
-    const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
-    const mfaEnabled = mfaFactors?.totp?.some((f) => f.status === 'verified') ?? false;
-
-    if (!mfaEnabled) {
-      throw new TRPCError({
-        code: 'PRECONDITION_FAILED',
-        message: 'Please enable multi-factor authentication before finishing onboarding.',
-      });
+      if (!mfaEnabled) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Please enable multi-factor authentication before finishing onboarding.',
+        });
+      }
     }
 
     // All checks pass - activate the clinic

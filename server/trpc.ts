@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 import superjson from 'superjson';
 import { getUserRole, type UserRole } from '@/lib/auth';
+import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
 import { clinics, owners } from '@/server/db/schema';
@@ -64,8 +65,8 @@ function roleProcedure(...allowedRoles: UserRole[]) {
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
     }
 
-    // Enforce MFA for clinic and admin roles
-    if (ctx.session.role === 'clinic' || ctx.session.role === 'admin') {
+    // Enforce MFA for clinic and admin roles (when enabled)
+    if (isMfaEnabled() && (ctx.session.role === 'clinic' || ctx.session.role === 'admin')) {
       const { data: mfaFactors } = await ctx.supabase.auth.mfa.listFactors();
       const hasTotp = mfaFactors?.totp?.some((f) => f.status === 'verified');
       if (!hasTotp) {

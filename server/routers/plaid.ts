@@ -4,7 +4,6 @@
 
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { resolveOwnerId } from '@/server/services/authorization';
 import { checkBalance, createLinkToken, exchangePublicToken } from '@/server/services/plaid';
 import { ownerProcedure, router } from '@/server/trpc';
 
@@ -35,8 +34,7 @@ export const plaidRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const ownerId = await resolveOwnerId(ctx.db, ctx.session.userId);
-        const result = await exchangePublicToken(input.publicToken, ownerId);
+        const result = await exchangePublicToken(input.publicToken, ctx.ownerId);
         return { success: true as const, itemId: result.itemId };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to exchange public token';
@@ -56,8 +54,7 @@ export const plaidRouter = router({
     )
     .query(async ({ ctx, input }) => {
       try {
-        const ownerId = await resolveOwnerId(ctx.db, ctx.session.userId);
-        return await checkBalance(ownerId, input.requiredCents);
+        return await checkBalance(ctx.ownerId, input.requiredCents);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to check balance';
         throw new TRPCError({ code: 'BAD_REQUEST', message });

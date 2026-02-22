@@ -144,9 +144,15 @@ mock.module('@/server/db/schema', () => ({
   },
 }));
 
+import { createAuditMock } from '../audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
+
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: string) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
+  desc: (col: string) => ({ col, type: 'desc' }),
+  lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
   inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     strings: [...strings],
@@ -447,8 +453,8 @@ describe('handlePaymentSuccess', () => {
         entityType: 'payment',
         entityId: 'pay-1',
         action: 'status_changed',
-        oldValue: JSON.stringify({ status: 'processing' }),
-        newValue: JSON.stringify({ status: 'succeeded' }),
+        oldValue: { status: 'processing' },
+        newValue: { status: 'succeeded' },
         actorType: 'system',
       }),
     );

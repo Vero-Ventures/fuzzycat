@@ -44,6 +44,10 @@ import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
+import { createAuditMock } from './audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
+
 // Must be imported AFTER mocks are set up
 const { createEnrollment, getEnrollmentSummary, cancelEnrollment } = await import(
   '@/server/services/enrollment'

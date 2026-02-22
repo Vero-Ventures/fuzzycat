@@ -108,9 +108,14 @@ mock.module('@/server/db/schema', () => ({
   },
 }));
 
+import { createAuditMock } from '../audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
+
 mock.module('drizzle-orm', () => ({
   eq: (col: string, val: unknown) => ({ col, val, type: 'eq' }),
   and: (...args: unknown[]) => ({ args, type: 'and' }),
+  desc: (col: string) => ({ col, type: 'desc' }),
   lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
   inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
@@ -279,7 +284,7 @@ describe('retryFailedPayment', () => {
     await retryFailedPayment('pay-1');
 
     const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
-    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    const newValue = auditCall.newValue as { urgencyLevel: number };
     expect(newValue.urgencyLevel).toBe(2);
   });
 
@@ -353,7 +358,7 @@ describe('retryFailedPayment', () => {
     await retryFailedPayment('pay-1');
 
     const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
-    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    const newValue = auditCall.newValue as { urgencyLevel: number };
     expect(newValue.urgencyLevel).toBe(1);
   });
 
@@ -365,7 +370,7 @@ describe('retryFailedPayment', () => {
     await retryFailedPayment('pay-1');
 
     const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
-    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    const newValue = auditCall.newValue as { urgencyLevel: number };
     expect(newValue.urgencyLevel).toBe(2);
   });
 
@@ -377,7 +382,7 @@ describe('retryFailedPayment', () => {
     await retryFailedPayment('pay-1');
 
     const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
-    const newValue = JSON.parse(auditCall.newValue as string) as { urgencyLevel: number };
+    const newValue = auditCall.newValue as { urgencyLevel: number };
     expect(newValue.urgencyLevel).toBe(3);
   });
 });

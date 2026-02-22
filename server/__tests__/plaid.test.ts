@@ -116,6 +116,10 @@ mock.module('drizzle-orm', () => ({
   desc: (col: string) => ({ col, type: 'desc' }),
 }));
 
+import { createAuditMock } from './audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
+
 const { createLinkToken, exchangePublicToken, checkBalance } = await import(
   '@/server/services/plaid'
 );

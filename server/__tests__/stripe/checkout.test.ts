@@ -33,6 +33,10 @@ import { schemaMock } from './_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
+import { createAuditMock } from '../audit-mock';
+
+mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
+
 const { createDepositCheckoutSession } = await import('@/server/services/stripe/checkout');
 
 // ── Tests ────────────────────────────────────────────────────────────

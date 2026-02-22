@@ -5,7 +5,8 @@ import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
-import { auditLog, clinics, payments, plans } from '@/server/db/schema';
+import { clinics, payments, plans } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 
 /**
  * Stripe webhook handler.
@@ -106,12 +107,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntentId));
 
-  await db.insert(auditLog).values({
+  await logAuditEvent({
     entityType: 'payment',
     entityId: existingPayment.id,
     action: 'status_changed',
-    oldValue: JSON.stringify({ status: oldPaymentStatus }),
-    newValue: JSON.stringify({ status: 'succeeded' }),
+    oldValue: { status: oldPaymentStatus },
+    newValue: { status: 'succeeded' },
     actorType: 'system',
   });
 
@@ -139,12 +140,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     })
     .where(eq(plans.id, existingPayment.planId));
 
-  await db.insert(auditLog).values({
+  await logAuditEvent({
     entityType: 'plan',
     entityId: existingPayment.planId,
     action: 'status_changed',
-    oldValue: JSON.stringify({ status: oldPlanStatus }),
-    newValue: JSON.stringify({ status: 'active' }),
+    oldValue: { status: oldPlanStatus },
+    newValue: { status: 'active' },
     actorType: 'system',
   });
 }
@@ -182,12 +183,12 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 
-  await db.insert(auditLog).values({
+  await logAuditEvent({
     entityType: 'payment',
     entityId: existingPayment.id,
     action: 'status_changed',
-    oldValue: JSON.stringify({ status: oldPaymentStatus }),
-    newValue: JSON.stringify({ status: 'succeeded' }),
+    oldValue: { status: oldPaymentStatus },
+    newValue: { status: 'succeeded' },
     actorType: 'system',
   });
 
@@ -214,14 +215,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         .set({ status: 'completed', completedAt: new Date() })
         .where(eq(plans.id, existingPayment.planId ?? ''));
 
-      await tx.insert(auditLog).values({
-        entityType: 'plan',
-        entityId: existingPayment.planId ?? '',
-        action: 'status_changed',
-        oldValue: JSON.stringify({ status: currentPlan.status }),
-        newValue: JSON.stringify({ status: 'completed' }),
-        actorType: 'system',
-      });
+      await logAuditEvent(
+        {
+          entityType: 'plan',
+          entityId: existingPayment.planId ?? '',
+          action: 'status_changed',
+          oldValue: { status: currentPlan.status },
+          newValue: { status: 'completed' },
+          actorType: 'system',
+        },
+        tx,
+      );
     });
   }
 }
@@ -254,12 +258,12 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
     })
     .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 
-  await db.insert(auditLog).values({
+  await logAuditEvent({
     entityType: 'payment',
     entityId: existingPayment.id,
     action: 'status_changed',
-    oldValue: JSON.stringify({ status: oldPaymentStatus }),
-    newValue: JSON.stringify({ status: 'failed', failureReason }),
+    oldValue: { status: oldPaymentStatus },
+    newValue: { status: 'failed', failureReason },
     actorType: 'system',
   });
 }
@@ -285,12 +289,12 @@ async function handleAccountUpdated(account: Stripe.Account) {
   if (isFullyOnboarded && clinic.status === 'pending') {
     await db.update(clinics).set({ status: 'active' }).where(eq(clinics.id, clinic.id));
 
-    await db.insert(auditLog).values({
+    await logAuditEvent({
       entityType: 'clinic',
       entityId: clinic.id,
       action: 'status_changed',
-      oldValue: JSON.stringify({ status: 'pending' }),
-      newValue: JSON.stringify({ status: 'active', chargesEnabled: true, payoutsEnabled: true }),
+      oldValue: { status: 'pending' },
+      newValue: { status: 'active', chargesEnabled: true, payoutsEnabled: true },
       actorType: 'system',
     });
 

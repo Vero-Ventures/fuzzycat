@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
-import { auditLog, payments } from '@/server/db/schema';
+import { payments } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 
 /**
  * Create a Stripe Checkout session for the deposit payment (debit card).
@@ -52,12 +53,12 @@ export async function createDepositCheckoutSession(params: {
     })
     .where(eq(payments.id, params.paymentId));
 
-  await db.insert(auditLog).values({
+  await logAuditEvent({
     entityType: 'payment',
     entityId: params.paymentId,
     action: 'status_changed',
-    oldValue: JSON.stringify({ status: 'pending' }),
-    newValue: JSON.stringify({ status: 'processing' }),
+    oldValue: { status: 'pending' },
+    newValue: { status: 'processing' },
     actorType: 'system',
   });
 

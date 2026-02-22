@@ -96,11 +96,11 @@ export const clinicProcedure = roleProcedure('clinic', 'admin').use(async ({ ctx
     .where(eq(clinics.authId, ctx.session.userId))
     .limit(1);
 
-  if (!clinic) {
+  if (!clinic && ctx.session.role !== 'admin') {
     throw new TRPCError({ code: 'NOT_FOUND', message: 'Clinic profile not found' });
   }
 
-  return next({ ctx: { ...ctx, clinicId: clinic.id } });
+  return next({ ctx: { ...ctx, clinicId: clinic?.id } });
 });
 
 export const ownerProcedure = roleProcedure('owner', 'admin').use(async ({ ctx, next }) => {
@@ -110,9 +110,9 @@ export const ownerProcedure = roleProcedure('owner', 'admin').use(async ({ ctx, 
     .where(eq(owners.authId, ctx.session.userId))
     .limit(1);
 
-  if (!owner) {
+  if (!owner && ctx.session.role !== 'admin') {
     throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
   }
 
-  return next({ ctx: { ...ctx, ownerId: owner.id } });
+  return next({ ctx: { ...ctx, ownerId: owner?.id } });
 });

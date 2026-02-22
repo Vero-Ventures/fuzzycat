@@ -35,14 +35,18 @@ mock.module('@/server/db/schema', () => schemaMock);
 
 mock.module('@/server/services/audit', () => ({
   logAuditEvent: async (params: Record<string, unknown>) => {
-    await mockInsert('auditLog').values({
-      entityType: params.entityType,
-      entityId: params.entityId,
-      action: params.action,
-      oldValue: params.oldValue ?? null,
-      newValue: params.newValue ?? null,
-      actorType: params.actorType,
-    });
+    try {
+      await mockInsert('auditLog').values({
+        entityType: params.entityType,
+        entityId: params.entityId,
+        action: params.action,
+        oldValue: params.oldValue ?? null,
+        newValue: params.newValue ?? null,
+        actorType: params.actorType,
+      });
+    } catch {
+      // Mirror real implementation: never throw from audit logging
+    }
   },
 }));
 

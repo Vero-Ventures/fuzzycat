@@ -47,17 +47,21 @@ mock.module('@/server/db/schema', () => schemaMock);
 mock.module('@/server/services/audit', () => ({
   // biome-ignore lint/suspicious/noExplicitAny: test mock
   logAuditEvent: async (params: Record<string, unknown>, tx?: any) => {
-    const executor = tx ?? { insert: mockInsert };
-    await executor.insert('auditLog').values({
-      entityType: params.entityType,
-      entityId: params.entityId,
-      action: params.action,
-      oldValue: params.oldValue ?? null,
-      newValue: params.newValue ?? null,
-      actorType: params.actorType,
-      ...(params.actorId !== undefined && { actorId: params.actorId }),
-      ...(params.ipAddress !== undefined && { ipAddress: params.ipAddress }),
-    });
+    try {
+      const executor = tx ?? { insert: mockInsert };
+      await executor.insert('auditLog').values({
+        entityType: params.entityType,
+        entityId: params.entityId,
+        action: params.action,
+        oldValue: params.oldValue ?? null,
+        newValue: params.newValue ?? null,
+        actorType: params.actorType,
+        ...(params.actorId !== undefined && { actorId: params.actorId }),
+        ...(params.ipAddress !== undefined && { ipAddress: params.ipAddress }),
+      });
+    } catch {
+      // Mirror real implementation: never throw from audit logging
+    }
   },
 }));
 

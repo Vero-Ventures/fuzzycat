@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { headers } from 'next/headers';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Providers } from '@/lib/trpc/provider';
 import './globals.css';
@@ -43,6 +44,7 @@ export default async function RootLayout({
         <ThemeProvider nonce={nonce}>
           <Providers>{children}</Providers>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

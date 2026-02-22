@@ -84,7 +84,7 @@ export const adminRouter = router({
       // Plan counts by status
       ctx.db
         .select({
-          totalEnrollments: sql<number>`count(*)`,
+          totalEnrollments: count(),
           activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
           completedPlans: sql<number>`count(*) filter (where ${plans.status} = 'completed')`,
           defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
@@ -600,7 +600,7 @@ export const adminRouter = router({
     const stageCounts = await ctx.db
       .select({
         stage: softCollections.stage,
-        count: sql<number>`count(*)`,
+        count: count(),
       })
       .from(softCollections)
       .groupBy(softCollections.stage);

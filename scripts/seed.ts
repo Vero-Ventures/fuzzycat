@@ -105,7 +105,6 @@ async function seed() {
       {
         id: OWNER_1_ID,
         authId: OWNER_1_AUTH_ID,
-        clinicId: CLINIC_1_ID,
         name: 'Alice Johnson',
         email: 'alice@example.com',
         phone: '(415) 555-1001',
@@ -120,7 +119,6 @@ async function seed() {
       {
         id: OWNER_2_ID,
         authId: OWNER_2_AUTH_ID,
-        clinicId: CLINIC_1_ID,
         name: 'Bob Martinez',
         email: 'bob@example.com',
         phone: '(415) 555-1002',
@@ -135,7 +133,6 @@ async function seed() {
       {
         id: OWNER_3_ID,
         authId: OWNER_3_AUTH_ID,
-        clinicId: CLINIC_2_ID,
         name: 'Carol Chen',
         email: 'carol@example.com',
         phone: '(310) 555-2001',

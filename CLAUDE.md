@@ -11,6 +11,7 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 - **Deposit**: 25% of total (incl. fee), charged immediately via debit card (not ACH — too slow)
 - **Installments**: remaining 75% split into 6 biweekly ACH debits
 - **Default handling**: 3 failed retries -> plan marked "defaulted" -> risk pool reimburses clinic
+- **Soft collection**: Escalating email reminders at day 1, 7, and 14 after a missed payment before hard default
 - **Clinic 3% share**: Structure as "platform administration compensation", never "referral commission" (anti-kickback risk)
 - **No NY launch** until DFS finalizes BNPL Act regulations (expected late 2026)
 
@@ -46,6 +47,16 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 | Twilio | Configured (trial account) |
 
 All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Vercel env vars (production). Never commit secrets.
+
+**GitHub Secrets**: `SENTRY_AUTH_TOKEN`, `E2E_TEST_PASSWORD`, plus Supabase/Stripe/Plaid/Resend/Twilio keys.
+
+## Security
+
+- **CSP**: Per-request nonce via `crypto.randomUUID()` in middleware. `'strict-dynamic'` + nonce for scripts. Sentry `report-uri` auto-parsed from DSN.
+- **HSTS**: `max-age=63072000; includeSubDomains; preload` via `vercel.json`.
+- **GitHub Actions**: All pinned to commit SHAs for supply chain protection.
+- **CI permissions**: Least-privilege (`contents: read`) on all workflows.
+- **Root layout**: `force-dynamic` to ensure all pages go through SSR for nonce injection.
 
 ## Repository Rules
 
@@ -116,9 +127,9 @@ fuzzycat/
 ├── app/
 │   ├── (marketing)/              # Public pages (landing, how-it-works)
 │   ├── (auth)/                   # Login, signup, password reset flows
-│   ├── clinic/                   # Clinic portal (onboarding, dashboard, clients, payouts, settings) [implemented]
-│   ├── owner/                    # Pet owner portal (enroll, payments, settings) [implemented]
-│   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk) [stubs]
+│   ├── clinic/                   # Clinic portal (onboarding, dashboard, clients, payouts, settings)
+│   ├── owner/                    # Pet owner portal (enroll, payments, settings)
+│   ├── admin/                    # Admin portal (dashboard, clinics, payments, risk)
 │   └── api/
 │       ├── health/               # Health check endpoint (env + DB validation)
 │       ├── webhooks/stripe/      # Stripe webhook handler
@@ -126,11 +137,13 @@ fuzzycat/
 │       └── trpc/                 # tRPC API handler
 ├── components/
 │   ├── ui/                       # shadcn/ui components (14 installed)
-│   └── shared/                   # Shared components (portal-error)
+│   ├── shared/                   # captcha, currency-display, empty-state, error-boundary, loading-skeleton, page-header, portal-error, status-badge
+│   ├── theme-provider.tsx        # next-themes wrapper (accepts nonce for CSP)
+│   └── theme-toggle.tsx          # Dark/light mode toggle
 ├── lib/
 │   ├── env.ts                    # Zod-validated env vars
 │   ├── logger.ts                 # Structured JSON logger
-│   ├── rate-limit.ts             # Upstash Redis rate limiter
+│   ├── rate-limit.ts             # Upstash Redis rate limiter (optional, graceful fallback)
 │   ├── stripe.ts                 # Stripe client singleton
 │   ├── plaid.ts                  # Plaid client singleton
 │   ├── resend.ts                 # Resend email client singleton
@@ -144,12 +157,21 @@ fuzzycat/
 │       ├── money.ts              # Integer cents helpers (formatCents, toCents, etc.)
 │       ├── phone.ts              # Phone number validation (E.164)
 │       ├── date.ts               # Date formatting + countdown helpers
-│       └── schedule.ts           # Payment schedule calculator
+│       ├── schedule.ts           # Payment schedule calculator
+│       ├── csv.ts                # CSV export helpers
+│       └── payday.ts             # Payday calculation
 ├── server/
 │   ├── db/
 │   │   ├── index.ts              # Drizzle client
 │   │   └── schema.ts             # Drizzle schema (source of truth)
-│   ├── emails/                   # React Email templates (7 templates)
+│   ├── emails/                   # React Email templates (10 templates)
+│   │   ├── clinic-payout.tsx, clinic-welcome.tsx
+│   │   ├── enrollment-confirmation.tsx
+│   │   ├── payment-failed.tsx, payment-reminder.tsx, payment-success.tsx
+│   │   ├── plan-completed.tsx
+│   │   ├── soft-collection-day1.tsx, soft-collection-day7.tsx, soft-collection-day14.tsx
+│   │   ├── helpers.ts
+│   │   └── components/           # Shared email layout + styles
 │   ├── routers/                  # tRPC routers (enrollment, payment, payout, plaid, owner, clinic, plan, admin)
 │   ├── services/
 │   │   ├── stripe/               # Stripe API layer (checkout, ach, connect, customer)
@@ -161,13 +183,14 @@ fuzzycat/
 │   │   ├── payout.ts             # Clinic payouts
 │   │   ├── plaid.ts              # Plaid Link + balance check
 │   │   ├── collection.ts         # Failed payment retry logic
+│   │   ├── soft-collection.ts    # Escalating email reminders (day 1/7/14)
 │   │   ├── guarantee.ts          # Risk pool (contributions, claims, recoveries)
 │   │   └── sms.ts                # SMS notifications (Twilio)
 │   └── trpc.ts                   # tRPC init
 ├── types/                        # Shared TypeScript types
 ├── scripts/                      # seed.ts, create-admin.ts, e2e-create-test-users.ts
 ├── drizzle/                      # Migration files + config
-├── e2e/                          # Playwright E2E tests (30 spec files, ~132 tests)
+├── e2e/                          # Playwright E2E tests (30 spec files)
 │   ├── auth-state/               # Stored auth cookies per role (gitignored)
 │   ├── fixtures/                 # Playwright fixtures (auth, mocks, screenshots, logging)
 │   ├── helpers/                  # Test utilities (test-users, screenshot, trpc-mock)
@@ -197,31 +220,13 @@ COLLECTION (biweekly cron):
   1. Identify payments due → initiate Stripe ACH Direct Debit
   2. On success → update status, trigger clinic payout via Stripe Connect
   3. On failure → retry in 3 days (up to 3 retries), SMS/email owner
-  4. After 3 failures → plan "defaulted", risk pool reimburses clinic
+  4. Soft collection: escalating email reminders at day 1, 7, 14 after missed payment
+  5. After 3 failures → plan "defaulted", risk pool reimburses clinic
 
 PAYOUTS:
   1. Stripe Connect transfer to clinic after each successful installment
   2. Transfer = installment minus FuzzyCat share; clinic's 3% bonus included
 ```
-
-## User Stories (Unvalidated Hypotheses)
-
-These are early-stage hypotheses about pet owner needs. They may be wrong. Use them as directional guidance for frontend work, not as rigid specs.
-
-- As a pet owner, I want to see all my payment dates clearly displayed so that I can plan my finances.
-- As a pet owner, I want to access a payment history screen so that I can track completed and upcoming payments.
-- As a pet owner, I want a simple way to create an account so that I can register for FuzzyCat.
-- As a pet owner, I want a simple way to add my pet & plan details so that I can see the details of my plan.
-- As a pet owner, I want a simple way to link my bank account so that payments can be made automatically.
-- As a pet owner, I want to receive notifications if a payment fails so that I can quickly resolve the issue.
-
-### Clinic Stories (Unvalidated)
-
-- As a clinic owner, I want to register my clinic with contact details and payment account information so that I can begin offering FuzzyCat to clients.
-- As a clinic, I want a dashboard showing active plans, completed payments, and earnings so that I can monitor revenue from FuzzyCat.
-- As a clinic, I want a page showing a list of my clients as well as client details so that I can see all my clients and track payments.
-- As a clinic, I want to receive guaranteed payments even if a pet owner defaults so that I reduce financial risk.
-- As a clinic, I want to earn a 3% revenue share on each enrollment so that I benefit financially from offering FuzzyCat.
 
 ## Development Workflow
 
@@ -271,36 +276,12 @@ After all sub-agents complete their work and all PRs are merged to main:
 6. **Update CLAUDE.md** — update implementation status, fix any stale documentation, add new utilities/components/routers that were added
 7. **Commit via PR** — create a `chore/` maintenance branch, commit changes, create PR, merge
 
-This ensures CLAUDE.md always reflects the true state of the repository and catches drift from parallel agent work.
-
 ### Gemini CLI Offloading
 
 Use `gemini --yolo` to offload appropriate tasks and conserve Claude tokens:
 
-```bash
-# Example: generate boilerplate
-gemini --yolo "Generate a React component for a payment history table with columns: date, amount, status, type. Use Tailwind CSS. TypeScript. No emojis." > /tmp/output.tsx
-
-# Example: generate test fixtures
-gemini --yolo "Generate 15 realistic seed records for a veterinary clinic payments table. Fields: id (uuid), planId (uuid), type (deposit|installment), sequenceNum (0-6), amountCents (integer), status, scheduledAt. Output as TypeScript array." > /tmp/fixtures.ts
-```
-
-**Good for Gemini:**
-- Boilerplate React components (repetitive UI structure)
-- Test fixture / seed data generation
-- Documentation and JSDoc comments
-- Regex patterns, SQL queries from natural language
-- Simple single-file utilities
-- CSS/Tailwind patterns
-- Translating between formats (JSON <-> TypeScript types)
-
-**Keep on Claude:**
-- Multi-file coordinated changes
-- Git operations, PR workflows, CI monitoring
-- Security-sensitive logic (payments, auth, PCI)
-- Tasks requiring conversation history or project context
-- Iterative debugging across files
-- Architectural decisions
+**Good for Gemini:** Boilerplate components, test fixtures, docs, regex/SQL, CSS patterns, format translations.
+**Keep on Claude:** Multi-file changes, git/PR workflows, security logic, project context, debugging, architecture.
 
 Always **review Gemini output** before applying — treat it as a draft, not final code.
 
@@ -329,36 +310,51 @@ When addressing review comments:
 | Backend services (enrollment, payment, payout, audit, risk pool) | #15–#18 | Done |
 | Stripe integration (Checkout, ACH, Connect, webhooks) | #19 | Done |
 | Plaid integration (Link, balance check, webhooks) | #20 | Done |
-| Resend email (7 React Email templates) | #21 | Done |
+| Resend email (10 React Email templates incl. soft-collection) | #21 | Done |
 | Twilio SMS (payment reminders, failure notifications) | #22 | Done |
 | Marketing pages (landing, how-it-works, interactive calculator) | #23 | Done |
 | Pet owner enrollment flow (5-step form, Plaid Link, Stripe Checkout) | #24 | Done |
 | Pet owner dashboard (payments, history, settings) | #25 | Done |
 | Clinic onboarding (Stripe Connect, profile, onboarding checklist) | #26 | Done |
 | Clinic dashboard (stats, clients, payouts, revenue, settings) | #27 | Done |
+| Admin dashboard (metrics, clinic management, payments, risk) | #28 | Done |
+| Cat-themed UI design system + CAPTCHA | #29 | Done |
+| Security hardening (CSP, HSTS, SHA pinning, CI permissions) | #104 | Done |
 
-### Phase 1 — Remaining
+### Open — Security (Priority)
 
-| Area | Issues | Status |
-|------|--------|--------|
-| Admin dashboard (metrics, clinic management, payments, risk) | #28 | Open |
-| Cat-themed UI design system refinement + CAPTCHA | #29 | Open |
-| PCI SAQ A self-assessment | #32 | Open (human) |
-| Pilot clinic recruitment | #33 | Open (human) |
+| Issue | Severity | Summary |
+|-------|----------|---------|
+| #96 | HIGH | IDOR: Payout router allows any clinic to read other clinic's data |
+| #97 | HIGH | IDOR: Plaid router allows any user to link bank account to any owner |
+| #98 | HIGH | Missing AuthZ: Any authenticated user can trigger ACH charges |
+| #99 | HIGH | Plaid webhook signature not cryptographically verified |
+| #100 | MEDIUM | MFA bypass: tRPC API layer does not enforce AAL2 |
+| #101 | — | DevSecOps: Integrate security tooling into CI/CD pipeline |
+| #102 | — | Add authorization test harness for all tRPC procedures |
 
-### Phase 0 (Human/Legal) — Outstanding
+### Open — Human/Legal (Blocks Production)
 
-Issues #1–#7: Regulatory attorney, business entity, DFPI registration, NDAs, trademarks, legal disclaimers. These block production launch but not development.
+Issues #1–#5, #7: Regulatory attorney, business entity, DFPI registration, NDAs, trademarks, legal disclaimers.
+Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
+
+### Open — Future Phases
+
+| Issue | Summary |
+|-------|---------|
+| #34 | Chrome extension with Plasmo for cloud PMS overlay |
+| #37–#40 | Pilot clinics, IDEXX partnership, PMS API integration, multi-state licensing |
+| #41 | React Native mobile app |
 
 ### Test Suite
 
-395 unit tests across 27 test files. Bun test runner. All external services mocked.
+485 unit tests across 34 test files. Bun test runner. All external services mocked.
 
-**E2E Tests:** ~132 Playwright tests across 30 spec files covering all 21 page routes + API health endpoint.
+**E2E Tests:** 30 Playwright spec files covering all page routes + API health endpoint.
 
 ```bash
 bun run test:e2e              # Run all projects (including production)
-bun run test:e2e:local        # Run localhost projects only (public, auth, owner, clinic, admin, api, cross-cutting)
+bun run test:e2e:local        # Run localhost projects only
 bun run test:e2e:prod         # Run production tests (fuzzycatapp.com)
 bun run test:e2e:mobile       # Run mobile responsive tests (Pixel 5)
 bun run e2e:setup-users       # Provision E2E test users in Supabase
@@ -368,8 +364,6 @@ bun run e2e:setup-users       # Provision E2E test users in Supabase
 - **Auth via storage state:** Global setup logs in as owner/clinic/admin, saves cookies to `e2e/auth-state/`. Playwright projects load these via `storageState`.
 - **External service mocking:** Stripe.js, Plaid Link, Turnstile, and analytics are intercepted via `page.route()` — no real API keys needed for these in CI.
 - **Real Supabase in CI:** Auth and DB tests use real Supabase credentials (GitHub Secrets).
-- **Screenshots:** Every test captures screenshots via `testInfo.attach()`, embedded in HTML report.
-- **MFA bypass:** Test users have no TOTP enrolled, so `enforceMfa()` lets them through without redirect.
 - **Test user emails:** `e2e-owner@fuzzycatapp.com`, `e2e-clinic@fuzzycatapp.com`, `e2e-admin@fuzzycatapp.com`.
 
 ## Confidentiality

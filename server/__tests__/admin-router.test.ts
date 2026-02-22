@@ -1,4 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { _resetEnvCache } from '@/lib/env';
+
+// ── Env setup (so serverEnv() works for MFA checks) ─────────────────
+// Set required env vars BEFORE any module imports that call serverEnv()
+_resetEnvCache();
+const REQUIRED_ENV_DEFAULTS: Record<string, string> = {
+  SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+  DATABASE_URL: 'postgres://test:test@localhost/test',
+  STRIPE_SECRET_KEY: 'sk_test_placeholder',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
+  RESEND_API_KEY: 're_test_placeholder',
+  PLAID_CLIENT_ID: 'test-plaid-client',
+  PLAID_SECRET: 'test-plaid-secret',
+  PLAID_ENV: 'sandbox',
+  TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_PHONE_NUMBER: '+15551234567',
+};
+for (const [key, val] of Object.entries(REQUIRED_ENV_DEFAULTS)) {
+  if (!process.env[key]) process.env[key] = val;
+}
+// Ensure MFA is disabled so enforceMfa() skips checks
+// biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
+delete process.env.ENABLE_MFA;
 
 // ── Mocks ────────────────────────────────────────────────────────────
 

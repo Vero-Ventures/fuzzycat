@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { _resetEnvCache } from '@/lib/env';
 
 // Mock next/navigation to capture redirects
 const mockRedirect = mock((url: string): never => {
@@ -12,9 +13,33 @@ const { isMfaEnabled, enforceMfa } = await import('@/lib/supabase/mfa');
 
 const originalEnableMfa = process.env.ENABLE_MFA;
 
+// Set minimum required env vars so serverEnv() doesn't throw
+const REQUIRED_ENV_DEFAULTS: Record<string, string> = {
+  SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+  DATABASE_URL: 'postgres://test:test@localhost/test',
+  STRIPE_SECRET_KEY: 'sk_test_placeholder',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
+  RESEND_API_KEY: 're_test_placeholder',
+  PLAID_CLIENT_ID: 'test-plaid-client',
+  PLAID_SECRET: 'test-plaid-secret',
+  PLAID_ENV: 'sandbox',
+  TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_PHONE_NUMBER: '+15551234567',
+};
+
 function setMfaEnv(value: string | undefined) {
+  // Reset env cache so serverEnv() re-reads
+  _resetEnvCache();
+
+  // Set required env vars
+  for (const [key, val] of Object.entries(REQUIRED_ENV_DEFAULTS)) {
+    if (!process.env[key]) process.env[key] = val;
+  }
+
   if (value === undefined) {
-    process.env.ENABLE_MFA = undefined as unknown as string;
+    // biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
+    delete process.env.ENABLE_MFA;
   } else {
     process.env.ENABLE_MFA = value;
   }

@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,16 +58,15 @@ export function ClientList() {
   const [page, setPage] = useState(1);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
-  // Debounced search: use the value directly (React Query handles dedup)
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  function handleSearchChange(value: string) {
+  const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
     setPage(1);
-    // Simple debounce via setTimeout
-    const timer = setTimeout(() => setDebouncedSearch(value), 300);
-    return () => clearTimeout(timer);
-  }
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300);
+  }, []);
 
   const queryInput = {
     search: debouncedSearch || undefined,

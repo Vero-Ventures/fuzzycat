@@ -30,6 +30,7 @@ const caller = createCaller({
   supabase: {
     auth: {
       mfa: {
+        listFactors: () => Promise.resolve({ data: { totp: [{ status: 'verified' }] } }),
         getAuthenticatorAssuranceLevel: () => Promise.resolve({ data: { currentLevel: 'aal2' } }),
       },
     },

@@ -53,3 +53,18 @@ export const logger = {
     emit({ ...meta, level: 'error', message });
   },
 };
+
+/** Creates a child logger with a bound request ID for log correlation. */
+export function withRequestId(requestId: string) {
+  return {
+    info(message: string, meta?: Record<string, unknown>) {
+      emit({ ...meta, level: 'info', message, requestId });
+    },
+    warn(message: string, meta?: Record<string, unknown>) {
+      emit({ ...meta, level: 'warn', message, requestId });
+    },
+    error(message: string, meta?: Record<string, unknown>) {
+      emit({ ...meta, level: 'error', message, requestId });
+    },
+  };
+}

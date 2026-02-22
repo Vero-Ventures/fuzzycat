@@ -47,11 +47,13 @@ function buildCspHeader(nonce: string, sentryDsn?: string): string {
 }
 
 export async function middleware(request: NextRequest) {
+  const startTime = performance.now();
   const nonce = crypto.randomUUID();
 
-  // Set x-nonce request header so Server Components can access it via headers()
+  // Set x-nonce and x-request-id request headers so Server Components can access them via headers()
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('x-request-id', nonce);
 
   let env: ReturnType<typeof publicEnv>;
   try {
@@ -142,6 +144,29 @@ export async function middleware(request: NextRequest) {
     homeUrl.pathname = home;
     return NextResponse.redirect(homeUrl);
   }
+
+  // Inject auth headers so portal layouts and tRPC can skip redundant getUser() calls.
+  // These headers are internal (set via NextResponse.next({ request: { headers } }))
+  // and cannot be spoofed from the client.
+  if (user) {
+    const role = getUserRole(user);
+    requestHeaders.set('x-user-id', user.id);
+    requestHeaders.set('x-user-role', role);
+
+    // Recreate supabaseResponse to include the new request headers,
+    // preserving any cookies set by the Supabase SSR client.
+    const existingCookies = [...supabaseResponse.cookies.getAll()];
+    supabaseResponse = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+    supabaseResponse.headers.set('Content-Security-Policy', cspHeader);
+    for (const cookie of existingCookies) {
+      supabaseResponse.cookies.set(cookie);
+    }
+  }
+
+  const duration = performance.now() - startTime;
+  supabaseResponse.headers.set('Server-Timing', `middleware;dur=${duration.toFixed(1)}`);
 
   return supabaseResponse;
 }

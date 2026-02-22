@@ -38,6 +38,7 @@ export async function createTRPCContext(opts: { req: Request; resHeaders: Header
     db,
     supabase,
     session,
+    requestId: opts.req.headers.get('x-request-id') ?? undefined,
     req: opts.req,
     resHeaders: opts.resHeaders,
   };

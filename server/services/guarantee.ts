@@ -13,7 +13,7 @@
 // `amountCents` to reflect its general purpose. A schema migration to
 // rename it is deferred to a future PR to avoid unnecessary risk here.
 
-import { eq, sql } from 'drizzle-orm';
+import { count, eq, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { RISK_POOL_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
@@ -222,7 +222,7 @@ export async function getRiskPoolHealth(): Promise<RiskPoolHealth> {
     db
       .select({
         outstandingCents: sql<number>`coalesce(sum(${plans.remainingCents}), 0)`,
-        activePlanCount: sql<number>`count(*)`,
+        activePlanCount: count(),
       })
       .from(plans)
       .where(eq(plans.status, 'active')),

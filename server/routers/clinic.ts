@@ -408,7 +408,7 @@ export const clinicRouter = router({
             activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
             completedPlans: sql<number>`count(*) filter (where ${plans.status} = 'completed')`,
             defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
-            totalPlans: sql<number>`count(*)`,
+            totalPlans: count(),
           })
           .from(plans)
           .where(eq(plans.clinicId, clinicId)),
@@ -425,7 +425,7 @@ export const clinicRouter = router({
         // Pending payouts count and amount
         ctx.db
           .select({
-            pendingCount: sql<number>`count(*)`,
+            pendingCount: count(),
             pendingAmountCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           })
           .from(payouts)
@@ -645,7 +645,7 @@ export const clinicRouter = router({
         month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
         totalPayoutCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
         totalShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-        payoutCount: sql<number>`count(*)`,
+        payoutCount: count(),
       })
       .from(payouts)
       .where(
@@ -690,7 +690,7 @@ export const clinicRouter = router({
           month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
           revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-          payoutCount: sql<number>`count(*)`,
+          payoutCount: count(),
         })
         .from(payouts)
         .where(
@@ -708,7 +708,7 @@ export const clinicRouter = router({
       const enrollmentData = await ctx.db
         .select({
           month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
-          enrollments: sql<number>`count(*)`,
+          enrollments: count(),
         })
         .from(plans)
         .where(
@@ -768,7 +768,7 @@ export const clinicRouter = router({
       const trendData = await ctx.db
         .select({
           month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
-          enrollments: sql<number>`count(*)`,
+          enrollments: count(),
         })
         .from(plans)
         .where(
@@ -794,7 +794,7 @@ export const clinicRouter = router({
 
     const [result] = await ctx.db
       .select({
-        totalPlans: sql<number>`count(*)`,
+        totalPlans: count(),
         defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
       })
       .from(plans)
@@ -877,7 +877,7 @@ export const clinicRouter = router({
           month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
           revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-          payoutCount: sql<number>`count(*)`,
+          payoutCount: count(),
         })
         .from(payouts)
         .where(

@@ -29,6 +29,7 @@ const serverSchema = z.object({
   SENTRY_AUTH_TOKEN: z.string().optional(),
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 });
 
 /**

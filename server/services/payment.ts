@@ -1,14 +1,13 @@
 import { and, eq } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
-import { PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
-import { transferToClinic } from '@/server/services/stripe/connect';
 
 // biome-ignore lint/suspicious/noExplicitAny: Drizzle transaction types are complex generics that vary by driver; using `any` here avoids coupling to a specific driver implementation.
 type DrizzleTx = PgTransaction<any, any, any>;
@@ -337,50 +336,61 @@ export async function handlePaymentSuccess(
       tx,
     );
 
-    // Fetch clinic's Stripe Connect account
-    const [clinic] = await tx
-      .select({ stripeAccountId: clinics.stripeAccountId })
-      .from(clinics)
-      .where(eq(clinics.id, plan.clinicId))
+    // Check for existing payout to avoid duplicates
+    const existingPayout = await tx
+      .select({ id: payouts.id })
+      .from(payouts)
+      .where(eq(payouts.paymentId, paymentId))
       .limit(1);
 
-    if (!clinic?.stripeAccountId) {
-      logger.warn('Clinic has no Stripe Connect account, skipping payout', {
-        clinicId: plan.clinicId,
+    if (existingPayout.length > 0) {
+      logger.warn('Payout already exists for payment, skipping creation', {
         paymentId,
+        payoutId: existingPayout[0].id,
       });
       return;
     }
 
-    // Calculate transfer amount: payment amount minus platform fee portion
-    // Platform takes ~3% (6% fee charged to owner, split: 3% clinic share + ~3% FuzzyCat)
-    // But the fee is already baked into the total. The transfer to the clinic
-    // should be: payment amount minus the FuzzyCat platform share.
-    // FuzzyCat retains PLATFORM_FEE_RATE/2 of the original bill per payment.
-    // Simplified: transferAmount = paymentAmount - platformRetainedAmount
+    // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
     const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
     const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
+    const clinicShareCents = percentOfCents(payment.amountCents, CLINIC_SHARE_RATE);
 
-    // Trigger payout outside transaction (Stripe API call)
-    // We store the intent to pay and handle the actual transfer after commit
+    if (transferAmountCents <= 0) {
+      logger.warn('Transfer amount is zero or negative, skipping payout', {
+        paymentId,
+        transferAmountCents,
+      });
+      return;
+    }
+
+    // Create a pending payout record for the background worker to process
+    const [payoutRecord] = await tx
+      .insert(payouts)
+      .values({
+        clinicId: plan.clinicId,
+        planId: payment.planId,
+        paymentId,
+        amountCents: transferAmountCents,
+        clinicShareCents,
+        status: 'pending',
+      })
+      .returning();
+
     await logAuditEvent(
       {
-        entityType: 'payment',
-        entityId: paymentId,
-        action: 'payout_initiated',
+        entityType: 'payout',
+        entityId: payoutRecord.id,
+        action: 'created',
         newValue: {
-          clinicId: plan.clinicId,
-          transferAmountCents,
-          riskContributionCents,
+          amountCents: transferAmountCents,
+          clinicShareCents,
+          status: 'pending',
         },
         actorType: 'system',
       },
       tx,
     );
-
-    // Note: The actual Stripe transfer call happens outside this function
-    // to avoid holding the transaction open during an external API call.
-    // The caller or a subsequent job should call transferToClinic().
   });
 }
 
@@ -388,8 +398,13 @@ export async function handlePaymentSuccess(
  * Trigger the actual Stripe Connect payout to a clinic for a succeeded payment.
  * This is separated from handlePaymentSuccess to avoid holding a DB transaction
  * open during external Stripe API calls.
+ *
+ * @deprecated Use the automated payout worker (processPendingPayouts) instead.
+ * handlePaymentSuccess now creates pending payout records that the worker processes.
  */
 export async function triggerPayout(paymentId: string): Promise<void> {
+  const { transferToClinic } = await import('@/server/services/stripe/connect');
+
   const [payment] = await db
     .select({
       id: payments.id,

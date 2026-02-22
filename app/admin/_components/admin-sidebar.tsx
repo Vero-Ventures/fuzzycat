@@ -3,6 +3,7 @@
 import { Building2, CreditCard, LayoutDashboard, LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from '@/app/(auth)/signout/actions';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -56,7 +57,7 @@ export function AdminSidebar() {
 
       {/* Footer */}
       <div className="flex items-center justify-between p-3">
-        <form action="/api/auth/signout" method="POST">
+        <form action={signOut}>
           <Button variant="ghost" className="justify-start gap-3 text-muted-foreground">
             <LogOut className="h-4 w-4" />
             Sign Out

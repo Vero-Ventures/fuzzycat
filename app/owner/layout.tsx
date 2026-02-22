@@ -1,7 +1,9 @@
-import { Cat } from 'lucide-react';
+import { Cat, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { signOut } from '@/app/(auth)/signout/actions';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
 import { getUserRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 
@@ -36,6 +38,12 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
             >
               Settings
             </Link>
+            <form action={signOut}>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </form>
           </div>
         </div>
       </header>

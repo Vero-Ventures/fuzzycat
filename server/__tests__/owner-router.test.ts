@@ -32,7 +32,6 @@ const extendedSchemaMock = {
     addressCity: 'owners.address_city',
     addressState: 'owners.address_state',
     addressZip: 'owners.address_zip',
-    clinicId: 'owners.clinic_id',
     createdAt: 'owners.created_at',
     updatedAt: 'owners.updated_at',
   },

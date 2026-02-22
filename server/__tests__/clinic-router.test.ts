@@ -42,7 +42,6 @@ const extendedSchemaMock = {
     email: 'owners.email',
     phone: 'owners.phone',
     petName: 'owners.pet_name',
-    clinicId: 'owners.clinic_id',
     addressLine1: 'owners.address_line1',
     addressCity: 'owners.address_city',
     addressState: 'owners.address_state',

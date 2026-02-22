@@ -65,7 +65,6 @@ export const clinics = pgTable('clinics', {
 export const owners = pgTable('owners', {
   id: uuid('id').primaryKey().defaultRandom(),
   authId: text('auth_id').unique(),
-  clinicId: uuid('clinic_id').references(() => clinics.id),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   phone: text('phone').notNull(),
@@ -217,13 +216,11 @@ export const auditLog = pgTable(
 // ── Relations (for db.query API — no SQL impact) ────────────────────
 
 export const clinicsRelations = relations(clinics, ({ many }) => ({
-  owners: many(owners),
   plans: many(plans),
   payouts: many(payouts),
 }));
 
-export const ownersRelations = relations(owners, ({ one, many }) => ({
-  clinic: one(clinics, { fields: [owners.clinicId], references: [clinics.id] }),
+export const ownersRelations = relations(owners, ({ many }) => ({
   plans: many(plans),
 }));
 

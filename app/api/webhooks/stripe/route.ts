@@ -11,7 +11,6 @@ import {
   findPaymentByStripeId,
   handlePaymentFailure,
   handlePaymentSuccess,
-  triggerPayout,
 } from '@/server/services/payment';
 
 /**
@@ -98,7 +97,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   if (existingPayment.status === 'succeeded') return;
 
   await handlePaymentSuccess(existingPayment.id, paymentIntentId);
-  await triggerPayout(existingPayment.id);
 }
 
 /**
@@ -116,7 +114,6 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   if (existingPayment.status === 'succeeded') return;
 
   await handlePaymentSuccess(existingPayment.id, paymentIntent.id);
-  await triggerPayout(existingPayment.id);
 }
 
 /**

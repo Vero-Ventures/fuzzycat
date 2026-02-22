@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
@@ -8,6 +9,9 @@ import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
 import { transferToClinic } from '@/server/services/stripe/connect';
+
+// biome-ignore lint/suspicious/noExplicitAny: Drizzle transaction types are complex generics that vary by driver; using `any` here avoids coupling to a specific driver implementation.
+type DrizzleTx = PgTransaction<any, any, any>;
 
 /** Maximum number of retry attempts for a failed payment. */
 const MAX_RETRIES = 3;
@@ -164,10 +168,74 @@ export async function processInstallment(params: {
   });
 }
 
+async function activatePlanForDeposit(
+  tx: DrizzleTx,
+  planId: string,
+  currentStatus: string,
+): Promise<void> {
+  if (currentStatus !== 'pending' && currentStatus !== 'deposit_paid') return;
+
+  await tx
+    .update(plans)
+    .set({ status: 'active', depositPaidAt: new Date() })
+    .where(eq(plans.id, planId));
+
+  await logAuditEvent(
+    {
+      entityType: 'plan',
+      entityId: planId,
+      action: 'status_changed',
+      oldValue: { status: currentStatus },
+      newValue: { status: 'active' },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
+async function completePlanIfAllPaid(
+  tx: DrizzleTx,
+  planId: string,
+  currentStatus: string,
+): Promise<void> {
+  if (currentStatus === 'completed') return;
+
+  // 7 = 1 deposit + 6 installments (max payments per plan)
+  const planPayments = await tx
+    .select({ status: payments.status })
+    .from(payments)
+    .where(eq(payments.planId, planId))
+    .limit(7);
+
+  const allSucceeded = planPayments.every((p) => p.status === 'succeeded');
+  if (!allSucceeded) return;
+
+  await tx
+    .update(plans)
+    .set({ status: 'completed', completedAt: new Date() })
+    .where(eq(plans.id, planId));
+
+  await logAuditEvent(
+    {
+      entityType: 'plan',
+      entityId: planId,
+      action: 'status_changed',
+      oldValue: { status: currentStatus },
+      newValue: { status: 'completed' },
+      actorType: 'system',
+    },
+    tx,
+  );
+}
+
 /**
  * Handle a successful payment. Updates the payment status to succeeded,
  * logs an audit entry, contributes to the risk pool, and triggers a payout
  * to the clinic via Stripe Connect.
+ *
+ * For deposit payments, also activates the plan.
+ * For installment payments, checks if all payments are now succeeded and
+ * completes the plan if so.
  *
  * All database operations run inside a transaction.
  */
@@ -230,6 +298,7 @@ export async function handlePaymentSuccess(
       .select({
         id: plans.id,
         clinicId: plans.clinicId,
+        status: plans.status,
         totalBillCents: plans.totalBillCents,
       })
       .from(plans)
@@ -237,6 +306,16 @@ export async function handlePaymentSuccess(
       .limit(1);
 
     if (!plan?.clinicId) return;
+
+    // Deposit payment: activate the plan
+    if (payment.type === 'deposit') {
+      await activatePlanForDeposit(tx, payment.planId, plan.status);
+    }
+
+    // Installment payment: check if all payments are now succeeded -> complete plan
+    if (payment.type === 'installment') {
+      await completePlanIfAllPaid(tx, payment.planId, plan.status);
+    }
 
     // Risk pool contribution: 1% of payment amount
     const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
@@ -438,4 +517,21 @@ export async function handlePaymentFailure(paymentId: string, reason: string): P
       });
     }
   });
+}
+
+/**
+ * Look up a payment by its Stripe PaymentIntent ID.
+ * Returns the internal payment ID and status, or null if not found.
+ * Used by the webhook handler to resolve Stripe IDs to internal IDs.
+ */
+export async function findPaymentByStripeId(
+  stripePaymentIntentId: string,
+): Promise<{ id: string; status: string } | null> {
+  const [payment] = await db
+    .select({ id: payments.id, status: payments.status })
+    .from(payments)
+    .where(eq(payments.stripePaymentIntentId, stripePaymentIntentId))
+    .limit(1);
+
+  return payment ?? null;
 }

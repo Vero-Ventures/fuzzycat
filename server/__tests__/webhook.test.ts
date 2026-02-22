@@ -7,7 +7,16 @@ const mockConstructEvent = mock();
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     webhooks: { constructEvent: mockConstructEvent },
+    transfers: { create: mock(() => Promise.resolve({ id: 'tr_test' })) },
   }),
+}));
+
+mock.module('@/lib/logger', () => ({
+  logger: {
+    info: mock(),
+    warn: mock(),
+    error: mock(),
+  },
 }));
 
 // Set env vars so serverEnv() validates successfully when the route imports it.
@@ -37,43 +46,51 @@ const mockUpdateWhere = mock();
 const mockUpdate = mock();
 
 const mockInsertValues = mock();
+const mockInsertReturning = mock();
 const mockInsert = mock();
 
-const mockFindMany = mock();
-const mockTxSelectFrom = mock();
+// Transaction mock (used by payment service functions)
+const mockTxSelectLimit = mock();
 const mockTxSelectWhere = mock();
+const mockTxSelectFrom = mock();
+const mockTxSelect = mock();
 const mockTxUpdateSet = mock();
 const mockTxUpdateWhere = mock();
 const mockTxUpdate = mock();
 const mockTxInsertValues = mock();
 const mockTxInsert = mock();
 
+const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
+  const tx = {
+    select: mockTxSelect,
+    update: mockTxUpdate,
+    insert: mockTxInsert,
+  };
+  mockTxSelectLimit.mockReturnValue([]);
+  mockTxSelectWhere.mockReturnValue({ limit: mockTxSelectLimit });
+  mockTxSelectFrom.mockReturnValue({ where: mockTxSelectWhere });
+  mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
+
+  mockTxUpdateWhere.mockResolvedValue([]);
+  mockTxUpdateSet.mockReturnValue({ where: mockTxUpdateWhere });
+  mockTxUpdate.mockReturnValue({ set: mockTxUpdateSet });
+
+  mockTxInsertValues.mockResolvedValue([]);
+  mockTxInsert.mockReturnValue({ values: mockTxInsertValues });
+
+  return fn(tx);
+});
+
 mock.module('@/server/db', () => ({
   db: {
     select: mockSelect,
     update: mockUpdate,
     insert: mockInsert,
+    transaction: mockTransaction,
     query: {
-      payments: { findMany: mockFindMany },
+      payments: { findFirst: mock(() => Promise.resolve(null)) },
+      payouts: { findFirst: mock(() => Promise.resolve(null)) },
     },
-    transaction: mock(async (fn: (tx: Record<string, unknown>) => Promise<void>) => {
-      const tx = {
-        select: mock(() => ({
-          from: mockTxSelectFrom,
-        })),
-        update: mockTxUpdate,
-        insert: mockTxInsert,
-        query: {
-          payments: { findMany: mockFindMany },
-        },
-      };
-      mockTxSelectFrom.mockReturnValue({ where: mockTxSelectWhere });
-      mockTxUpdateSet.mockReturnValue({ where: mockTxUpdateWhere });
-      mockTxUpdate.mockReturnValue({ set: mockTxUpdateSet });
-      mockTxInsertValues.mockResolvedValue([]);
-      mockTxInsert.mockReturnValue({ values: mockTxInsertValues });
-      await fn(tx);
-    }),
   },
 }));
 
@@ -84,15 +101,27 @@ mock.module('@/server/db/schema', () => ({
     stripeAccountId: 'clinics.stripe_account_id',
     status: 'clinics.status',
   },
-  plans: { id: 'plans.id', status: 'plans.status' },
+  plans: {
+    id: 'plans.id',
+    status: 'plans.status',
+    clinicId: 'plans.clinic_id',
+    totalBillCents: 'plans.total_bill_cents',
+    ownerId: 'plans.owner_id',
+    depositCents: 'plans.deposit_cents',
+    remainingCents: 'plans.remaining_cents',
+  },
   payments: {
     id: 'payments.id',
     status: 'payments.status',
     planId: 'payments.plan_id',
+    amountCents: 'payments.amount_cents',
+    type: 'payments.type',
     stripePaymentIntentId: 'payments.stripe_payment_intent_id',
     retryCount: 'payments.retry_count',
+    sequenceNum: 'payments.sequence_num',
+    scheduledAt: 'payments.scheduled_at',
   },
-  payouts: { id: 'payouts.id' },
+  payouts: { id: 'payouts.id', paymentId: 'payouts.payment_id' },
   auditLog: {
     id: 'auditLog.id',
     entityType: 'auditLog.entity_type',
@@ -139,6 +168,10 @@ mock.module('drizzle-orm', () => ({
   }),
 }));
 
+mock.module('drizzle-orm/pg-core', () => ({
+  PgTransaction: class {},
+}));
+
 const { POST } = await import('@/app/api/webhooks/stripe/route');
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -170,32 +203,38 @@ describe('Stripe webhook handler', () => {
     mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
     mockUpdate.mockReturnValue({ set: mockUpdateSet });
 
-    // insert chain: insert() -> values()
-    mockInsertValues.mockResolvedValue([]);
+    // insert chain: insert() -> values() -> returning()
+    mockInsertReturning.mockResolvedValue([{ id: 'payout-1' }]);
+    mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
     mockInsert.mockReturnValue({ values: mockInsertValues });
-
-    mockFindMany.mockResolvedValue([]);
   });
 
   afterEach(() => {
-    mockConstructEvent.mockClear();
-    mockSelect.mockClear();
-    mockSelectFrom.mockClear();
-    mockSelectWhere.mockClear();
-    mockSelectLimit.mockClear();
-    mockUpdate.mockClear();
-    mockUpdateSet.mockClear();
-    mockUpdateWhere.mockClear();
-    mockInsert.mockClear();
-    mockInsertValues.mockClear();
-    mockFindMany.mockClear();
-    mockTxSelectFrom.mockClear();
-    mockTxSelectWhere.mockClear();
-    mockTxUpdate.mockClear();
-    mockTxUpdateSet.mockClear();
-    mockTxUpdateWhere.mockClear();
-    mockTxInsert.mockClear();
-    mockTxInsertValues.mockClear();
+    for (const m of [
+      mockConstructEvent,
+      mockSelect,
+      mockSelectFrom,
+      mockSelectWhere,
+      mockSelectLimit,
+      mockUpdate,
+      mockUpdateSet,
+      mockUpdateWhere,
+      mockInsert,
+      mockInsertValues,
+      mockInsertReturning,
+      mockTxSelect,
+      mockTxSelectFrom,
+      mockTxSelectWhere,
+      mockTxSelectLimit,
+      mockTxUpdate,
+      mockTxUpdateSet,
+      mockTxUpdateWhere,
+      mockTxInsert,
+      mockTxInsertValues,
+      mockTransaction,
+    ]) {
+      m.mockClear();
+    }
   });
 
   it('rejects requests with invalid signatures', async () => {
@@ -236,34 +275,52 @@ describe('Stripe webhook handler', () => {
   });
 
   describe('checkout.session.completed', () => {
-    it('fetches current state and updates payment and plan status', async () => {
+    it('calls handlePaymentSuccess via service for deposit', async () => {
       const event = stripeEvent('checkout.session.completed', {
         payment_intent: 'pi_deposit_123',
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // First select: fetch existing payment
+      // findPaymentByStripeId lookup (db.select chain)
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-1', status: 'processing' }]);
+
+      // handlePaymentSuccess transaction:
+      // 1. fetch payment
+      mockTxSelectLimit
+        .mockResolvedValueOnce([
+          {
+            id: 'pay-1',
+            planId: 'plan-1',
+            amountCents: 26_500,
+            status: 'processing',
+            type: 'deposit',
+          },
+        ])
+        // 2. fetch plan
+        .mockResolvedValueOnce([
+          { id: 'plan-1', clinicId: 'clinic-1', status: 'pending', totalBillCents: 106_000 },
+        ])
+        // 3. fetch clinic
+        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+      // triggerPayout lookup
       mockSelectLimit
-        .mockResolvedValueOnce([{ id: 'pay-1', status: 'processing', planId: 'plan-1' }])
-        // Second select: fetch existing plan
-        .mockResolvedValueOnce([{ id: 'plan-1', status: 'pending' }]);
+        .mockResolvedValueOnce([
+          { id: 'pay-1', planId: 'plan-1', amountCents: 26_500, status: 'succeeded' },
+        ])
+        .mockResolvedValueOnce([{ clinicId: 'clinic-1' }])
+        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      // Verify payment status update
-      expect(mockUpdateSet).toHaveBeenCalledWith(
+      // handlePaymentSuccess was called (via transaction)
+      expect(mockTransaction).toHaveBeenCalled();
+      // Payment was updated to succeeded
+      expect(mockTxUpdateSet).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'succeeded',
           stripePaymentIntentId: 'pi_deposit_123',
-        }),
-      );
-      // Verify audit log uses fetched oldValue
-      expect(mockInsertValues).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entityType: 'payment',
-          oldValue: { status: 'processing' },
-          newValue: { status: 'succeeded' },
         }),
       );
     });
@@ -274,59 +331,75 @@ describe('Stripe webhook handler', () => {
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // Payment already succeeded
-      mockSelectLimit.mockResolvedValueOnce([
-        { id: 'pay-1', status: 'succeeded', planId: 'plan-1' },
-      ]);
+      // findPaymentByStripeId: payment already succeeded
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-1', status: 'succeeded' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      // Should NOT update payment or plan
-      expect(mockUpdateSet).not.toHaveBeenCalled();
+      // Should NOT call handlePaymentSuccess (no transaction)
+      expect(mockTransaction).not.toHaveBeenCalled();
     });
 
-    it('skips plan activation when plan is already active', async () => {
+    it('skips when no matching payment is found', async () => {
       const event = stripeEvent('checkout.session.completed', {
-        payment_intent: 'pi_deposit_456',
+        payment_intent: 'pi_unknown',
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // Payment is processing (not yet succeeded)
-      mockSelectLimit
-        .mockResolvedValueOnce([{ id: 'pay-1', status: 'processing', planId: 'plan-1' }])
-        // Plan is already active
-        .mockResolvedValueOnce([{ id: 'plan-1', status: 'active' }]);
+      // findPaymentByStripeId: no payment found
+      mockSelectLimit.mockResolvedValueOnce([]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      // Payment update happens (first call)
-      expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
-      // But plan update should NOT happen (only 1 update call total for payment)
-      expect(mockUpdateSet).toHaveBeenCalledTimes(1);
+      expect(mockTransaction).not.toHaveBeenCalled();
     });
   });
 
   describe('payment_intent.succeeded', () => {
-    it('fetches current state and marks payment as succeeded', async () => {
+    it('calls handlePaymentSuccess via service for installment', async () => {
       const event = stripeEvent('payment_intent.succeeded', {
         id: 'pi_installment_123',
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // Fetch existing payment
-      mockSelectLimit.mockResolvedValueOnce([
-        { id: 'pay-2', status: 'processing', planId: 'plan-1' },
-      ]);
+      // findPaymentByStripeId lookup
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-2', status: 'processing' }]);
 
-      // Transaction: not all succeeded
-      mockFindMany.mockResolvedValue([{ status: 'succeeded' }, { status: 'pending' }]);
+      // handlePaymentSuccess transaction:
+      mockTxSelectLimit
+        .mockResolvedValueOnce([
+          {
+            id: 'pay-2',
+            planId: 'plan-1',
+            amountCents: 13_250,
+            status: 'processing',
+            type: 'installment',
+          },
+        ])
+        .mockResolvedValueOnce([
+          { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+        ])
+        // completePlanIfAllPaid select (not all succeeded)
+        .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
+        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+      // triggerPayout lookups
+      mockSelectLimit
+        .mockResolvedValueOnce([
+          { id: 'pay-2', planId: 'plan-1', amountCents: 13_250, status: 'succeeded' },
+        ])
+        .mockResolvedValueOnce([{ clinicId: 'clinic-1' }])
+        .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      expect(mockUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+      expect(mockTransaction).toHaveBeenCalled();
+      expect(mockTxUpdateSet).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'succeeded' }),
+      );
     });
 
     it('skips processing when payment is already succeeded (idempotency)', async () => {
@@ -335,112 +408,56 @@ describe('Stripe webhook handler', () => {
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // Payment already succeeded
-      mockSelectLimit.mockResolvedValueOnce([
-        { id: 'pay-2', status: 'succeeded', planId: 'plan-1' },
-      ]);
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-2', status: 'succeeded' }]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      // Should NOT update payment
-      expect(mockUpdateSet).not.toHaveBeenCalled();
-    });
-
-    it('completes plan inside transaction when all payments succeeded', async () => {
-      const event = stripeEvent('payment_intent.succeeded', {
-        id: 'pi_installment_last',
-      });
-      mockConstructEvent.mockReturnValue(event);
-
-      // Fetch existing payment
-      mockSelectLimit.mockResolvedValueOnce([
-        { id: 'pay-7', status: 'processing', planId: 'plan-1' },
-      ]);
-
-      // Transaction: all succeeded
-      mockFindMany.mockResolvedValue([
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-      ]);
-
-      // Transaction: fetch current plan state
-      mockTxSelectWhere.mockResolvedValue([{ id: 'plan-1', status: 'active' }]);
-      mockTxUpdateWhere.mockResolvedValue([]);
-
-      const response = await POST(makeRequest(JSON.stringify(event)));
-
-      expect(response.status).toBe(200);
-      // Plan update inside transaction
-      expect(mockTxUpdateSet).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'completed' }),
-      );
-    });
-
-    it('skips plan completion if plan is already completed', async () => {
-      const event = stripeEvent('payment_intent.succeeded', {
-        id: 'pi_installment_dup',
-      });
-      mockConstructEvent.mockReturnValue(event);
-
-      mockSelectLimit.mockResolvedValueOnce([
-        { id: 'pay-7', status: 'processing', planId: 'plan-1' },
-      ]);
-
-      mockFindMany.mockResolvedValue([
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-        { status: 'succeeded' },
-      ]);
-
-      // Plan already completed -- should skip update
-      mockTxSelectWhere.mockResolvedValue([{ id: 'plan-1', status: 'completed' }]);
-
-      const response = await POST(makeRequest(JSON.stringify(event)));
-
-      expect(response.status).toBe(200);
-      // Should NOT update plan
-      expect(mockTxUpdateSet).not.toHaveBeenCalled();
+      expect(mockTransaction).not.toHaveBeenCalled();
     });
   });
 
   describe('payment_intent.payment_failed', () => {
-    it('fetches current state, marks payment as failed, and increments retry count', async () => {
+    it('calls handlePaymentFailure via service', async () => {
       const event = stripeEvent('payment_intent.payment_failed', {
         id: 'pi_failed_123',
         last_payment_error: { message: 'Insufficient funds' },
       });
       mockConstructEvent.mockReturnValue(event);
 
-      // Fetch existing payment
+      // findPaymentByStripeId lookup
       mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-3', status: 'processing' }]);
+
+      // handlePaymentFailure transaction:
+      mockTxSelectLimit.mockResolvedValueOnce([
+        { id: 'pay-3', status: 'processing', retryCount: 0, planId: 'plan-1' },
+      ]);
 
       const response = await POST(makeRequest(JSON.stringify(event)));
 
       expect(response.status).toBe(200);
-      expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect(mockTransaction).toHaveBeenCalled();
+      expect(mockTxUpdateSet).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'failed',
           failureReason: 'Insufficient funds',
         }),
       );
-      // Audit log uses fetched oldValue
-      expect(mockInsertValues).toHaveBeenCalledWith(
-        expect.objectContaining({
-          entityType: 'payment',
-          oldValue: { status: 'processing' },
-          newValue: { status: 'failed', failureReason: 'Insufficient funds' },
-        }),
-      );
+    });
+
+    it('skips when no matching payment is found', async () => {
+      const event = stripeEvent('payment_intent.payment_failed', {
+        id: 'pi_unknown',
+        last_payment_error: { message: 'Error' },
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      mockSelectLimit.mockResolvedValueOnce([]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      expect(mockTransaction).not.toHaveBeenCalled();
     });
   });
 

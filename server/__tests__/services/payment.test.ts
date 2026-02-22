@@ -161,8 +161,13 @@ mock.module('drizzle-orm', () => ({
   }),
 }));
 
-const { processDeposit, processInstallment, handlePaymentSuccess, handlePaymentFailure } =
-  await import('@/server/services/payment');
+const {
+  processDeposit,
+  processInstallment,
+  handlePaymentSuccess,
+  handlePaymentFailure,
+  findPaymentByStripeId,
+} = await import('@/server/services/payment');
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -574,5 +579,186 @@ describe('handlePaymentFailure', () => {
     await expect(handlePaymentFailure('pay-missing', 'Error')).rejects.toThrow(
       'Payment not found: pay-missing',
     );
+  });
+});
+
+// ── Tests: handlePaymentSuccess — plan activation for deposits ───────
+
+describe('handlePaymentSuccess — deposit plan activation', () => {
+  afterEach(clearAllMocks);
+
+  it('activates plan when deposit payment succeeds', async () => {
+    // Fetch payment (deposit type)
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-1',
+          planId: 'plan-1',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      // Fetch plan (pending status)
+      .mockResolvedValueOnce([
+        { id: 'plan-1', clinicId: 'clinic-1', status: 'pending', totalBillCents: 106_000 },
+      ])
+      // Fetch clinic
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+    await handlePaymentSuccess('pay-dep-1', 'pi_deposit_ok');
+
+    // Verify plan status update to active
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const planUpdate = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.status === 'active' && 'depositPaidAt' in arg;
+    });
+    expect(planUpdate).toBeDefined();
+
+    // Verify plan activation audit log
+    const insertCalls = mockTxInsertValues.mock.calls;
+    const planAudit = insertCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.entityType === 'plan' && arg.entityId === 'plan-1';
+    });
+    expect(planAudit).toBeDefined();
+  });
+
+  it('skips plan activation when plan is already active', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-2',
+          planId: 'plan-2',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      // Plan already active
+      .mockResolvedValueOnce([
+        { id: 'plan-2', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+      ])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+    await handlePaymentSuccess('pay-dep-2', 'pi_deposit_ok');
+
+    // Should NOT update plan status (only payment status update)
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const planUpdate = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.status === 'active' && 'depositPaidAt' in arg;
+    });
+    expect(planUpdate).toBeUndefined();
+  });
+});
+
+// ── Tests: handlePaymentSuccess — plan completion for installments ───
+
+describe('handlePaymentSuccess — installment plan completion', () => {
+  afterEach(clearAllMocks);
+
+  it('completes plan when all installments succeed', async () => {
+    // Fetch payment (installment type)
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-inst-7',
+          planId: 'plan-1',
+          amountCents: 13_250,
+          status: 'processing',
+          type: 'installment',
+        },
+      ])
+      // Fetch plan
+      .mockResolvedValueOnce([
+        { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+      ])
+      // All plan payments succeeded (completePlanIfAllPaid select)
+      .mockResolvedValueOnce([
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+      ])
+      // Fetch clinic
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+    await handlePaymentSuccess('pay-inst-7', 'pi_last_ok');
+
+    // Verify plan completed
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const planComplete = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.status === 'completed' && 'completedAt' in arg;
+    });
+    expect(planComplete).toBeDefined();
+  });
+
+  it('does not complete plan when some installments are still pending', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-inst-3',
+          planId: 'plan-1',
+          amountCents: 13_250,
+          status: 'processing',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([
+        { id: 'plan-1', clinicId: 'clinic-1', status: 'active', totalBillCents: 106_000 },
+      ])
+      // Not all payments succeeded
+      .mockResolvedValueOnce([
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'succeeded' },
+        { status: 'pending' },
+        { status: 'pending' },
+        { status: 'pending' },
+        { status: 'pending' },
+      ])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_123' }]);
+
+    await handlePaymentSuccess('pay-inst-3', 'pi_mid_ok');
+
+    // Should NOT update plan to completed
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const planComplete = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.status === 'completed';
+    });
+    expect(planComplete).toBeUndefined();
+  });
+});
+
+// ── Tests: findPaymentByStripeId ─────────────────────────────────────
+
+describe('findPaymentByStripeId', () => {
+  beforeEach(() => {
+    setupSelectChain();
+  });
+
+  afterEach(clearAllMocks);
+
+  it('returns payment when found', async () => {
+    mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-1', status: 'processing' }]);
+
+    const result = await findPaymentByStripeId('pi_test_123');
+
+    expect(result).toEqual({ id: 'pay-1', status: 'processing' });
+  });
+
+  it('returns null when payment is not found', async () => {
+    mockSelectLimit.mockResolvedValueOnce([]);
+
+    const result = await findPaymentByStripeId('pi_unknown');
+
+    expect(result).toBeNull();
   });
 });

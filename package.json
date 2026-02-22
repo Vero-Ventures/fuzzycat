@@ -26,6 +26,7 @@
     "test:e2e:prod": "playwright test --project=production-public --project=production-auth",
     "test:e2e:mobile": "playwright test --project=mobile",
     "e2e:setup-users": "bun run scripts/e2e-create-test-users.ts",
+    "e2e:populate-data": "bun run scripts/e2e-populate-data.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

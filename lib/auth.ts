@@ -2,7 +2,7 @@ import type { User } from '@supabase/supabase-js';
 
 export type UserRole = 'owner' | 'clinic' | 'admin';
 
-const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['owner', 'clinic', 'admin']);
+export const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['owner', 'clinic', 'admin']);
 
 /**
  * Extracts and validates the user role from Supabase app_metadata.

@@ -15,17 +15,17 @@ import { clinics, owners } from '@/server/db/schema';
 const USERS = [
   {
     email: process.env.E2E_OWNER_EMAIL ?? 'e2e-owner@fuzzycatapp.com',
-    role: 'owner' as const,
+    role: 'owner',
   },
   {
     email: process.env.E2E_CLINIC_EMAIL ?? 'e2e-clinic@fuzzycatapp.com',
-    role: 'clinic' as const,
+    role: 'clinic',
   },
   {
     email: process.env.E2E_ADMIN_EMAIL ?? 'e2e-admin@fuzzycatapp.com',
-    role: 'admin' as const,
+    role: 'admin',
   },
-];
+] as const;
 
 const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'TestPassword123!';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -68,7 +68,7 @@ async function createOrGetUser(email: string, role: string): Promise<string | nu
 
   if (
     createRes.status === 422 &&
-    (responseText.includes('email_exists') || responseText.includes('already'))
+    (responseText.includes('email_exists') || responseText.includes('already been registered'))
   ) {
     // User exists — look up their ID
     const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=50`, {

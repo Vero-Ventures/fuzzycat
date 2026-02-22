@@ -87,9 +87,7 @@ export default function ClinicEnrollPage() {
       return;
     }
     if (billAmountCents < MIN_BILL_CENTS || billAmountCents > MAX_BILL_CENTS) {
-      setError(
-        `Bill amount must be between $${MIN_BILL_DOLLARS} and $${MAX_BILL_DOLLARS.toLocaleString()}.`,
-      );
+      setError(`Bill amount must be between $${MIN_BILL_DOLLARS} and $${MAX_BILL_DOLLARS}.`);
       return;
     }
 
@@ -333,8 +331,7 @@ export default function ClinicEnrollPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Between ${MIN_BILL_DOLLARS.toLocaleString()} and $
-                {MAX_BILL_DOLLARS.toLocaleString()}
+                Between ${MIN_BILL_DOLLARS} and ${MAX_BILL_DOLLARS}
               </p>
             </div>
 

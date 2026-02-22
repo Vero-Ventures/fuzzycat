@@ -87,6 +87,7 @@ bun run test:e2e:local           # E2E localhost projects only
 bun run test:e2e:prod            # E2E production (fuzzycatapp.com)
 bun run test:e2e:mobile          # E2E mobile responsive (Pixel 5)
 bun run e2e:setup-users          # Provision E2E test users in Supabase
+bun run e2e:populate-data        # Populate E2E accounts with test plans/payments
 bun run ci                       # Full CI (biome ci + tsc + circular deps + secrets)
 bunx drizzle-kit push            # Push schema to DB (dev only)
 bunx drizzle-kit generate        # Generate SQL migrations

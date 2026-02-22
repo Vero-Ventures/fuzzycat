@@ -3,6 +3,7 @@
 // system (payment, plan, payout, risk pool) MUST go through this service
 // to maintain a compliance-ready, append-only audit trail.
 
+import * as Sentry from '@sentry/nextjs';
 import { and, desc, eq } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { logger } from '@/lib/logger';
@@ -86,12 +87,21 @@ export async function logAuditEvent(params: AuditEventParams, tx?: DrizzleTx): P
     });
   } catch (error) {
     // Never throw from audit logging — log to application logger instead.
-    // In a production system, this would also fire a Sentry alert.
     logger.error('Failed to write audit log entry', {
       entityType: params.entityType,
       entityId: params.entityId,
       action: params.action,
       error: error instanceof Error ? error.message : String(error),
+    });
+
+    // Fire a Sentry alert so compliance-critical failures are visible.
+    Sentry.captureException(error, {
+      tags: { component: 'audit_log' },
+      extra: {
+        entityType: params.entityType,
+        entityId: params.entityId,
+        action: params.action,
+      },
     });
   }
 }

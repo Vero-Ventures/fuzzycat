@@ -845,7 +845,8 @@ export const clinicRouter = router({
       .leftJoin(payments, eq(plans.id, payments.planId))
       .where(eq(plans.clinicId, clinicId))
       .groupBy(plans.id, owners.id)
-      .orderBy(desc(plans.createdAt));
+      .orderBy(desc(plans.createdAt))
+      .limit(10000);
 
     const headers = [
       'Owner Name',
@@ -936,7 +937,8 @@ export const clinicRouter = router({
       .leftJoin(plans, eq(payouts.planId, plans.id))
       .leftJoin(owners, eq(plans.ownerId, owners.id))
       .where(eq(payouts.clinicId, clinicId))
-      .orderBy(desc(payouts.createdAt));
+      .orderBy(desc(payouts.createdAt))
+      .limit(10000);
 
     const headers = [
       'Payout ID',

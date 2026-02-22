@@ -213,6 +213,17 @@ async function sendEscalationSms(
  * and schedules the Day 7 escalation.
  */
 export async function initiateSoftCollection(planId: string): Promise<SoftCollectionRecord> {
+  // Idempotency: return existing record if soft collection already started for this plan
+  const existing = await getSoftCollectionByPlan(planId);
+  if (existing) {
+    logger.info('Soft collection already exists for plan, returning existing', {
+      collectionId: existing.id,
+      planId,
+      stage: existing.stage,
+    });
+    return existing;
+  }
+
   const now = new Date();
   const nextEscalation = addDays(now, 7);
 

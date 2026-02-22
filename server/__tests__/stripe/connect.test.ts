@@ -4,6 +4,10 @@ import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
+mock.module('@/lib/logger', () => ({
+  logger: { info: mock(), warn: mock(), error: mock() },
+}));
+
 const mockAccountsCreate = mock(() => Promise.resolve({ id: 'acct_clinic_123' }));
 const mockAccountLinksCreate = mock(() =>
   Promise.resolve({ url: 'https://connect.stripe.com/setup/e/acct_clinic_123' }),
@@ -29,10 +33,19 @@ const mockInsertValues = mock();
 const mockInsertReturning = mock();
 const mockInsert = mock();
 
+const mockTransaction = mock(async (fn: (tx: unknown) => Promise<unknown>) => {
+  const tx = {
+    update: mockUpdate,
+    insert: mockInsert,
+  };
+  return fn(tx);
+});
+
 mock.module('@/server/db', () => ({
   db: {
     update: mockUpdate,
     insert: mockInsert,
+    transaction: mockTransaction,
   },
 }));
 

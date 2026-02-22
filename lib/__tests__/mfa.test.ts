@@ -8,6 +8,13 @@ mock.module('next/navigation', () => ({
   redirect: mockRedirect,
 }));
 
+// Mock serverEnv to dynamically read ENABLE_MFA from process.env
+mock.module('@/lib/env', () => ({
+  serverEnv: () => ({
+    ENABLE_MFA: process.env.ENABLE_MFA,
+  }),
+}));
+
 const { isMfaEnabled, enforceMfa } = await import('@/lib/supabase/mfa');
 
 const originalEnableMfa = process.env.ENABLE_MFA;

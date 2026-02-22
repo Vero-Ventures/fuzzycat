@@ -1,13 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
+import { serverEnv } from '@/lib/env';
 
 /**
  * Returns true if MFA enforcement is enabled via the ENABLE_MFA env var.
- * Reads process.env directly to avoid pulling in the full serverEnv()
- * validation (which requires all env vars to be set).
  */
 export function isMfaEnabled(): boolean {
-  return process.env.ENABLE_MFA === 'true';
+  return serverEnv().ENABLE_MFA === 'true';
 }
 
 /**

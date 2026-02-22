@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { CLINIC_SHARE_RATE } from '@/lib/constants';
+import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
@@ -23,18 +24,29 @@ export async function createConnectAccount(params: {
     metadata: { clinicId: params.clinicId },
   });
 
-  await db
-    .update(clinics)
-    .set({ stripeAccountId: account.id })
-    .where(eq(clinics.id, params.clinicId));
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(clinics)
+        .set({ stripeAccountId: account.id })
+        .where(eq(clinics.id, params.clinicId));
 
-  await db.insert(auditLog).values({
-    entityType: 'clinic',
-    entityId: params.clinicId,
-    action: 'stripe_connect_created',
-    newValue: JSON.stringify({ stripeAccountId: account.id }),
-    actorType: 'system',
-  });
+      await tx.insert(auditLog).values({
+        entityType: 'clinic',
+        entityId: params.clinicId,
+        action: 'stripe_connect_created',
+        newValue: JSON.stringify({ stripeAccountId: account.id }),
+        actorType: 'system',
+      });
+    });
+  } catch (dbError) {
+    logger.error('DB update failed after Stripe Connect account created', {
+      clinicId: params.clinicId,
+      stripeAccountId: account.id,
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    throw dbError;
+  }
 
   return { accountId: account.id };
 }
@@ -85,30 +97,45 @@ export async function transferToClinic(params: {
 
   const clinicShareCents = percentOfCents(params.transferAmountCents, CLINIC_SHARE_RATE);
 
-  const [payoutRecord] = await db
-    .insert(payouts)
-    .values({
-      clinicId: params.clinicId,
-      planId: params.planId,
+  let payoutRecordId: string;
+
+  try {
+    payoutRecordId = await db.transaction(async (tx) => {
+      const [payoutRecord] = await tx
+        .insert(payouts)
+        .values({
+          clinicId: params.clinicId,
+          planId: params.planId,
+          paymentId: params.paymentId,
+          amountCents: params.transferAmountCents,
+          clinicShareCents,
+          stripeTransferId: transfer.id,
+          status: 'succeeded',
+        })
+        .returning();
+
+      await tx.insert(auditLog).values({
+        entityType: 'payout',
+        entityId: payoutRecord.id,
+        action: 'created',
+        newValue: JSON.stringify({
+          amountCents: params.transferAmountCents,
+          clinicShareCents,
+          stripeTransferId: transfer.id,
+        }),
+        actorType: 'system',
+      });
+
+      return payoutRecord.id;
+    });
+  } catch (dbError) {
+    logger.error('DB insert failed after Stripe transfer succeeded', {
       paymentId: params.paymentId,
-      amountCents: params.transferAmountCents,
-      clinicShareCents,
       stripeTransferId: transfer.id,
-      status: 'succeeded',
-    })
-    .returning();
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    throw dbError;
+  }
 
-  await db.insert(auditLog).values({
-    entityType: 'payout',
-    entityId: payoutRecord.id,
-    action: 'created',
-    newValue: JSON.stringify({
-      amountCents: params.transferAmountCents,
-      clinicShareCents,
-      stripeTransferId: transfer.id,
-    }),
-    actorType: 'system',
-  });
-
-  return { transferId: transfer.id, payoutRecord: { id: payoutRecord.id } };
+  return { transferId: transfer.id, payoutRecord: { id: payoutRecordId } };
 }

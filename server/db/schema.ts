@@ -45,41 +45,49 @@ export const softCollectionStageEnum = pgEnum('soft_collection_stage', [
 ]);
 
 // ── Veterinary clinics ──────────────────────────────────────────────
-export const clinics = pgTable('clinics', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  authId: text('auth_id').unique(),
-  name: text('name').notNull(),
-  phone: text('phone').notNull(),
-  email: text('email').notNull().unique(),
-  addressLine1: text('address_line1'),
-  addressCity: text('address_city'),
-  addressState: text('address_state').notNull(),
-  addressZip: text('address_zip').notNull(),
-  stripeAccountId: text('stripe_account_id'),
-  status: clinicStatusEnum('status').notNull().default('pending'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+export const clinics = pgTable(
+  'clinics',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    authId: text('auth_id').unique(),
+    name: text('name').notNull(),
+    phone: text('phone').notNull(),
+    email: text('email').notNull().unique(),
+    addressLine1: text('address_line1'),
+    addressCity: text('address_city'),
+    addressState: text('address_state').notNull(),
+    addressZip: text('address_zip').notNull(),
+    stripeAccountId: text('stripe_account_id'),
+    status: clinicStatusEnum('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index('idx_clinics_stripe_account').on(table.stripeAccountId)],
+);
 
 // ── Pet owners ──────────────────────────────────────────────────────
-export const owners = pgTable('owners', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  authId: text('auth_id').unique(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  phone: text('phone').notNull(),
-  addressLine1: text('address_line1'),
-  addressCity: text('address_city'),
-  addressState: text('address_state'),
-  addressZip: text('address_zip'),
-  petName: text('pet_name').notNull(),
-  stripeCustomerId: text('stripe_customer_id'),
-  plaidAccessToken: text('plaid_access_token'),
-  plaidItemId: text('plaid_item_id'),
-  paymentMethod: paymentMethodEnum('payment_method').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+export const owners = pgTable(
+  'owners',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    authId: text('auth_id').unique(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    phone: text('phone').notNull(),
+    addressLine1: text('address_line1'),
+    addressCity: text('address_city'),
+    addressState: text('address_state'),
+    addressZip: text('address_zip'),
+    petName: text('pet_name').notNull(),
+    stripeCustomerId: text('stripe_customer_id'),
+    plaidAccessToken: text('plaid_access_token'),
+    plaidItemId: text('plaid_item_id'),
+    paymentMethod: paymentMethodEnum('payment_method').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index('idx_owners_plaid_item').on(table.plaidItemId)],
+);
 
 // ── Payment plans (one per enrollment) ──────────────────────────────
 export const plans = pgTable(
@@ -157,6 +165,7 @@ export const payouts = pgTable(
   },
   (table) => [
     index('idx_payouts_clinic').on(table.clinicId),
+    index('idx_payouts_payment').on(table.paymentId),
     check('ck_payouts_amount_positive', sql`${table.amountCents} > 0`),
   ],
 );

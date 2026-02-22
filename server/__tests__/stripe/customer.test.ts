@@ -19,6 +19,11 @@ const mockLimit = mock();
 const mockUpdate = mock();
 const mockUpdateSet = mock();
 const mockUpdateWhere = mock();
+const mockUpdateReturning = mock();
+
+mock.module('@/lib/logger', () => ({
+  logger: { info: mock(), warn: mock(), error: mock() },
+}));
 
 mock.module('@/server/db', () => ({
   db: {
@@ -44,8 +49,9 @@ describe('getOrCreateCustomer', () => {
     mockFrom.mockReturnValue({ where: mockWhere });
     mockSelect.mockReturnValue({ from: mockFrom });
 
-    // Chain: db.update().set().where()
-    mockUpdateWhere.mockResolvedValue([]);
+    // Chain: db.update().set().where().returning()
+    mockUpdateReturning.mockResolvedValue([{ stripeCustomerId: 'cus_new_123' }]);
+    mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
     mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
     mockUpdate.mockReturnValue({ set: mockUpdateSet });
   });
@@ -59,6 +65,7 @@ describe('getOrCreateCustomer', () => {
     mockUpdate.mockClear();
     mockUpdateSet.mockClear();
     mockUpdateWhere.mockClear();
+    mockUpdateReturning.mockClear();
   });
 
   it('returns existing customer ID when owner already has one', async () => {

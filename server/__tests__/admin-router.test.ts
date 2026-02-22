@@ -19,6 +19,10 @@ const extendedSchemaMock = {
 
 mock.module('@/server/db/schema', () => extendedSchemaMock);
 mock.module('@/lib/logger', () => ({ logger: { info: mock(), warn: mock(), error: mock() } }));
+mock.module('@/lib/env', () => ({
+  serverEnv: () => ({ ENABLE_MFA: undefined }),
+  publicEnv: () => ({}),
+}));
 
 const { adminRouter } = await import('@/server/routers/admin');
 const { createCallerFactory } = await import('@/server/trpc');

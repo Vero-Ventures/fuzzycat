@@ -40,6 +40,12 @@ function Header() {
           </Link>
         </nav>
         <nav className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/how-it-works"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            How It Works
+          </Link>
           <ThemeToggle />
           <Link href="/login">
             <Button variant="ghost" size="sm">

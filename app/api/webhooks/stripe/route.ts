@@ -69,7 +69,9 @@ export async function POST(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('Stripe webhook handler error', { eventType: event.type, error: message });
-    return NextResponse.json({ error: 'Webhook handler error' }, { status: 500 });
+    // Return 200 to acknowledge receipt — returning 500 causes Stripe retry storms.
+    // The event was already signature-verified; the error is internal and retrying won't help.
+    return NextResponse.json({ received: true, error: 'Handler error logged' });
   }
 
   return NextResponse.json({ received: true });

@@ -31,6 +31,11 @@ const mockSelect = mock();
 const mockUpdate = mock();
 const mockInsert = mock();
 
+const mockTransaction = mock(async (fn: (tx: unknown) => Promise<unknown>) => {
+  const tx = { update: mockUpdate, insert: mockInsert };
+  return fn(tx);
+});
+
 mock.module('@/server/db', () => ({
   db: {
     query: {
@@ -40,7 +45,7 @@ mock.module('@/server/db', () => ({
     select: mockSelect,
     update: mockUpdate,
     insert: mockInsert,
-    transaction: mock(),
+    transaction: mockTransaction,
   },
 }));
 

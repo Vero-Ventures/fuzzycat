@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { publicEnv } from '@/lib/env';
 import {
   escalateDefault,
   identifyDuePayments,
@@ -7,6 +8,19 @@ import {
 } from '@/server/services/collection';
 import { processDeposit, processInstallment } from '@/server/services/payment';
 import { adminProcedure, ownerProcedure, router } from '@/server/trpc';
+
+/** Validate that a URL belongs to the app domain. */
+function isAppUrl(url: string): boolean {
+  const appUrl = publicEnv().NEXT_PUBLIC_APP_URL;
+  if (!appUrl) return true; // Skip validation if app URL not configured
+  try {
+    const parsed = new URL(url);
+    const appParsed = new URL(appUrl);
+    return parsed.origin === appParsed.origin;
+  } catch {
+    return false;
+  }
+}
 
 export const paymentRouter = router({
   /**
@@ -22,6 +36,10 @@ export const paymentRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (!isAppUrl(input.successUrl) || !isAppUrl(input.cancelUrl)) {
+        throw new Error('Redirect URLs must belong to the application domain');
+      }
+
       const result = await processDeposit({
         planId: input.planId,
         ownerId: ctx.ownerId,

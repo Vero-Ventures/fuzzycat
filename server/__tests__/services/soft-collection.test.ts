@@ -157,7 +157,8 @@ afterEach(() => {
 describe('initiateSoftCollection', () => {
   it('creates a soft collection record and sends Day 1 notifications', async () => {
     mockInsertReturning.mockResolvedValue([{ ...mockCollection }]);
-    mockSelectLimit.mockReturnValue([mockPlanInfo]);
+    // First select (idempotency check) returns empty, second (getPlanWithOwner) returns planInfo
+    mockSelectLimit.mockReturnValueOnce([]).mockReturnValue([mockPlanInfo]);
 
     const { initiateSoftCollection } = await import('@/server/services/soft-collection');
 
@@ -179,13 +180,33 @@ describe('initiateSoftCollection', () => {
 
   it('still creates the record even if email fails', async () => {
     mockInsertReturning.mockResolvedValue([{ ...mockCollection }]);
-    mockSelectLimit.mockReturnValue([mockPlanInfo]);
+    // First select (idempotency check) returns empty, second (getPlanWithOwner) returns planInfo
+    mockSelectLimit.mockReturnValueOnce([]).mockReturnValue([mockPlanInfo]);
     mockSendDay1.mockRejectedValue(new Error('Email failed'));
 
     const { initiateSoftCollection } = await import('@/server/services/soft-collection');
 
     const result = await initiateSoftCollection(PLAN_ID);
     expect(result.id).toBe(COLLECTION_ID);
+  });
+
+  it('returns existing record when soft collection already exists (idempotent)', async () => {
+    // Idempotency check returns existing collection
+    mockSelectLimit.mockReturnValue([{ ...mockCollection }]);
+
+    const { initiateSoftCollection } = await import('@/server/services/soft-collection');
+
+    // Track call counts before invocation
+    const insertCallsBefore = mockInsertReturning.mock.calls.length;
+    const emailCallsBefore = mockSendDay1.mock.calls.length;
+
+    const result = await initiateSoftCollection(PLAN_ID);
+
+    expect(result.id).toBe(COLLECTION_ID);
+    expect(result.stage).toBe('day_1_reminder');
+    // Should NOT insert or send notifications (no new calls)
+    expect(mockInsertReturning.mock.calls.length).toBe(insertCallsBefore);
+    expect(mockSendDay1.mock.calls.length).toBe(emailCallsBefore);
   });
 });
 

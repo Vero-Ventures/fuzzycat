@@ -99,6 +99,7 @@ export function ClientList() {
             />
           </div>
           <select
+            aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => handleStatusChange(e.target.value)}
             className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -126,30 +127,32 @@ export function ClientList() {
           </p>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Pet</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Bill</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead>Next Payment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.clients.map((client) => (
-                  <ClientRow
-                    key={client.planId}
-                    client={client}
-                    isExpanded={expandedPlanId === client.planId}
-                    onToggle={() =>
-                      setExpandedPlanId(expandedPlanId === client.planId ? null : client.planId)
-                    }
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Pet</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Bill</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead>Next Payment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.clients.map((client) => (
+                    <ClientRow
+                      key={client.planId}
+                      client={client}
+                      isExpanded={expandedPlanId === client.planId}
+                      onToggle={() =>
+                        setExpandedPlanId(expandedPlanId === client.planId ? null : client.planId)
+                      }
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
             {/* Pagination */}
             {data.pagination.totalPages > 1 && (

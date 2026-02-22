@@ -15,6 +15,11 @@ import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+/** Escape ILIKE special characters (% and _) in user input */
+function escapeIlike(input: string): string {
+  return input.replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 function getAppUrl(): string {
   const url = publicEnv().NEXT_PUBLIC_APP_URL;
   if (!url && process.env.NODE_ENV === 'production') {
@@ -114,7 +119,7 @@ export const clinicRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const searchPattern = `%${input.query}%`;
+      const searchPattern = `%${escapeIlike(input.query)}%`;
       const results = await ctx.db
         .select({
           id: clinics.id,
@@ -502,7 +507,7 @@ export const clinicRouter = router({
       }
 
       if (input.search) {
-        const searchPattern = `%${input.search}%`;
+        const searchPattern = `%${escapeIlike(input.search)}%`;
         const searchCondition = or(
           ilike(owners.name, searchPattern),
           ilike(owners.petName, searchPattern),

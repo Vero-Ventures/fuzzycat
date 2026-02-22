@@ -21,6 +21,11 @@ import { getRiskPoolBalance, getRiskPoolHealth } from '@/server/services/guarant
 import { cancelSoftCollection } from '@/server/services/soft-collection';
 import { adminProcedure, router } from '@/server/trpc';
 
+/** Escape ILIKE special characters (% and _) in user input */
+function escapeIlike(input: string): string {
+  return input.replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
 export const adminRouter = router({
   healthCheck: adminProcedure.query(() => {
     return { status: 'ok' as const, router: 'admin' };
@@ -150,7 +155,7 @@ export const adminRouter = router({
       }
 
       if (input.search) {
-        const searchPattern = `%${input.search}%`;
+        const searchPattern = `%${escapeIlike(input.search)}%`;
         const searchCondition = or(
           ilike(clinics.name, searchPattern),
           ilike(clinics.email, searchPattern),

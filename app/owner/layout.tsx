@@ -38,7 +38,7 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </header>
-      {children}
+      <main>{children}</main>
     </>
   );
 }

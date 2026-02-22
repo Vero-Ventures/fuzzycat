@@ -37,6 +37,10 @@ export const metadata: Metadata = {
   title: 'How It Works',
   description:
     'Learn how FuzzyCat payment plans work for pet owners and veterinary clinics. See payment examples, fee breakdowns, and frequently asked questions.',
+  openGraph: {
+    title: 'How It Works | FuzzyCat',
+    description: 'Learn how FuzzyCat payment plans work for pet owners and veterinary clinics.',
+  },
 };
 
 export default function HowItWorksPage() {

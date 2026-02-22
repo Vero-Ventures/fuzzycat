@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LoginForm } from './login-form';
 
 export default async function LoginPage({
@@ -29,9 +30,9 @@ export default async function LoginPage({
         <LoginForm redirectTo={redirectTo} />
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <a href="/signup" className="font-medium text-primary hover:text-primary/80">
+          <Link href="/signup" className="font-medium text-primary hover:text-primary/80">
             Sign up
-          </a>
+          </Link>
         </p>
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Turnstile } from '@marsidev/react-turnstile';
+import { publicEnv } from '@/lib/env';
 import { cn } from '@/lib/utils';
 
 interface CaptchaProps {
@@ -10,7 +11,7 @@ interface CaptchaProps {
 }
 
 export function Captcha({ onVerify, onError, className }: CaptchaProps) {
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '';
+  const siteKey = publicEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '';
 
   if (!siteKey) {
     return null;

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { SignupForm } from './signup-form';
 
 export default function SignupPage() {
@@ -13,9 +14,9 @@ export default function SignupPage() {
         <SignupForm />
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <a href="/login" className="font-medium text-primary hover:text-primary/80">
+          <Link href="/login" className="font-medium text-primary hover:text-primary/80">
             Log in
-          </a>
+          </Link>
         </p>
       </div>
     </div>

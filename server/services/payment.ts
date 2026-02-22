@@ -22,6 +22,7 @@ const MAX_RETRIES = 3;
  */
 export async function processDeposit(params: {
   planId: string;
+  ownerId?: string;
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ sessionId: string; sessionUrl: string }> {
@@ -47,6 +48,11 @@ export async function processDeposit(params: {
 
   if (!plan.ownerId) {
     throw new Error(`Plan ${params.planId} has no owner`);
+  }
+
+  // Verify the caller owns this plan (IDOR protection)
+  if (params.ownerId && plan.ownerId !== params.ownerId) {
+    throw new Error('Not authorized to initiate deposit for this plan');
   }
 
   // Fetch the deposit payment record

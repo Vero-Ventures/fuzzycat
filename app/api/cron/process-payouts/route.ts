@@ -6,14 +6,17 @@ import { processPendingPayouts } from '@/server/services/payout';
 export async function GET(request: Request) {
   const { CRON_SECRET } = serverEnv();
 
-  if (CRON_SECRET) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-      logger.warn('Unauthorized cron request', {
-        endpoint: '/api/cron/process-payouts',
-      });
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!CRON_SECRET) {
+    logger.error('CRON_SECRET not configured — rejecting cron request');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    logger.warn('Unauthorized cron request', {
+      endpoint: '/api/cron/process-payouts',
+    });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

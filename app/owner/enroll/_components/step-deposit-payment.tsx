@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +36,7 @@ export function StepDepositPayment({ data, onBack }: StepDepositPaymentProps) {
         setPlanId(result.planId);
       },
       onError: (err) => {
+        submittingRef.current = false;
         setError(err.message || 'Failed to create enrollment. Please try again.');
       },
     }),
@@ -50,14 +51,18 @@ export function StepDepositPayment({ data, onBack }: StepDepositPaymentProps) {
         }
       },
       onError: (err) => {
+        submittingRef.current = false;
         setError(err.message || 'Failed to create checkout session. Please try again.');
       },
     }),
   );
 
   const isProcessing = createEnrollment.isPending || initiateDeposit.isPending;
+  const submittingRef = useRef(false);
 
   function handlePayDeposit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
 
     if (!planId) {

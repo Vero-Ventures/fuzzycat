@@ -83,7 +83,10 @@ export default function ForgotPasswordPage() {
         </div>
 
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive"
+          >
             {error}
           </div>
         )}

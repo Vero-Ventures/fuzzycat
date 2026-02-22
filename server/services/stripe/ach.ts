@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
 import { payments } from '@/server/db/schema';
@@ -31,22 +32,31 @@ export async function createInstallmentPaymentIntent(params: {
     },
   });
 
-  await db
-    .update(payments)
-    .set({
-      status: 'processing',
-      stripePaymentIntentId: paymentIntent.id,
-    })
-    .where(eq(payments.id, params.paymentId));
+  try {
+    await db
+      .update(payments)
+      .set({
+        status: 'processing',
+        stripePaymentIntentId: paymentIntent.id,
+      })
+      .where(eq(payments.id, params.paymentId));
 
-  await logAuditEvent({
-    entityType: 'payment',
-    entityId: params.paymentId,
-    action: 'status_changed',
-    oldValue: { status: 'pending' },
-    newValue: { status: 'processing' },
-    actorType: 'system',
-  });
+    await logAuditEvent({
+      entityType: 'payment',
+      entityId: params.paymentId,
+      action: 'status_changed',
+      oldValue: { status: 'pending' },
+      newValue: { status: 'processing' },
+      actorType: 'system',
+    });
+  } catch (dbError) {
+    logger.error('DB update failed after Stripe PaymentIntent created', {
+      paymentId: params.paymentId,
+      stripePaymentIntentId: paymentIntent.id,
+      error: dbError instanceof Error ? dbError.message : String(dbError),
+    });
+    throw dbError;
+  }
 
   return {
     paymentIntentId: paymentIntent.id,

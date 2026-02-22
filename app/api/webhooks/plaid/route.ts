@@ -48,11 +48,8 @@ type PlaidWebhook = PlaidItemWebhook | PlaidAuthWebhook | PlaidWebhookBase;
  */
 async function verifyWebhook(body: string, verificationHeader: string | null): Promise<boolean> {
   if (!verificationHeader) {
-    if (process.env.NODE_ENV === 'production') {
-      logger.error('Plaid webhook: Plaid-Verification header missing in production');
-      return false;
-    }
-    return true;
+    logger.error('Plaid webhook: Plaid-Verification header missing');
+    return false;
   }
 
   try {

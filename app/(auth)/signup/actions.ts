@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { verifyCaptcha } from '@/lib/captcha';
 import { logger } from '@/lib/logger';
+import { POSTHOG_EVENTS } from '@/lib/posthog/events';
+import { getPostHogServer } from '@/lib/posthog/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -127,6 +129,14 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error: 'Failed to create account. Please try again.' };
   }
 
+  if (userId) {
+    getPostHogServer()?.capture({
+      distinctId: userId,
+      event: POSTHOG_EVENTS.AUTH_SIGNED_UP,
+      properties: { role: 'owner' },
+    });
+  }
+
   return { error: null, needsEmailConfirmation: !hasSession };
 }
 
@@ -170,6 +180,14 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
     });
     await deleteAuthUser(userId);
     return { error: 'Failed to create account. Please try again.' };
+  }
+
+  if (userId) {
+    getPostHogServer()?.capture({
+      distinctId: userId,
+      event: POSTHOG_EVENTS.CLINIC_REGISTERED,
+      properties: { role: 'clinic' },
+    });
   }
 
   return { error: null, needsEmailConfirmation: !hasSession };

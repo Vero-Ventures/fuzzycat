@@ -1,3 +1,4 @@
+import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { ClinicProfileForm } from './_components/clinic-profile-form';
 import { MfaSettingsSection } from './_components/mfa-settings-section';
 import { StripeConnectSection } from './_components/stripe-connect-section';
@@ -14,7 +15,7 @@ export default function ClinicSettingsPage() {
 
       <ClinicProfileForm />
       <StripeConnectSection />
-      <MfaSettingsSection />
+      {isMfaEnabled() && <MfaSettingsSection />}
     </div>
   );
 }

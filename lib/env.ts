@@ -30,6 +30,7 @@ const serverSchema = z.object({
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  ENABLE_MFA: z.string().optional(),
 });
 
 /**

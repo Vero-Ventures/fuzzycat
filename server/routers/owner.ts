@@ -189,40 +189,47 @@ export const ownerRouter = router({
    * Get a summary of active plans with next upcoming payment.
    */
   getDashboardSummary: ownerProcedure.query(async ({ ctx }) => {
-    // Get the next upcoming payment across all active plans
-    const [nextPayment] = await ctx.db
-      .select({
-        id: payments.id,
-        planId: payments.planId,
-        amountCents: payments.amountCents,
-        scheduledAt: payments.scheduledAt,
-        type: payments.type,
-        sequenceNum: payments.sequenceNum,
-      })
-      .from(payments)
-      .innerJoin(plans, eq(payments.planId, plans.id))
-      .where(and(eq(plans.ownerId, ctx.ownerId), eq(payments.status, 'pending')))
-      .orderBy(payments.scheduledAt)
-      .limit(1);
+    // Run all three independent queries in parallel
+    const [nextPaymentResult, totalsResult, planCountsResult] = await Promise.all([
+      // Next upcoming payment across all active plans
+      ctx.db
+        .select({
+          id: payments.id,
+          planId: payments.planId,
+          amountCents: payments.amountCents,
+          scheduledAt: payments.scheduledAt,
+          type: payments.type,
+          sequenceNum: payments.sequenceNum,
+        })
+        .from(payments)
+        .innerJoin(plans, eq(payments.planId, plans.id))
+        .where(and(eq(plans.ownerId, ctx.ownerId), eq(payments.status, 'pending')))
+        .orderBy(payments.scheduledAt)
+        .limit(1),
 
-    // Get total paid and total remaining across all plans
-    const [totals] = await ctx.db
-      .select({
-        totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
-        totalRemainingCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} in ('pending', 'processing', 'failed', 'retried')), 0)`,
-      })
-      .from(payments)
-      .innerJoin(plans, eq(payments.planId, plans.id))
-      .where(eq(plans.ownerId, ctx.ownerId));
+      // Total paid and total remaining across all plans
+      ctx.db
+        .select({
+          totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+          totalRemainingCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} in ('pending', 'processing', 'failed', 'retried')), 0)`,
+        })
+        .from(payments)
+        .innerJoin(plans, eq(payments.planId, plans.id))
+        .where(eq(plans.ownerId, ctx.ownerId)),
 
-    // Count active plans
-    const [planCounts] = await ctx.db
-      .select({
-        activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
-        totalPlans: sql<number>`count(*)`,
-      })
-      .from(plans)
-      .where(eq(plans.ownerId, ctx.ownerId));
+      // Count active plans
+      ctx.db
+        .select({
+          activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+          totalPlans: sql<number>`count(*)`,
+        })
+        .from(plans)
+        .where(eq(plans.ownerId, ctx.ownerId)),
+    ]);
+
+    const [nextPayment] = nextPaymentResult;
+    const [totals] = totalsResult;
+    const [planCounts] = planCountsResult;
 
     return {
       nextPayment: nextPayment ?? null,

@@ -607,36 +607,37 @@ export const clinicRouter = router({
         });
       }
 
-      // Get all payments for this plan
-      const planPayments = await ctx.db
-        .select({
-          id: payments.id,
-          type: payments.type,
-          sequenceNum: payments.sequenceNum,
-          amountCents: payments.amountCents,
-          status: payments.status,
-          scheduledAt: payments.scheduledAt,
-          processedAt: payments.processedAt,
-          failureReason: payments.failureReason,
-          retryCount: payments.retryCount,
-        })
-        .from(payments)
-        .where(eq(payments.planId, input.planId))
-        .orderBy(payments.sequenceNum);
+      // Get payments and payouts in parallel (both independent after plan check)
+      const [planPayments, planPayouts] = await Promise.all([
+        ctx.db
+          .select({
+            id: payments.id,
+            type: payments.type,
+            sequenceNum: payments.sequenceNum,
+            amountCents: payments.amountCents,
+            status: payments.status,
+            scheduledAt: payments.scheduledAt,
+            processedAt: payments.processedAt,
+            failureReason: payments.failureReason,
+            retryCount: payments.retryCount,
+          })
+          .from(payments)
+          .where(eq(payments.planId, input.planId))
+          .orderBy(payments.sequenceNum),
 
-      // Get payouts for this plan
-      const planPayouts = await ctx.db
-        .select({
-          id: payouts.id,
-          amountCents: payouts.amountCents,
-          clinicShareCents: payouts.clinicShareCents,
-          stripeTransferId: payouts.stripeTransferId,
-          status: payouts.status,
-          createdAt: payouts.createdAt,
-        })
-        .from(payouts)
-        .where(and(eq(payouts.planId, input.planId), eq(payouts.clinicId, clinicId)))
-        .orderBy(desc(payouts.createdAt));
+        ctx.db
+          .select({
+            id: payouts.id,
+            amountCents: payouts.amountCents,
+            clinicShareCents: payouts.clinicShareCents,
+            stripeTransferId: payouts.stripeTransferId,
+            status: payouts.status,
+            createdAt: payouts.createdAt,
+          })
+          .from(payouts)
+          .where(and(eq(payouts.planId, input.planId), eq(payouts.clinicId, clinicId)))
+          .orderBy(desc(payouts.createdAt)),
+      ]);
 
       return {
         plan,

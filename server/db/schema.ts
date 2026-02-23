@@ -84,6 +84,7 @@ export const owners = pgTable(
     stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
     plaidAccessToken: text('plaid_access_token'),
     plaidItemId: text('plaid_item_id'),
+    plaidAccountId: text('plaid_account_id'),
     paymentMethod: paymentMethodEnum('payment_method').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

@@ -1,8 +1,61 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { stripe } from '@/lib/stripe';
 import { clinics, owners, payments, plans } from '@/server/db/schema';
+import { logAuditEvent } from '@/server/services/audit';
 import { ownerProcedure, router } from '@/server/trpc';
+
+/** Retrieve card details from Stripe, returning null on error. */
+async function fetchCardDetails(
+  cardPaymentMethodId: string,
+  ownerId: string,
+): Promise<{ brand: string; last4: string; expMonth: number; expYear: number } | null> {
+  try {
+    const pm = await stripe().paymentMethods.retrieve(cardPaymentMethodId);
+    if (pm.card) {
+      return {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        expMonth: pm.card.exp_month,
+        expYear: pm.card.exp_year,
+      };
+    }
+  } catch (err) {
+    logger.error('Failed to retrieve card payment method from Stripe', {
+      ownerId,
+      paymentMethodId: cardPaymentMethodId,
+      error: err,
+    });
+  }
+  return null;
+}
+
+/** Retrieve ACH bank account details from Stripe, returning null on error. */
+async function fetchBankAccountDetails(
+  customerId: string,
+  achPaymentMethodId: string,
+  ownerId: string,
+): Promise<{ bankName: string; last4: string } | null> {
+  try {
+    const source = await stripe().customers.retrieveSource(customerId, achPaymentMethodId);
+    if ('bank_name' in source && 'last4' in source) {
+      return {
+        bankName: (source as { bank_name: string }).bank_name,
+        last4: (source as { last4: string }).last4,
+      };
+    }
+  } catch (err) {
+    logger.error('Failed to retrieve ACH source from Stripe', {
+      ownerId,
+      customerId,
+      sourceId: achPaymentMethodId,
+      error: err,
+    });
+  }
+  return null;
+}
 
 export const ownerRouter = router({
   healthCheck: ownerProcedure.query(() => {
@@ -81,6 +134,7 @@ export const ownerRouter = router({
 
   /**
    * Update the authenticated owner's payment method preference.
+   * Validates that the owner has a saved instrument for the target method.
    */
   updatePaymentMethod: ownerProcedure
     .input(
@@ -89,6 +143,33 @@ export const ownerRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify the owner has a saved instrument for the target method
+      const [owner] = await ctx.db
+        .select({
+          stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+          stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+          paymentMethod: owners.paymentMethod,
+        })
+        .from(owners)
+        .where(eq(owners.id, ctx.ownerId))
+        .limit(1);
+
+      if (input.paymentMethod === 'debit_card' && !owner?.stripeCardPaymentMethodId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No debit card on file. Please add a card first.',
+        });
+      }
+
+      if (input.paymentMethod === 'bank_account' && !owner?.stripeAchPaymentMethodId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No bank account on file. Please connect a bank account first.',
+        });
+      }
+
+      const oldMethod = owner?.paymentMethod;
+
       const [updated] = await ctx.db
         .update(owners)
         .set({ paymentMethod: input.paymentMethod })
@@ -98,8 +179,172 @@ export const ownerRouter = router({
           paymentMethod: owners.paymentMethod,
         });
 
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action: 'status_changed',
+        oldValue: { paymentMethod: oldMethod },
+        newValue: { paymentMethod: input.paymentMethod },
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
       return updated;
     }),
+
+  /**
+   * Create a Stripe Checkout Session in setup mode for collecting a debit card.
+   * Redirects the user to Stripe's hosted page (avoids needing @stripe/react-stripe-js).
+   */
+  setupCardPaymentMethod: ownerProcedure
+    .input(
+      z.object({
+        successUrl: z.string().url(),
+        cancelUrl: z.string().url(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [owner] = await ctx.db
+        .select({ stripeCustomerId: owners.stripeCustomerId })
+        .from(owners)
+        .where(eq(owners.id, ctx.ownerId))
+        .limit(1);
+
+      if (!owner?.stripeCustomerId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No Stripe customer found for this account.',
+        });
+      }
+
+      const session = await stripe().checkout.sessions.create({
+        customer: owner.stripeCustomerId,
+        mode: 'setup',
+        payment_method_types: ['card'],
+        success_url: `${input.successUrl}?setup_session={CHECKOUT_SESSION_ID}`,
+        cancel_url: input.cancelUrl,
+        metadata: {
+          ownerId: ctx.ownerId,
+        },
+      });
+
+      return {
+        sessionId: session.id,
+        sessionUrl: session.url,
+      };
+    }),
+
+  /**
+   * Confirm a card setup after the user completes Stripe Checkout.
+   * Retrieves the Checkout Session, extracts the SetupIntent, and saves the payment method.
+   */
+  confirmCardPaymentMethod: ownerProcedure
+    .input(
+      z.object({
+        sessionId: z.string().min(1, 'Checkout session ID is required'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const session = await stripe().checkout.sessions.retrieve(input.sessionId);
+
+      if (session.status !== 'complete') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Checkout session is not complete (status: ${session.status})`,
+        });
+      }
+
+      const setupIntentId =
+        typeof session.setup_intent === 'string' ? session.setup_intent : session.setup_intent?.id;
+
+      if (!setupIntentId) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Checkout session ${input.sessionId} has no SetupIntent`,
+        });
+      }
+
+      const setupIntent = await stripe().setupIntents.retrieve(setupIntentId);
+
+      if (setupIntent.status !== 'succeeded') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `SetupIntent is not succeeded (status: ${setupIntent.status})`,
+        });
+      }
+
+      const paymentMethodId =
+        typeof setupIntent.payment_method === 'string'
+          ? setupIntent.payment_method
+          : setupIntent.payment_method?.id;
+
+      if (!paymentMethodId) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `SetupIntent ${setupIntentId} has no payment method`,
+        });
+      }
+
+      await ctx.db
+        .update(owners)
+        .set({
+          stripeCardPaymentMethodId: paymentMethodId,
+          paymentMethod: 'debit_card',
+        })
+        .where(eq(owners.id, ctx.ownerId));
+
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action: 'status_changed',
+        oldValue: null,
+        newValue: { stripeCardPaymentMethodId: paymentMethodId, paymentMethod: 'debit_card' },
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
+      return { success: true as const, paymentMethodId };
+    }),
+
+  /**
+   * Retrieve saved payment instrument details from Stripe.
+   * Returns card brand/last4/expiry and/or bank name/last4 depending on what's on file.
+   */
+  getPaymentMethodDetails: ownerProcedure.query(async ({ ctx }) => {
+    const [owner] = await ctx.db
+      .select({
+        paymentMethod: owners.paymentMethod,
+        stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+        stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+        stripeCustomerId: owners.stripeCustomerId,
+      })
+      .from(owners)
+      .where(eq(owners.id, ctx.ownerId))
+      .limit(1);
+
+    if (!owner) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner not found' });
+    }
+
+    const card = owner.stripeCardPaymentMethodId
+      ? await fetchCardDetails(owner.stripeCardPaymentMethodId, ctx.ownerId)
+      : null;
+
+    const bankAccount =
+      owner.stripeAchPaymentMethodId && owner.stripeCustomerId
+        ? await fetchBankAccountDetails(
+            owner.stripeCustomerId,
+            owner.stripeAchPaymentMethodId,
+            ctx.ownerId,
+          )
+        : null;
+
+    return {
+      currentMethod: owner.paymentMethod,
+      card,
+      bankAccount,
+    };
+  }),
 
   /**
    * Get all payment plans for the authenticated owner, with payment progress.

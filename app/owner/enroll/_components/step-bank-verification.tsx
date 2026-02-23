@@ -29,6 +29,18 @@ export function StepBankVerification({
 
   const createLinkToken = useMutation(trpc.plaid.createLinkToken.mutationOptions());
 
+  const exchangeToken = useMutation(
+    trpc.plaid.exchangePublicToken.mutationOptions({
+      onSuccess: () => {
+        setBankConnected(true);
+        setConnectionError(null);
+      },
+      onError: (error) => {
+        setConnectionError(error.message || 'Failed to connect bank account. Please try again.');
+      },
+    }),
+  );
+
   const linkToken = createLinkToken.data?.linkToken ?? null;
 
   function handleGetLinkToken() {
@@ -36,10 +48,15 @@ export function StepBankVerification({
     createLinkToken.mutate();
   }
 
-  function handlePlaidSuccess(publicToken: string) {
-    updateData({ plaidPublicToken: publicToken, paymentMethod: 'bank_account' });
-    setBankConnected(true);
+  function handlePlaidSuccess(publicToken: string, accountId: string) {
+    updateData({
+      plaidPublicToken: publicToken,
+      plaidAccountId: accountId,
+      paymentMethod: 'bank_account',
+    });
     setConnectionError(null);
+    // Exchange the public token immediately
+    exchangeToken.mutate({ publicToken, accountId });
   }
 
   function handlePlaidExit() {
@@ -49,7 +66,7 @@ export function StepBankVerification({
   }
 
   function handleDebitCardChoice() {
-    updateData({ paymentMethod: 'debit_card', plaidPublicToken: null });
+    updateData({ paymentMethod: 'debit_card', plaidPublicToken: null, plaidAccountId: null });
     setBankConnected(false);
     setConnectionError(null);
   }
@@ -95,7 +112,14 @@ export function StepBankVerification({
             linkToken={linkToken}
             onSuccess={handlePlaidSuccess}
             onExit={handlePlaidExit}
+            disabled={exchangeToken.isPending}
           />
+        )}
+
+        {exchangeToken.isPending && (
+          <Alert>
+            <AlertDescription>Connecting your bank account...</AlertDescription>
+          </Alert>
         )}
 
         {bankConnected && (

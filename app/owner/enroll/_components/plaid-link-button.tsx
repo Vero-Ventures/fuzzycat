@@ -2,12 +2,13 @@
 
 import { Landmark } from 'lucide-react';
 import { useCallback } from 'react';
+import type { PlaidLinkOnSuccessMetadata } from 'react-plaid-link';
 import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 
 interface PlaidLinkButtonProps {
   linkToken: string;
-  onSuccess: (publicToken: string) => void;
+  onSuccess: (publicToken: string, accountId: string) => void;
   onExit: () => void;
   disabled?: boolean;
 }
@@ -19,8 +20,9 @@ export function PlaidLinkButton({
   disabled = false,
 }: PlaidLinkButtonProps) {
   const handleSuccess = useCallback(
-    (publicToken: string) => {
-      onSuccess(publicToken);
+    (publicToken: string, metadata: PlaidLinkOnSuccessMetadata) => {
+      const accountId = metadata.accounts[0]?.id ?? '';
+      onSuccess(publicToken, accountId);
     },
     [onSuccess],
   );

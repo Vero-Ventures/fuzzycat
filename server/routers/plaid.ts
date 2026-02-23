@@ -30,11 +30,12 @@ export const plaidRouter = router({
     .input(
       z.object({
         publicToken: z.string().min(1, 'Public token is required'),
+        accountId: z.string().min(1, 'Account ID is required'),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const result = await exchangePublicToken(input.publicToken, ctx.ownerId);
+        const result = await exchangePublicToken(input.publicToken, ctx.ownerId, input.accountId);
         return { success: true as const, itemId: result.itemId };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to exchange public token';

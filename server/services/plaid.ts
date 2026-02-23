@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import { CountryCode, Products } from 'plaid';
 import { logger } from '@/lib/logger';
 import { plaid } from '@/lib/plaid';
+import { stripe } from '@/lib/stripe';
 import { db } from '@/server/db';
 import { owners } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
@@ -43,8 +44,9 @@ export async function createLinkToken(userId: string): Promise<string> {
 }
 
 /**
- * Exchange a Plaid public token for a permanent access token and store
- * it on the owner record.
+ * Exchange a Plaid public token for a permanent access token, create a
+ * Stripe ACH payment method via Plaid's processor token API, and store
+ * everything on the owner record.
  *
  * The public token is a short-lived token returned by Plaid Link after
  * the user successfully connects their bank. The access token is
@@ -52,11 +54,13 @@ export async function createLinkToken(userId: string): Promise<string> {
  *
  * @param publicToken - Short-lived token from Plaid Link
  * @param ownerId - UUID of the pet owner
+ * @param accountId - Plaid account ID selected by the user
  */
 export async function exchangePublicToken(
   publicToken: string,
   ownerId: string,
-): Promise<{ accessToken: string; itemId: string }> {
+  accountId: string,
+): Promise<{ accessToken: string; itemId: string; stripeAchPaymentMethodId: string }> {
   const response = await plaid().itemPublicTokenExchange({
     public_token: publicToken,
   });
@@ -64,10 +68,41 @@ export async function exchangePublicToken(
   const accessToken = response.data.access_token;
   const itemId = response.data.item_id;
 
-  // Store access token and item ID on owner record
+  // Create a Stripe bank account token via Plaid processor
+  const processorResponse = await plaid().processorStripeBankAccountTokenCreate({
+    access_token: accessToken,
+    account_id: accountId,
+  });
+
+  const stripeBankAccountToken = processorResponse.data.stripe_bank_account_token;
+
+  // Look up the owner's Stripe customer ID
+  const [owner] = await db
+    .select({ stripeCustomerId: owners.stripeCustomerId })
+    .from(owners)
+    .where(eq(owners.id, ownerId))
+    .limit(1);
+
+  if (!owner?.stripeCustomerId) {
+    throw new Error(`Owner ${ownerId} does not have a Stripe customer ID`);
+  }
+
+  // Create a bank account source on the Stripe customer
+  const source = await stripe().customers.createSource(owner.stripeCustomerId, {
+    source: stripeBankAccountToken,
+  });
+
+  const stripeAchPaymentMethodId = source.id;
+
+  // Store access token, item ID, account ID, and Stripe ACH payment method on owner record
   await db
     .update(owners)
-    .set({ plaidAccessToken: accessToken, plaidItemId: itemId })
+    .set({
+      plaidAccessToken: accessToken,
+      plaidItemId: itemId,
+      plaidAccountId: accountId,
+      stripeAchPaymentMethodId,
+    })
     .where(eq(owners.id, ownerId));
 
   await logAuditEvent({
@@ -75,14 +110,18 @@ export async function exchangePublicToken(
     entityId: ownerId,
     action: 'status_changed',
     oldValue: null,
-    newValue: { plaidItemId: itemId, bankConnected: true },
+    newValue: { plaidItemId: itemId, stripeAchPaymentMethodId, bankConnected: true },
     actorType: 'owner',
     actorId: ownerId,
   });
 
-  logger.info('Plaid public token exchanged', { ownerId, itemId });
+  logger.info('Plaid public token exchanged and Stripe ACH payment method created', {
+    ownerId,
+    itemId,
+    stripeAchPaymentMethodId,
+  });
 
-  return { accessToken, itemId };
+  return { accessToken, itemId, stripeAchPaymentMethodId };
 }
 
 /**

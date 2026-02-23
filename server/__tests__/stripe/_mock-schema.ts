@@ -14,6 +14,7 @@ export const schemaMock = {
     stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
     plaidAccessToken: 'owners.plaid_access_token',
     plaidItemId: 'owners.plaid_item_id',
+    plaidAccountId: 'owners.plaid_account_id',
   },
   clinics: { id: 'clinics.id' },
   plans: { id: 'plans.id', status: 'plans.status', remainingCents: 'plans.remaining_cents' },

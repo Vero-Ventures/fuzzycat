@@ -141,4 +141,52 @@ describe('createInstallmentPaymentIntent', () => {
       }),
     );
   });
+
+  it('uses card payment_method_types when paymentMethodType is card', async () => {
+    mockPaymentIntentsCreate.mockResolvedValue({
+      id: 'pi_card_789',
+      client_secret: 'pi_card_789_secret_abc',
+      status: 'processing',
+    });
+
+    const result = await createInstallmentPaymentIntent({
+      ...defaultParams,
+      paymentMethodId: 'pm_card_123',
+      paymentMethodType: 'card',
+    });
+
+    expect(result.paymentIntentId).toBe('pi_card_789');
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method_types).toEqual(['card']);
+    expect(callArgs.payment_method).toBe('pm_card_123');
+    expect(callArgs.confirm).toBe(true);
+    expect(callArgs.off_session).toBe(true);
+  });
+
+  it('does not set off_session for us_bank_account type', async () => {
+    await createInstallmentPaymentIntent({
+      ...defaultParams,
+      paymentMethodId: 'pm_ach_123',
+      paymentMethodType: 'us_bank_account',
+    });
+
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method_types).toEqual(['us_bank_account']);
+    expect(callArgs.payment_method).toBe('pm_ach_123');
+    expect(callArgs.confirm).toBe(true);
+    expect(callArgs.off_session).toBeUndefined();
+  });
+
+  it('defaults to us_bank_account when no paymentMethodType is provided', async () => {
+    await createInstallmentPaymentIntent(defaultParams);
+
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method_types).toEqual(['us_bank_account']);
+  });
 });

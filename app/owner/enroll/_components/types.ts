@@ -8,6 +8,7 @@ export interface EnrollmentData {
   petName: string;
   paymentMethod: 'debit_card' | 'bank_account';
   plaidPublicToken: string | null;
+  plaidAccountId: string | null;
   disclaimersAccepted: boolean;
   captchaVerified: boolean;
   captchaToken: string | null;
@@ -24,6 +25,7 @@ export const INITIAL_ENROLLMENT_DATA: EnrollmentData = {
   petName: '',
   paymentMethod: 'debit_card',
   plaidPublicToken: null,
+  plaidAccountId: null,
   disclaimersAccepted: false,
   captchaVerified: false,
   captchaToken: null,

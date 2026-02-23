@@ -16,15 +16,19 @@ export async function createInstallmentPaymentIntent(params: {
   stripeCustomerId: string;
   amountCents: number;
   paymentMethodId?: string;
+  paymentMethodType?: 'card' | 'us_bank_account';
 }): Promise<{ paymentIntentId: string; clientSecret: string; status: string }> {
+  const methodType = params.paymentMethodType ?? 'us_bank_account';
+
   const paymentIntent = await stripe().paymentIntents.create({
     amount: params.amountCents,
     currency: 'usd',
     customer: params.stripeCustomerId,
-    payment_method_types: ['us_bank_account'],
+    payment_method_types: [methodType],
     ...(params.paymentMethodId && {
       payment_method: params.paymentMethodId,
       confirm: true,
+      ...(methodType === 'card' && { off_session: true }),
     }),
     metadata: {
       paymentId: params.paymentId,

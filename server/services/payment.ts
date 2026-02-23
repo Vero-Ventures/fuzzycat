@@ -97,8 +97,53 @@ export async function processDeposit(params: {
 }
 
 /**
- * Initiate an ACH installment charge for a specific payment via Stripe.
+ * Resolve which Stripe payment method and type to use for an installment charge.
+ * An explicit override takes priority; otherwise the owner's saved preference is used.
+ */
+function resolvePaymentMethod(
+  paymentId: string,
+  explicitPaymentMethodId: string | undefined,
+  owner: {
+    paymentMethod: string | null;
+    stripeCardPaymentMethodId: string | null;
+    stripeAchPaymentMethodId: string | null;
+  },
+): { paymentMethodId?: string; paymentMethodType?: 'card' | 'us_bank_account' } {
+  if (explicitPaymentMethodId) {
+    return { paymentMethodId: explicitPaymentMethodId };
+  }
+
+  if (!owner.paymentMethod) {
+    return {};
+  }
+
+  if (owner.paymentMethod === 'bank_account') {
+    const id = owner.stripeAchPaymentMethodId ?? undefined;
+    if (!id) {
+      throw new Error(
+        `Owner for payment ${paymentId} prefers bank_account but has no saved ACH payment method`,
+      );
+    }
+    return { paymentMethodId: id, paymentMethodType: 'us_bank_account' };
+  }
+
+  if (owner.paymentMethod === 'debit_card') {
+    const id = owner.stripeCardPaymentMethodId ?? undefined;
+    if (!id) {
+      throw new Error(
+        `Owner for payment ${paymentId} prefers debit_card but has no saved card payment method`,
+      );
+    }
+    return { paymentMethodId: id, paymentMethodType: 'card' };
+  }
+
+  return {};
+}
+
+/**
+ * Initiate an installment charge for a specific payment via Stripe.
  * Looks up the payment record and associated owner, then creates a PaymentIntent.
+ * Routes to the correct payment method type based on the owner's saved preference.
  */
 export async function processInstallment(params: {
   paymentId: string;
@@ -154,9 +199,14 @@ export async function processInstallment(params: {
     throw new Error(`Plan for payment ${params.paymentId} has no owner`);
   }
 
-  // Fetch owner's Stripe customer ID
+  // Fetch owner's Stripe customer ID and payment method preference
   const [owner] = await db
-    .select({ stripeCustomerId: owners.stripeCustomerId })
+    .select({
+      stripeCustomerId: owners.stripeCustomerId,
+      paymentMethod: owners.paymentMethod,
+      stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+      stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+    })
     .from(owners)
     .where(eq(owners.id, plan.ownerId))
     .limit(1);
@@ -165,12 +215,16 @@ export async function processInstallment(params: {
     throw new Error(`Owner for payment ${params.paymentId} has no Stripe customer ID`);
   }
 
+  // Resolve the payment method: explicit override takes priority, then owner preference
+  const resolved = resolvePaymentMethod(params.paymentId, params.paymentMethodId, owner);
+
   return createInstallmentPaymentIntent({
     paymentId: params.paymentId,
     planId: payment.planId,
     stripeCustomerId: owner.stripeCustomerId,
     amountCents: payment.amountCents,
-    paymentMethodId: params.paymentMethodId,
+    paymentMethodId: resolved.paymentMethodId,
+    paymentMethodType: resolved.paymentMethodType,
   });
 }
 

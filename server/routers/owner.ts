@@ -26,7 +26,7 @@ async function fetchCardDetails(
     logger.error('Failed to retrieve card payment method from Stripe', {
       ownerId,
       paymentMethodId: cardPaymentMethodId,
-      error: err instanceof Error ? err.message : String(err),
+      error: err,
     });
   }
   return null;
@@ -51,7 +51,7 @@ async function fetchBankAccountDetails(
       ownerId,
       customerId,
       sourceId: achPaymentMethodId,
-      error: err instanceof Error ? err.message : String(err),
+      error: err,
     });
   }
   return null;
@@ -260,7 +260,7 @@ export const ownerRouter = router({
       if (!setupIntentId) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Checkout session has no SetupIntent',
+          message: `Checkout session ${input.sessionId} has no SetupIntent`,
         });
       }
 
@@ -281,7 +281,7 @@ export const ownerRouter = router({
       if (!paymentMethodId) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'SetupIntent has no payment method',
+          message: `SetupIntent ${setupIntentId} has no payment method`,
         });
       }
 

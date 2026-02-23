@@ -13,9 +13,9 @@ comment:
   require_changes: true
 
 ignore:
-  - "drizzle/migrations"
-  - "scripts"
-  - "e2e"
   - "**/*.config.ts"
-  - "server/emails/**"
   - "components/ui/**"
+  - "drizzle/migrations"
+  - "e2e"
+  - "scripts"
+  - "server/emails/**"

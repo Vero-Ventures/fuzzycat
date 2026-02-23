@@ -113,7 +113,7 @@ export default defineConfig({
       testMatch: 'public-pages.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://fuzzycatapp.com',
+        baseURL: 'https://www.fuzzycatapp.com',
       },
     },
     // ── Production: auth flow ─────────────────────────────────────────
@@ -123,7 +123,7 @@ export default defineConfig({
       testMatch: 'login-flow.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://fuzzycatapp.com',
+        baseURL: 'https://www.fuzzycatapp.com',
       },
     },
   ],

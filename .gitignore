@@ -44,6 +44,9 @@ Thumbs.db
 
 # drizzle (migrations are version-controlled — do NOT ignore them)
 
+# supabase CLI cache
+supabase/.temp/
+
 # sentry
 .sentryclirc
 

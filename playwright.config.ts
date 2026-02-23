@@ -1,4 +1,10 @@
+import { loadEnvConfig } from '@next/env';
 import { defineConfig, devices } from '@playwright/test';
+
+// Load .env.local so Playwright (global-setup, tests) can access
+// SUPABASE, E2E_TEST_PASSWORD, and other env vars that Next.js
+// normally loads automatically.
+loadEnvConfig(process.cwd());
 
 const isCI = !!process.env.CI;
 

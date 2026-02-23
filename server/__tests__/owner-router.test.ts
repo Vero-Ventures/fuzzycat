@@ -118,9 +118,10 @@ const extendedSchemaMock = {
 
 mock.module('@/server/db/schema', () => extendedSchemaMock);
 
-mock.module('@/server/services/audit', () => ({
-  logAuditEvent: mock(() => Promise.resolve()),
-}));
+// Note: We intentionally do NOT mock @/server/services/audit here.
+// logAuditEvent never throws (try/catch internally), so it's safe to let it
+// run against the mocked db — it will silently fail. Mocking the audit module
+// would cause cross-contamination with audit.test.ts (Bun's mock.module is global).
 
 // ── Test data ────────────────────────────────────────────────────────
 

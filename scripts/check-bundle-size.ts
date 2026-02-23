@@ -7,7 +7,7 @@
  * Usage: bun run scripts/check-bundle-size.ts
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
@@ -19,21 +19,18 @@ const BUDGET_KB = 750;
 
 function collectJsFiles(dir: string): string[] {
   const files: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
       files.push(...collectJsFiles(full));
-    } else if (entry.endsWith('.js')) {
+    } else if (entry.name.endsWith('.js')) {
       files.push(full);
     }
   }
   return files;
 }
 
-try {
-  statSync(CHUNKS_DIR);
-} catch {
+if (!existsSync(CHUNKS_DIR)) {
   console.error(`ERROR: ${CHUNKS_DIR} not found. Run 'bun run build' first.`);
   process.exit(1);
 }

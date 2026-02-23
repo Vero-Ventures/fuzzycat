@@ -27,7 +27,7 @@ import {
   payoutEarnings,
   payoutHistory,
 } from './audit-mock-data';
-import { mockTrpcQuery } from './trpc-mock';
+import { _ensureRouteInstalled, mockTrpcQuery } from './trpc-mock';
 
 /**
  * Pre-configure all tRPC mocks for a given portal role.
@@ -70,28 +70,18 @@ export async function setupPortalMocks(page: Page, role: 'owner' | 'clinic' | 'a
 }
 
 /**
- * Catch-all route for any unmocked tRPC procedure.
- * Returns empty defaults so tests don't hang on unexpected queries.
- * Must be called AFTER specific mocks (Playwright routes match in registration order).
+ * Install the tRPC mock route handler for any unmocked procedures.
+ *
+ * In the registry-based mock system, this is a no-op when specific mocks
+ * have already been registered (the route handler auto-installs on first
+ * `mockTrpcQuery`/`mockTrpcMutation` call). When called without prior mocks,
+ * it installs the handler so unmocked procedures return safe defaults
+ * (`null` for queries, `{ success: true }` for mutations).
+ *
+ * Safe to call before or after specific mocks — order does not matter.
  */
 export async function mockAllTrpc(page: Page) {
-  await page.route('**/api/trpc/**', async (route, request) => {
-    if (request.method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: { json: null } } }]),
-      });
-    } else if (request.method() === 'POST') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: { json: { success: true } } } }]),
-      });
-    } else {
-      await route.fallback();
-    }
-  });
+  await _ensureRouteInstalled(page);
 }
 
 /**

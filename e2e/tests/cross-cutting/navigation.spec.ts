@@ -4,11 +4,11 @@ test.describe('Cross-page navigation', () => {
   test('landing -> signup CTA', async ({ page }, testInfo) => {
     await page.goto('/');
 
-    const splitBillCta = page.getByRole('link', {
-      name: /split my vet bill/i,
+    const paymentPlanCta = page.getByRole('link', {
+      name: /start my payment plan/i,
     });
-    await expect(splitBillCta).toBeVisible();
-    await splitBillCta.click();
+    await expect(paymentPlanCta).toBeVisible();
+    await paymentPlanCta.click();
 
     await expect(page).toHaveURL(/\/signup/);
 

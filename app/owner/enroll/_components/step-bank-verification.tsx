@@ -74,8 +74,8 @@ export function StepBankVerification({
       <div className="space-y-3">
         <h3 className="text-sm font-medium">Option 1: Bank Account (Recommended)</h3>
         <p className="text-xs text-muted-foreground">
-          Lower fees for biweekly installments. We verify your balance to make sure the plan works
-          for you.
+          Recommended for biweekly installments. We verify your balance to ensure the plan works for
+          you.
         </p>
 
         {!linkToken && !bankConnected && (

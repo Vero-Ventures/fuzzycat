@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://fuzzycatapp.com'),
   title: 'FuzzyCat — Guaranteed Payment Plans for Veterinary Care',
   description:
-    'Split your vet bill into easy biweekly payments. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment.',
+    'Pay your vet bill in easy biweekly installments. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment.',
   openGraph: {
     siteName: 'FuzzyCat',
     type: 'website',

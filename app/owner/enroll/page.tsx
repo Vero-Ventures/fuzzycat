@@ -14,7 +14,7 @@ import { type EnrollmentData, INITIAL_ENROLLMENT_DATA } from './_components/type
 const STEPS = [
   { label: 'Select Clinic', number: 1 },
   { label: 'Bill Details', number: 2 },
-  { label: 'Bank Verification', number: 3 },
+  { label: 'Payment Method', number: 3 },
   { label: 'Review & Confirm', number: 4 },
   { label: 'Pay Deposit', number: 5 },
 ] as const;
@@ -46,7 +46,7 @@ export default function OwnerEnrollPage() {
             Enroll in a Payment Plan
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Split your vet bill into easy biweekly payments. No credit check required.
+            Pay your vet bill in easy biweekly installments. No credit check required.
           </p>
         </div>
 

@@ -14,7 +14,7 @@ test.describe('UI Audit: Public Pages', () => {
     await expect(page.getByText(/no credit check/i).first()).toBeVisible();
 
     // CTA buttons
-    await expect(page.getByRole('link', { name: /split my vet bill/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /start my payment plan/i }).first()).toBeVisible();
 
     // Calculator section
     const calculator = page.locator('#bill-amount');

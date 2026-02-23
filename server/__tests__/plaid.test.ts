@@ -17,6 +17,14 @@ const mockItemPublicTokenExchange = mock(() =>
   }),
 );
 
+const mockProcessorStripeBankAccountTokenCreate = mock(() =>
+  Promise.resolve({
+    data: {
+      stripe_bank_account_token: 'btok_test_123',
+    },
+  }),
+);
+
 const mockAccountsBalanceGet = mock(
   (): Promise<unknown> =>
     Promise.resolve({
@@ -39,7 +47,16 @@ mock.module('@/lib/plaid', () => ({
   plaid: () => ({
     linkTokenCreate: mockLinkTokenCreate,
     itemPublicTokenExchange: mockItemPublicTokenExchange,
+    processorStripeBankAccountTokenCreate: mockProcessorStripeBankAccountTokenCreate,
     accountsBalanceGet: mockAccountsBalanceGet,
+  }),
+}));
+
+const mockCustomersCreateSource = mock(() => Promise.resolve({ id: 'ba_test_456' }));
+
+mock.module('@/lib/stripe', () => ({
+  stripe: () => ({
+    customers: { createSource: mockCustomersCreateSource },
   }),
 }));
 
@@ -75,7 +92,9 @@ mock.module('@/server/db/schema', () => ({
     id: 'owners.id',
     plaidAccessToken: 'owners.plaid_access_token',
     plaidItemId: 'owners.plaid_item_id',
+    plaidAccountId: 'owners.plaid_account_id',
     stripeCustomerId: 'owners.stripe_customer_id',
+    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
   },
   clinics: { id: 'clinics.id' },
   plans: { id: 'plans.id', status: 'plans.status' },
@@ -157,7 +176,9 @@ function clearAllMocks() {
     mockInsertValues,
     mockLinkTokenCreate,
     mockItemPublicTokenExchange,
+    mockProcessorStripeBankAccountTokenCreate,
     mockAccountsBalanceGet,
+    mockCustomersCreateSource,
   ]) {
     m.mockClear();
   }
@@ -193,32 +214,52 @@ describe('createLinkToken', () => {
 
 describe('exchangePublicToken', () => {
   beforeEach(() => {
+    setupSelectChain();
     setupUpdateChain();
     setupInsertChain();
   });
 
   afterEach(clearAllMocks);
 
-  it('exchanges public token and stores access token', async () => {
-    const result = await exchangePublicToken('public-sandbox-test-token', 'owner-1');
+  it('exchanges public token, creates processor token, and stores Stripe ACH PM', async () => {
+    // Owner lookup returns owner with Stripe customer ID
+    mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: 'cus_test_123' }]);
+
+    const result = await exchangePublicToken('public-sandbox-test-token', 'owner-1', 'acc-1');
 
     expect(result.accessToken).toBe('access-sandbox-test-token-456');
     expect(result.itemId).toBe('item-sandbox-test-789');
+    expect(result.stripeAchPaymentMethodId).toBe('ba_test_456');
 
     // Verify Plaid API was called
     expect(mockItemPublicTokenExchange).toHaveBeenCalledWith({
       public_token: 'public-sandbox-test-token',
     });
 
-    // Verify DB update was called to store access token and item ID
+    // Verify processor token was created with correct access_token and account_id
+    expect(mockProcessorStripeBankAccountTokenCreate).toHaveBeenCalledWith({
+      access_token: 'access-sandbox-test-token-456',
+      account_id: 'acc-1',
+    });
+
+    // Verify Stripe source was created
+    expect(mockCustomersCreateSource).toHaveBeenCalledWith('cus_test_123', {
+      source: 'btok_test_123',
+    });
+
+    // Verify DB update was called to store all fields
     expect(mockUpdateSet).toHaveBeenCalledWith({
       plaidAccessToken: 'access-sandbox-test-token-456',
       plaidItemId: 'item-sandbox-test-789',
+      plaidAccountId: 'acc-1',
+      stripeAchPaymentMethodId: 'ba_test_456',
     });
   });
 
-  it('creates an audit log entry', async () => {
-    await exchangePublicToken('public-sandbox-test-token', 'owner-1');
+  it('creates an audit log entry with stripeAchPaymentMethodId', async () => {
+    mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: 'cus_test_123' }]);
+
+    await exchangePublicToken('public-sandbox-test-token', 'owner-1', 'acc-1');
 
     // Audit log is written via logAuditEvent which calls db.insert
     expect(mockInsert).toHaveBeenCalled();
@@ -236,9 +277,38 @@ describe('exchangePublicToken', () => {
   it('propagates errors from Plaid API', async () => {
     mockItemPublicTokenExchange.mockRejectedValueOnce(new Error('Invalid public token'));
 
-    await expect(exchangePublicToken('bad-token', 'owner-1')).rejects.toThrow(
+    await expect(exchangePublicToken('bad-token', 'owner-1', 'acc-1')).rejects.toThrow(
       'Invalid public token',
     );
+  });
+
+  it('throws when Plaid processor API fails', async () => {
+    mockProcessorStripeBankAccountTokenCreate.mockRejectedValueOnce(
+      new Error('Processor token creation failed'),
+    );
+
+    await expect(
+      exchangePublicToken('public-sandbox-test-token', 'owner-1', 'acc-1'),
+    ).rejects.toThrow('Processor token creation failed');
+  });
+
+  it('throws when Stripe createSource fails', async () => {
+    // Owner lookup succeeds
+    mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: 'cus_test_123' }]);
+
+    mockCustomersCreateSource.mockRejectedValueOnce(new Error('Invalid bank account token'));
+
+    await expect(
+      exchangePublicToken('public-sandbox-test-token', 'owner-1', 'acc-1'),
+    ).rejects.toThrow('Invalid bank account token');
+  });
+
+  it('throws when owner has no Stripe customer ID', async () => {
+    mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: null }]);
+
+    await expect(
+      exchangePublicToken('public-sandbox-test-token', 'owner-1', 'acc-1'),
+    ).rejects.toThrow('does not have a Stripe customer ID');
   });
 });
 

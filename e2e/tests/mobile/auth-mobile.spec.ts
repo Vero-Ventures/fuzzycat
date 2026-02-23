@@ -60,17 +60,10 @@ test.describe('Auth Pages — Mobile', () => {
     await page.goto('/signup');
 
     // Tab switching works on mobile
-    const clinicTab = page
-      .getByRole('tab', { name: /veterinary clinic|clinic/i })
-      .or(page.getByText(/veterinary clinic/i));
+    const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
 
-    if (
-      await clinicTab
-        .first()
-        .isVisible({ timeout: 3000 })
-        .catch(() => false)
-    ) {
-      await clinicTab.first().click();
+    if (await clinicTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await clinicTab.click();
 
       // Clinic fields visible
       const clinicNameInput = page.locator('#clinicName');
@@ -78,17 +71,10 @@ test.describe('Auth Pages — Mobile', () => {
     }
 
     // Switch back to owner tab
-    const ownerTab = page
-      .getByRole('tab', { name: /pet owner|owner/i })
-      .or(page.getByText(/pet owner/i));
+    const ownerTab = page.getByRole('tab', { name: /pet owner|owner/i });
 
-    if (
-      await ownerTab
-        .first()
-        .isVisible({ timeout: 3000 })
-        .catch(() => false)
-    ) {
-      await ownerTab.first().click();
+    if (await ownerTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await ownerTab.click();
     }
 
     // Fill form on mobile

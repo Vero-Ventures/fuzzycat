@@ -37,7 +37,7 @@ test.describe('Admin Dashboard', () => {
     // Check for navigation links to other admin pages
     await expect(page.getByRole('link', { name: /clinics/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /payments/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /risk/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /platform reserve/i })).toBeVisible();
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {

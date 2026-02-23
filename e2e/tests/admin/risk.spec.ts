@@ -7,7 +7,7 @@ test.describe('Admin Risk', () => {
 
   test('loads risk page', async ({ page }) => {
     await expect(page).toHaveURL(/\/admin\/risk/);
-    await expect(page.getByRole('heading', { name: /risk/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /platform reserve/i })).toBeVisible();
   });
 
   test('shows platform reserve dashboard', async ({ page }) => {

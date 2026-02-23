@@ -19,6 +19,7 @@ import {
   gotoPortalPage,
   mockAllTrpc,
   mockExternalServices,
+  openMobileMenuIfNeeded,
   setupPortalMocks,
 } from '../../helpers/portal-test-base';
 import { mockTrpcMutation, mockTrpcQuery } from '../../helpers/trpc-mock';
@@ -298,28 +299,14 @@ test.describe('Clinic Portal — Mobile', () => {
 
     await gotoPortalPage(page, '/clinic/dashboard');
 
-    // On mobile, sidebar may be collapsed into a hamburger menu
-    const hamburger = page
-      .getByRole('button', { name: /menu|navigation|toggle/i })
-      .or(page.locator('[aria-label*="menu"]'))
-      .or(page.locator('[aria-label*="Menu"]'));
-
-    if (await hamburger.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await hamburger.click();
-      await page.waitForTimeout(500);
-    }
+    // Open the mobile hamburger menu so sidebar links become visible
+    await openMobileMenuIfNeeded(page);
 
     // Navigate to clients
     const clientsLink = page.getByRole('link', { name: /client/i });
-    if (
-      await clientsLink
-        .first()
-        .isVisible({ timeout: 3000 })
-        .catch(() => false)
-    ) {
-      await clientsLink.first().click();
-      await page.waitForLoadState('domcontentloaded');
-      expect(page.url()).toContain('clients');
-    }
+    await expect(clientsLink.first()).toBeVisible({ timeout: 5000 });
+    await clientsLink.first().click();
+    await page.waitForLoadState('domcontentloaded');
+    expect(page.url()).toContain('clients');
   });
 });

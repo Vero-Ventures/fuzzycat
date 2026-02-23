@@ -3,6 +3,7 @@ import {
   gotoPortalPage,
   mockAllTrpc,
   mockExternalServices,
+  openMobileMenuIfNeeded,
   setupPortalMocks,
 } from '../../helpers/portal-test-base';
 
@@ -27,6 +28,9 @@ test.describe('Navigation — Clinic Portal', () => {
     ];
 
     for (const { pattern, url } of clinicRoutes) {
+      // On mobile viewports the sidebar is hidden — open the hamburger menu first
+      await openMobileMenuIfNeeded(page);
+
       const link = page
         .locator('nav a, aside a, [role="navigation"] a')
         .filter({ hasText: pattern });
@@ -74,6 +78,9 @@ test.describe('Navigation — Admin Portal', () => {
     ];
 
     for (const { pattern, url } of adminRoutes) {
+      // On mobile viewports the sidebar is hidden — open the hamburger menu first
+      await openMobileMenuIfNeeded(page);
+
       const link = page
         .locator('nav a, aside a, [role="navigation"] a')
         .filter({ hasText: pattern });
@@ -101,6 +108,9 @@ test.describe('Navigation — Owner Portal', () => {
     await mockAllTrpc(page);
 
     await gotoPortalPage(page, '/owner/payments');
+
+    // On mobile viewports, open hamburger menu if present
+    await openMobileMenuIfNeeded(page);
 
     // Owner navigation links
     const settingsLink = page.getByRole('link', { name: /setting/i });

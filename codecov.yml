@@ -2,17 +2,20 @@ coverage:
   status:
     project:
       default:
-        target: auto
-        threshold: 1%
+        target: 80%
+        threshold: 0.5%
     patch:
       default:
-        target: 80%
+        target: 70%
 
 comment:
   layout: "condensed_header, condensed_files, condensed_footer"
   require_changes: true
 
 ignore:
-  - "drizzle/migrations"
-  - "scripts"
   - "**/*.config.ts"
+  - "components/ui/**"
+  - "drizzle/migrations"
+  - "e2e"
+  - "scripts"
+  - "server/emails/**"

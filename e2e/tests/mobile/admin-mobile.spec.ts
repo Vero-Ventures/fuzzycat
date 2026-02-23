@@ -24,6 +24,8 @@ import { mockTrpcMutation, mockTrpcQuery, mockTrpcQueryError } from '../../helpe
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Admin Portal — Mobile', () => {
+  test.use({ storageState: 'e2e/auth-state/admin.json' });
+
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
   test('dashboard KPIs render on mobile', async ({ page }, testInfo) => {

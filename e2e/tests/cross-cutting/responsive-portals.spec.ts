@@ -16,7 +16,9 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 // This file runs under the "mobile" project (Pixel 5) for responsive testing
 test.describe.configure({ timeout: 90_000 });
 
-test.describe('Portal Mobile Responsive', () => {
+test.describe('Portal Mobile Responsive — Owner', () => {
+  test.use({ storageState: 'e2e/auth-state/owner.json' });
+
   test('owner payments on mobile', async ({ page }, testInfo) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'owner.getDashboardSummary', ownerDashboardSummary);
@@ -26,10 +28,7 @@ test.describe('Portal Mobile Responsive', () => {
 
     await gotoPortalPage(page, '/owner/payments');
 
-    // Key content should be visible on mobile
     await expect(page.getByText(/my payment plan|payment/i).first()).toBeVisible({ timeout: 5000 });
-
-    // Summary cards should stack vertically
     await expect(page.getByText(/next payment/i).first()).toBeVisible({ timeout: 5000 });
 
     await testInfo.attach('mobile-owner-payments', {
@@ -37,6 +36,34 @@ test.describe('Portal Mobile Responsive', () => {
       contentType: 'image/png',
     });
   });
+
+  test('enrollment wizard on mobile', async ({ page }, testInfo) => {
+    await mockExternalServices(page);
+    const { clinicSearch } = await import('../../helpers/audit-mock-data');
+    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
+    await mockAllTrpc(page);
+
+    await gotoPortalPage(page, '/owner/enroll');
+
+    await expect(page.getByText(/enroll|payment plan|step 1|find your vet/i).first()).toBeVisible({
+      timeout: 5000,
+    });
+
+    const searchInput = page.locator('#clinic-search');
+    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await searchInput.fill('Happy');
+      await expect(page.getByText('Happy Paws Veterinary').first()).toBeVisible({ timeout: 5000 });
+    }
+
+    await testInfo.attach('mobile-enrollment-wizard', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    });
+  });
+});
+
+test.describe('Portal Mobile Responsive — Clinic', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
 
   test('clinic dashboard on mobile', async ({ page }, testInfo) => {
     await mockExternalServices(page);
@@ -46,10 +73,7 @@ test.describe('Portal Mobile Responsive', () => {
 
     await gotoPortalPage(page, '/clinic/dashboard');
 
-    // Dashboard heading
     await expect(page.getByText(/clinic dashboard/i).first()).toBeVisible({ timeout: 5000 });
-
-    // KPI cards should be visible
     await expect(page.getByText(/active plan/i).first()).toBeVisible({ timeout: 5000 });
 
     await testInfo.attach('mobile-clinic-dashboard', {
@@ -65,11 +89,9 @@ test.describe('Portal Mobile Responsive', () => {
 
     await gotoPortalPage(page, '/clinic/clients');
 
-    // Table should render or adapt to mobile layout
     const content = page.getByText(/jane doe/i).or(page.getByText(/client/i));
     await expect(content.first()).toBeVisible({ timeout: 5000 });
 
-    // Search should still work
     const searchInput = page.getByPlaceholder(/search/i);
     if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
       await searchInput.fill('Jane');
@@ -81,6 +103,10 @@ test.describe('Portal Mobile Responsive', () => {
       contentType: 'image/png',
     });
   });
+});
+
+test.describe('Portal Mobile Responsive — Admin', () => {
+  test.use({ storageState: 'e2e/auth-state/admin.json' });
 
   test('admin dashboard on mobile', async ({ page }, testInfo) => {
     await mockExternalServices(page);
@@ -91,36 +117,9 @@ test.describe('Portal Mobile Responsive', () => {
 
     await gotoPortalPage(page, '/admin/dashboard');
 
-    // Dashboard content
     await expect(page.getByText(/admin dashboard/i).first()).toBeVisible({ timeout: 5000 });
 
     await testInfo.attach('mobile-admin-dashboard', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
-
-  test('enrollment wizard on mobile', async ({ page }, testInfo) => {
-    await mockExternalServices(page);
-    const { clinicSearch } = await import('../../helpers/audit-mock-data');
-    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/enroll');
-
-    // Wizard should render on mobile
-    await expect(page.getByText(/enroll|payment plan|step 1|find your vet/i).first()).toBeVisible({
-      timeout: 5000,
-    });
-
-    // Search should work on mobile
-    const searchInput = page.locator('#clinic-search');
-    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await searchInput.fill('Happy');
-      await expect(page.getByText('Happy Paws Veterinary').first()).toBeVisible({ timeout: 5000 });
-    }
-
-    await testInfo.attach('mobile-enrollment-wizard', {
       body: await page.screenshot({ fullPage: true }),
       contentType: 'image/png',
     });

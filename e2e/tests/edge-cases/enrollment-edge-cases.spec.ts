@@ -6,6 +6,8 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Enrollment — Edge Cases', () => {
+  test.use({ storageState: 'e2e/auth-state/owner.json' });
+
   test.beforeEach(async ({ page }) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'clinic.search', clinicSearch);

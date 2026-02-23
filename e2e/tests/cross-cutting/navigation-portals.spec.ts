@@ -8,7 +8,9 @@ import {
 
 test.describe.configure({ timeout: 90_000 });
 
-test.describe('Navigation — Portals', () => {
+test.describe('Navigation — Clinic Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
+
   test('clinic sidebar all links work', async ({ page }) => {
     await mockExternalServices(page);
     await setupPortalMocks(page, 'clinic');
@@ -26,7 +28,7 @@ test.describe('Navigation — Portals', () => {
 
     for (const { pattern, url } of clinicRoutes) {
       const link = page
-        .locator(`nav a, aside a, [role="navigation"] a`)
+        .locator('nav a, aside a, [role="navigation"] a')
         .filter({ hasText: pattern });
       if (
         await link
@@ -41,6 +43,21 @@ test.describe('Navigation — Portals', () => {
       }
     }
   });
+
+  test('sign out button is visible', async ({ page }) => {
+    await mockExternalServices(page);
+    await setupPortalMocks(page, 'clinic');
+    await mockAllTrpc(page);
+
+    await gotoPortalPage(page, '/clinic/dashboard');
+
+    const signOutBtn = page.getByRole('button', { name: /sign out|log out/i });
+    await expect(signOutBtn).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe('Navigation — Admin Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/admin.json' });
 
   test('admin sidebar all links work', async ({ page }) => {
     await mockExternalServices(page);
@@ -58,7 +75,7 @@ test.describe('Navigation — Portals', () => {
 
     for (const { pattern, url } of adminRoutes) {
       const link = page
-        .locator(`nav a, aside a, [role="navigation"] a`)
+        .locator('nav a, aside a, [role="navigation"] a')
         .filter({ hasText: pattern });
       if (
         await link
@@ -73,6 +90,10 @@ test.describe('Navigation — Portals', () => {
       }
     }
   });
+});
+
+test.describe('Navigation — Owner Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/owner.json' });
 
   test('owner header navigation', async ({ page }) => {
     await mockExternalServices(page);
@@ -88,16 +109,5 @@ test.describe('Navigation — Portals', () => {
       await page.waitForLoadState('domcontentloaded');
       expect(page.url()).toContain('/owner/settings');
     }
-  });
-
-  test('sign out button is visible', async ({ page }) => {
-    await mockExternalServices(page);
-    await setupPortalMocks(page, 'clinic');
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/clinic/dashboard');
-
-    const signOutBtn = page.getByRole('button', { name: /sign out|log out/i });
-    await expect(signOutBtn).toBeVisible({ timeout: 5000 });
   });
 });

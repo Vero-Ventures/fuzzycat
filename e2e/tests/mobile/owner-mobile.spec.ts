@@ -17,6 +17,8 @@ import { mockTrpcMutation, mockTrpcQuery, mockTrpcQueryError } from '../../helpe
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Owner Portal — Mobile', () => {
+  test.use({ storageState: 'e2e/auth-state/owner.json' });
+
   // ── Payments Dashboard ─────────────────────────────────────────────────────
 
   test('payments dashboard renders correctly on mobile', async ({ page }, testInfo) => {

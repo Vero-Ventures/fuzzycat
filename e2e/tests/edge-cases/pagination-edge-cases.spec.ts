@@ -6,6 +6,8 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Pagination — Edge Cases', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
+
   test('single page hides pagination controls', async ({ page }) => {
     await mockExternalServices(page);
     // Single page — totalPages = 1

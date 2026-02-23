@@ -70,7 +70,23 @@ All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Ve
 - **`main` branch is protected.** No direct commits to main — ever. All changes go through feature branches and pull requests. PRs require CI checks to pass before merging.
 - **All work goes through PRs.** Even documentation-only changes (like CLAUDE.md updates) must be on their own branch with a PR.
 - **Squash merge** is the standard merge strategy. Use `gh pr merge N --squash --auto` or `gh pr merge N --squash --delete-branch`.
-- **Required CI checks** (3): `Lint & Format (Biome)`, `Type Check`, `Build`. CodeQL is informational only (not required for merge).
+- **Required CI checks** (14) — configured via GitHub Branch Protection API (Settings > Branches > main), not in any repo file. All must pass before a PR can merge:
+  1. `Lint & Format (Biome)` — Biome lint + format
+  2. `Type Check` — `tsc --noEmit`
+  3. `Build` — `next build`
+  4. `Unit Tests` — `bun run test`
+  5. `Unused Code (Knip)` — dead code / unused dependency detection
+  6. `Circular Dependencies` — import cycle detection
+  7. `Secret Detection (Gitleaks)` — leaked secrets scan
+  8. `Security Scan (Semgrep)` — static security analysis
+  9. `No Direct process.env` — enforces Zod-validated env access
+  10. `Dependency Audit` — npm audit for known vulnerabilities
+  11. `License Compliance` — license compatibility check
+  12. `Type Coverage (≥95%)` — TypeScript type coverage threshold
+  13. `E2E Tests (Playwright)` — end-to-end browser tests
+  14. `codecov/patch` — code coverage threshold on changed lines
+- **Informational checks** (not required): CodeQL, Vercel Preview, Smoke Test, E2E Production Tests.
+- **`strict: true`** — PRs must be up-to-date with `main` before merging.
 
 ## Commands
 

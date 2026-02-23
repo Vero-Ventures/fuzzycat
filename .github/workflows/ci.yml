@@ -157,6 +157,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+      - name: Bundle Size Budget
+        run: bun run check:bundle
 
   e2e:
     name: E2E Tests (Playwright)

@@ -19,6 +19,7 @@
     "check:licenses": "license-checker-rseidelsohn --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;CC-BY-3.0;CC-BY-4.0;BlueOak-1.0.0;Unlicense;Python-2.0;MPL-2.0;MIT OR Apache-2.0;(BSD-2-Clause OR MIT OR Apache-2.0);(MIT AND CC-BY-3.0);(MIT OR CC0-1.0)' --excludePackagesStartingWith '@img/sharp-libvips' --excludePackages 'posthog-js' --excludePrivatePackages",
     "check:secrets": "gitleaks detect --source . --no-banner",
     "check:security": "semgrep scan --config auto --error --quiet .",
+    "check:bundle": "bun run scripts/check-bundle-size.ts",
     "check:all": "bun run ci && bun run check:unused && bun run check:types && bun run check:licenses",
     "test": "bun test lib server app",
     "test:e2e": "playwright test",

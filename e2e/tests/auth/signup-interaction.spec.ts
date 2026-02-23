@@ -32,11 +32,9 @@ test.describe('Signup Form — Interactions', () => {
 
   test('clinic signup form is accessible via tab', async ({ page }) => {
     // Click Veterinary Clinic tab
-    const clinicTab = page
-      .getByRole('tab', { name: /veterinary clinic|clinic/i })
-      .or(page.getByText(/veterinary clinic/i));
-    await expect(clinicTab.first()).toBeVisible();
-    await clinicTab.first().click();
+    const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
+    await expect(clinicTab).toBeVisible();
+    await clinicTab.click();
 
     // Clinic-specific fields should appear
     const clinicNameInput = page.locator('#clinicName');
@@ -70,18 +68,14 @@ test.describe('Signup Form — Interactions', () => {
     await emailInput.fill('test@example.com');
 
     // Switch to clinic tab
-    const clinicTab = page
-      .getByRole('tab', { name: /veterinary clinic|clinic/i })
-      .or(page.getByText(/veterinary clinic/i));
-    await clinicTab.first().click();
+    const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
+    await clinicTab.click();
 
     await page.waitForTimeout(500);
 
     // Switch back to owner tab
-    const ownerTab = page
-      .getByRole('tab', { name: /pet owner|owner/i })
-      .or(page.getByText(/pet owner/i));
-    await ownerTab.first().click();
+    const ownerTab = page.getByRole('tab', { name: /pet owner|owner/i });
+    await ownerTab.click();
 
     await page.waitForTimeout(500);
   });

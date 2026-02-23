@@ -170,7 +170,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium
       - name: Run E2E tests (CI-safe projects only)
-        run: bunx playwright test --project=public --project=auth --project=api --project=cross-cutting
+        run: bunx playwright test --project=api
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder

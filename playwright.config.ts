@@ -81,12 +81,48 @@ export default defineConfig({
       testDir: './e2e/tests/cross-cutting',
       use: { ...devices['Desktop Chrome'] },
     },
-    // ── Mobile responsive ─────────────────────────────────────────────
+    // ── CI Portal: Owner (mocked tRPC, no auth state) ─────────────────
+    {
+      name: 'owner-ci',
+      testDir: './e2e/tests/owner',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // ── CI Portal: Clinic (mocked tRPC, no auth state) ────────────────
+    {
+      name: 'clinic-ci',
+      testDir: './e2e/tests/clinic',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // ── CI Portal: Admin (mocked tRPC, no auth state) ─────────────────
+    {
+      name: 'admin-ci',
+      testDir: './e2e/tests/admin',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // ── Mobile responsive (public/cross-cutting) ──────────────────────
     {
       name: 'mobile',
       testDir: './e2e/tests/cross-cutting',
-      testMatch: 'responsive.spec.ts',
+      testMatch: 'responsive*.spec.ts',
       use: { ...devices['Pixel 5'] },
+    },
+    // ── Mobile portal tests (all portals on Pixel 5) ────────────────
+    {
+      name: 'mobile-portal',
+      testDir: './e2e/tests/mobile',
+      use: { ...devices['Pixel 5'] },
+    },
+    // ── Visual regression baselines ─────────────────────────────────
+    {
+      name: 'visual',
+      testDir: './e2e/tests/visual',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // ── Edge case tests ─────────────────────────────────────────────
+    {
+      name: 'edge-cases',
+      testDir: './e2e/tests/edge-cases',
+      use: { ...devices['Desktop Chrome'] },
     },
     // ── Production: public pages ──────────────────────────────────────
     {

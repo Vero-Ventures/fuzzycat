@@ -788,3 +788,172 @@ export const adminSoftCollectionStats = {
   },
   recoveryRate: 20.0,
 };
+
+// ─── Empty-State Variants ───────────────────────────────────────────────────
+
+export const emptyOwnerDashboardSummary = {
+  nextPayment: null,
+  totalPaidCents: 0,
+  totalRemainingCents: 0,
+  activePlans: 0,
+  totalPlans: 0,
+};
+
+export const emptyOwnerPlans: typeof ownerPlans = [];
+
+export const emptyOwnerPaymentHistory = {
+  payments: [],
+  pagination: { page: 1, pageSize: 10, totalCount: 0, totalPages: 0 },
+};
+
+export const emptyClinicDashboardStats = {
+  activePlans: 0,
+  completedPlans: 0,
+  defaultedPlans: 0,
+  totalPlans: 0,
+  totalRevenueCents: 0,
+  totalPayoutCents: 0,
+  pendingPayoutsCount: 0,
+  pendingPayoutsCents: 0,
+  recentEnrollments: [],
+};
+
+export const emptyClinicClients = {
+  clients: [],
+  pagination: { page: 1, pageSize: 20, totalCount: 0, totalPages: 0 },
+};
+
+export const emptyPayoutEarnings = {
+  totalPayoutCents: 0,
+  totalClinicShareCents: 0,
+  pendingPayoutCents: 0,
+  completedPayoutCount: 0,
+};
+
+export const emptyPayoutHistory = {
+  payouts: [],
+  total: 0,
+};
+
+export const emptyAdminPlatformStats = {
+  totalEnrollments: 0,
+  activePlans: 0,
+  completedPlans: 0,
+  defaultedPlans: 0,
+  totalRevenueCents: 0,
+  totalFeesCents: 0,
+  defaultRate: 0,
+};
+
+export const emptyAdminRiskPoolHealth = {
+  balanceCents: 0,
+  outstandingGuaranteesCents: 0,
+  coverageRatio: 0,
+  activePlanCount: 0,
+};
+
+export const emptyAdminClinics = {
+  clinics: [],
+  pagination: { limit: 20, offset: 0, totalCount: 0 },
+};
+
+export const emptyAdminPayments = {
+  payments: [],
+  pagination: { limit: 20, offset: 0, totalCount: 0 },
+};
+
+// ─── Paginated Second-Page Data ─────────────────────────────────────────────
+
+export const clinicClientsPage2 = {
+  clients: [
+    {
+      planId: 'plan-c-005',
+      ownerName: 'Emily Chen',
+      ownerEmail: 'emily.c@example.com',
+      ownerPhone: '+15556667777',
+      petName: 'Coco',
+      totalBillCents: 95000,
+      totalWithFeeCents: 100700,
+      planStatus: 'active',
+      nextPaymentAt: '2026-03-15T00:00:00.000Z',
+      createdAt: '2026-02-01T00:00:00.000Z',
+      totalPaidCents: 25175,
+    },
+    {
+      planId: 'plan-c-006',
+      ownerName: 'David Park',
+      ownerEmail: 'david.p@example.com',
+      ownerPhone: '+15558889999',
+      petName: 'Milo',
+      totalBillCents: 75000,
+      totalWithFeeCents: 79500,
+      planStatus: 'completed',
+      nextPaymentAt: null,
+      createdAt: '2025-11-01T00:00:00.000Z',
+      totalPaidCents: 79500,
+    },
+  ],
+  pagination: { page: 2, pageSize: 20, totalCount: 6, totalPages: 2 },
+};
+
+export const ownerPaymentHistoryPage2 = {
+  payments: [
+    {
+      id: 'pay-006',
+      type: 'installment' as const,
+      sequenceNum: 5,
+      amountCents: 10600,
+      status: 'pending' as const,
+      scheduledAt: '2026-03-20T00:00:00.000Z',
+      processedAt: null,
+      failureReason: null,
+      retryCount: null,
+    },
+  ],
+  pagination: { page: 2, pageSize: 5, totalCount: 6, totalPages: 2 },
+};
+
+// ─── Filtered Result Sets ───────────────────────────────────────────────────
+
+export const clinicClientsFilteredActive = {
+  clients: clinicClients.clients.filter((c) => c.planStatus === 'active'),
+  pagination: { page: 1, pageSize: 20, totalCount: 2, totalPages: 1 },
+};
+
+export const clinicClientsFilteredBySearch = {
+  clients: clinicClients.clients.filter((c) => c.ownerName.toLowerCase().includes('jane')),
+  pagination: { page: 1, pageSize: 20, totalCount: 1, totalPages: 1 },
+};
+
+export const clinicClientsFilteredEmpty = {
+  clients: [],
+  pagination: { page: 1, pageSize: 20, totalCount: 0, totalPages: 0 },
+};
+
+export const adminClinicsFilteredPending = {
+  clinics: adminClinics.clinics.filter((c) => c.status === 'pending'),
+  pagination: { limit: 20, offset: 0, totalCount: 1 },
+};
+
+export const adminClinicsFilteredBySearch = {
+  clinics: adminClinics.clinics.filter((c) => c.name.toLowerCase().includes('happy')),
+  pagination: { limit: 20, offset: 0, totalCount: 1 },
+};
+
+// ─── Incomplete Onboarding Variant ──────────────────────────────────────────
+
+export const clinicOnboardingIncomplete = {
+  clinicId: 'clinic-new-001',
+  clinicName: 'New Vet Clinic',
+  clinicStatus: 'pending' as const,
+  profileComplete: false,
+  stripe: {
+    status: 'not_started' as const,
+    chargesEnabled: false,
+    payoutsEnabled: false,
+    accountId: null,
+  },
+  mfaEnabled: false,
+  mfaRequired: true,
+  allComplete: false,
+};

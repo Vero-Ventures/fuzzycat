@@ -40,12 +40,16 @@ mock.module('@/lib/rate-limit', () => ({
   checkRateLimit: () => Promise.resolve({ success: true }),
 }));
 
+const mockVerifyCaptcha = mock(() => Promise.resolve(true));
 mock.module('@/lib/captcha', () => ({
-  verifyCaptcha: () => Promise.resolve(true),
+  verifyCaptcha: mockVerifyCaptcha,
 }));
 
+const mockServerEnv = mock(
+  () => ({ TURNSTILE_SECRET_KEY: '' }) as Record<string, string | undefined>,
+);
 mock.module('@/lib/env', () => ({
-  serverEnv: () => ({ TURNSTILE_SECRET_KEY: '' }),
+  serverEnv: mockServerEnv,
   _resetEnvCache: () => {},
 }));
 
@@ -67,6 +71,11 @@ mock.module('@/lib/logger', () => ({
     warn: mock(),
     error: mock(),
   },
+}));
+
+const mockCaptureException = mock();
+mock.module('@sentry/nextjs', () => ({
+  captureException: mockCaptureException,
 }));
 
 // Import AFTER all mocks are set up
@@ -168,7 +177,9 @@ describe('signUpOwner', () => {
     mockInsertValues.mockRejectedValue(new Error('connection refused'));
 
     const result = await signUpOwner(makeOwnerFormData());
-    expect(result.error).toBe('Failed to create account. Please try again.');
+    expect(result.error).toBe(
+      'Account setup failed due to a database error. Please try again or contact support. (REF: DB-OWNER)',
+    );
   });
 
   it('deletes auth user on DB insert failure', async () => {
@@ -194,6 +205,17 @@ describe('signUpOwner', () => {
   it('returns validation error for invalid email', async () => {
     const result = await signUpOwner(makeOwnerFormData({ email: 'not-an-email' }));
     expect(result.error).toContain('Invalid email');
+  });
+
+  it('calls Sentry.captureException on DB insert failure', async () => {
+    const dbError = new Error('connection refused');
+    mockInsertValues.mockRejectedValue(dbError);
+
+    await signUpOwner(makeOwnerFormData());
+    expect(mockCaptureException).toHaveBeenCalledWith(dbError, {
+      tags: { component: 'signup', step: 'db_insert', role: 'owner' },
+      extra: { userId: USER_ID, email: 'owner@example.com' },
+    });
   });
 });
 
@@ -242,7 +264,9 @@ describe('signUpClinic', () => {
     mockInsertValues.mockRejectedValue(new Error('timeout'));
 
     const result = await signUpClinic(makeClinicFormData());
-    expect(result.error).toBe('Failed to create account. Please try again.');
+    expect(result.error).toBe(
+      'Account setup failed due to a database error. Please try again or contact support. (REF: DB-CLINIC)',
+    );
   });
 
   it('deletes auth user on DB insert failure', async () => {
@@ -268,5 +292,44 @@ describe('signUpClinic', () => {
   it('returns validation error for invalid state code', async () => {
     const result = await signUpClinic(makeClinicFormData({ addressState: 'California' }));
     expect(result.error).toContain('State must be a 2-letter code');
+  });
+
+  it('calls Sentry.captureException on DB insert failure', async () => {
+    const dbError = new Error('timeout');
+    mockInsertValues.mockRejectedValue(dbError);
+
+    await signUpClinic(makeClinicFormData());
+    expect(mockCaptureException).toHaveBeenCalledWith(dbError, {
+      tags: { component: 'signup', step: 'db_insert', role: 'clinic' },
+      extra: { userId: USER_ID, email: 'clinic@example.com' },
+    });
+  });
+});
+
+describe('validateCaptcha (DISABLE_CAPTCHA flag)', () => {
+  beforeEach(() => {
+    mock.restore();
+    setupSuccessfulAuth();
+    mockInsertValues.mockResolvedValue(undefined);
+    mockDeleteUser.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    mockSignUp.mockReset();
+    mockUpdateUserById.mockReset();
+    mockDeleteUser.mockReset();
+    mockInsert.mockClear();
+    mockInsertValues.mockClear();
+    mockCapture.mockClear();
+    mockVerifyCaptcha.mockClear();
+    mockCaptureException.mockClear();
+  });
+
+  it('bypasses CAPTCHA when DISABLE_CAPTCHA=true even with TURNSTILE_SECRET_KEY set', async () => {
+    mockServerEnv.mockReturnValue({ TURNSTILE_SECRET_KEY: 'real-key', DISABLE_CAPTCHA: 'true' });
+
+    const result = await signUpOwner(makeOwnerFormData());
+    expect(result.error).toBeNull();
+    expect(mockVerifyCaptcha).not.toHaveBeenCalled();
   });
 });

@@ -42,6 +42,11 @@ export async function verifyCaptcha(token: string): Promise<boolean> {
     }
 
     const data: TurnstileVerifyResponse = await response.json();
+    if (!data.success) {
+      logger.warn('Turnstile CAPTCHA verification failed', {
+        errorCodes: data['error-codes'],
+      });
+    }
     return data.success;
   } catch (error) {
     logger.error('verifyCaptcha: Network error', { error });

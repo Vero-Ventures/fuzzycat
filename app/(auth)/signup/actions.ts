@@ -1,5 +1,6 @@
 'use server';
 
+import * as Sentry from '@sentry/nextjs';
 import { z } from 'zod';
 import { verifyCaptcha } from '@/lib/captcha';
 import { logger } from '@/lib/logger';
@@ -48,7 +49,9 @@ const clinicSchema = z.object({
 
 async function validateCaptcha(formData: FormData): Promise<ActionResult | null> {
   const { serverEnv } = await import('@/lib/env');
-  if (serverEnv().TURNSTILE_SECRET_KEY) {
+  const env = serverEnv();
+  if (env.DISABLE_CAPTCHA === 'true') return null;
+  if (env.TURNSTILE_SECRET_KEY) {
     const captchaToken = formData.get('captchaToken') as string | null;
     const captchaValid = await verifyCaptcha(captchaToken ?? '');
     if (!captchaValid) {
@@ -67,7 +70,11 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   }
 
   if (!data.user) {
-    return { userId: null, hasSession: false, error: 'Failed to create user' };
+    return {
+      userId: null,
+      hasSession: false,
+      error: 'Account creation failed — no user returned. (REF: AUTH-EMPTY)',
+    };
   }
 
   // When Supabase has "Confirm email" enabled and user already exists,
@@ -82,16 +89,21 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   });
 
   if (roleError) {
-    logger.error('Failed to set user role', {
+    logger.error('Signup failed at role assignment', {
+      step: 'role_assignment',
       userId: data.user.id,
       role,
       error: roleError.message,
     });
-    await admin.auth.admin.deleteUser(data.user.id);
+    Sentry.captureException(roleError, {
+      tags: { component: 'signup', step: 'role_assignment' },
+      extra: { userId: data.user.id, role },
+    });
+    await deleteAuthUser(data.user.id);
     return {
       userId: null,
       hasSession: false,
-      error: 'Failed to configure account. Please try again.',
+      error: 'Account created but role assignment failed. Please try again. (REF: ROLE-FAIL)',
     };
   }
 
@@ -106,6 +118,10 @@ async function deleteAuthUser(userId: string | null) {
     await admin.auth.admin.deleteUser(userId);
   } catch (_error) {
     logger.error('Failed to delete orphaned auth user', { userId });
+    Sentry.captureException(_error, {
+      tags: { component: 'signup', step: 'orphan_cleanup' },
+      extra: { userId },
+    });
   }
 }
 
@@ -144,15 +160,26 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     });
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
-    logger.error('Failed to insert owner into DB', {
+    logger.error('Signup failed at DB insert', {
+      step: 'db_insert',
+      role: 'owner',
       userId,
+      email,
+      errorCode: (error as { code?: string }).code,
       error: error instanceof Error ? error.message : String(error),
+    });
+    Sentry.captureException(error, {
+      tags: { component: 'signup', step: 'db_insert', role: 'owner' },
+      extra: { userId, email },
     });
     await deleteAuthUser(userId);
     if (isDuplicate) {
       return { error: DUPLICATE_EMAIL_ERROR };
     }
-    return { error: 'Failed to create account. Please try again.' };
+    return {
+      error:
+        'Account setup failed due to a database error. Please try again or contact support. (REF: DB-OWNER)',
+    };
   }
 
   if (userId) {
@@ -201,15 +228,26 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
     });
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
-    logger.error('Failed to insert clinic into DB', {
+    logger.error('Signup failed at DB insert', {
+      step: 'db_insert',
+      role: 'clinic',
       userId,
+      email,
+      errorCode: (error as { code?: string }).code,
       error: error instanceof Error ? error.message : String(error),
+    });
+    Sentry.captureException(error, {
+      tags: { component: 'signup', step: 'db_insert', role: 'clinic' },
+      extra: { userId, email },
     });
     await deleteAuthUser(userId);
     if (isDuplicate) {
       return { error: DUPLICATE_EMAIL_ERROR };
     }
-    return { error: 'Failed to create account. Please try again.' };
+    return {
+      error:
+        'Account setup failed due to a database error. Please try again or contact support. (REF: DB-CLINIC)',
+    };
   }
 
   if (userId) {

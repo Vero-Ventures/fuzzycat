@@ -127,7 +127,8 @@ export default function HowItWorksPage() {
                   <strong className="text-foreground">
                     {NUM_INSTALLMENTS} biweekly installments
                   </strong>{' '}
-                  &mdash; the remaining 75% is divided equally and deducted via ACH every 2 weeks.
+                  &mdash; the remaining {100 - depositPercent}% is divided equally and deducted via
+                  ACH every 2 weeks.
                 </span>
               </li>
               <li className="flex items-start gap-2">

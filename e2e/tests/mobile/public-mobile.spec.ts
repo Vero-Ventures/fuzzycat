@@ -36,7 +36,7 @@ test.describe('Public Pages — Mobile', () => {
     }
 
     // Pricing cards should stack
-    await expect(page.getByText(/flat 6% fee/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/flat 6% fee/i).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/no credit check/i).first()).toBeVisible({ timeout: 3000 });
 
     await testInfo.attach('mobile-landing-pricing', {

@@ -5,7 +5,6 @@
     "components/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
     "server/**/*.ts",
-    "types/**/*.ts",
     "scripts/*.ts",
     "e2e/**/*.ts",
     "*.test.ts"
@@ -16,7 +15,7 @@
   "drizzle": false,
   "ignoreDependencies": [
     "@commitlint/cli",
-    "@radix-ui/*",
+    "@next/env",
     "postcss",
     "radix-ui",
     "shadcn",

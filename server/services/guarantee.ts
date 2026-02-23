@@ -87,9 +87,6 @@ export async function contributeToReserve(
   );
 }
 
-/** @deprecated Use contributeToReserve instead. */
-export const contributeToRiskPool = contributeToReserve;
-
 // ── Balance & health queries ──────────────────────────────────────────
 
 /**

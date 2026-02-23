@@ -178,7 +178,6 @@ mock.module('@/server/services/plaid', () => ({
 mock.module('@/server/services/guarantee', () => ({
   calculateContribution: mock(),
   contributeToReserve: mock(),
-  contributeToRiskPool: mock(),
   getRiskPoolBalance: mock(() => Promise.resolve(0)),
   getRiskPoolHealth: mock(() => Promise.resolve({ balance: 0, target: 0, ratio: 0 })),
 }));

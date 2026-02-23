@@ -13,6 +13,22 @@ import { clinics, owners } from '@/server/db/schema';
 
 type ActionResult = { error: string | null; needsEmailConfirmation?: boolean };
 
+const DUPLICATE_EMAIL_ERROR = 'An account with this email already exists. Please log in instead.';
+
+/** Detect PostgreSQL unique constraint violations (error code 23505) from Drizzle errors. */
+function isUniqueConstraintViolation(error: unknown): boolean {
+  const pgError = error as { code?: string };
+  if (pgError.code === '23505') return true;
+  if (error instanceof Error) {
+    return (
+      error.message.includes('unique') ||
+      error.message.includes('23505') ||
+      error.message.includes('duplicate key')
+    );
+  }
+  return false;
+}
+
 const ownerSchema = z.object({
   email: z.string().email('Invalid email address.'),
   password: z.string().min(8, 'Password must be at least 8 characters.'),
@@ -52,6 +68,12 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
 
   if (!data.user) {
     return { userId: null, hasSession: false, error: 'Failed to create user' };
+  }
+
+  // When Supabase has "Confirm email" enabled and user already exists,
+  // it returns success with an empty identities array instead of an error.
+  if (data.user.identities?.length === 0) {
+    return { userId: null, hasSession: false, error: DUPLICATE_EMAIL_ERROR };
   }
 
   const admin = createAdminClient();
@@ -121,11 +143,15 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
       paymentMethod: 'debit_card',
     });
   } catch (error) {
+    const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Failed to insert owner into DB', {
       userId,
       error: error instanceof Error ? error.message : String(error),
     });
     await deleteAuthUser(userId);
+    if (isDuplicate) {
+      return { error: DUPLICATE_EMAIL_ERROR };
+    }
     return { error: 'Failed to create account. Please try again.' };
   }
 
@@ -174,11 +200,15 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
       addressZip,
     });
   } catch (error) {
+    const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Failed to insert clinic into DB', {
       userId,
       error: error instanceof Error ? error.message : String(error),
     });
     await deleteAuthUser(userId);
+    if (isDuplicate) {
+      return { error: DUPLICATE_EMAIL_ERROR };
+    }
     return { error: 'Failed to create account. Please try again.' };
   }
 

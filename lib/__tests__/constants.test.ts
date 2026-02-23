@@ -5,7 +5,7 @@ import {
   MIN_BILL_CENTS,
   NUM_INSTALLMENTS,
   PLATFORM_FEE_RATE,
-  RISK_POOL_RATE,
+  PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 
 describe('business constants', () => {
@@ -21,8 +21,8 @@ describe('business constants', () => {
     expect(CLINIC_SHARE_RATE).toBe(0.03);
   });
 
-  it('risk pool rate is 1%', () => {
-    expect(RISK_POOL_RATE).toBe(0.01);
+  it('platform reserve rate is 1%', () => {
+    expect(PLATFORM_RESERVE_RATE).toBe(0.01);
   });
 
   it('number of installments is 6', () => {
@@ -33,10 +33,10 @@ describe('business constants', () => {
     expect(MIN_BILL_CENTS).toBe(50_000);
   });
 
-  it('platform fee + clinic share + risk pool < platform fee (FuzzyCat retains margin)', () => {
-    // FuzzyCat charges 6% to owner, pays 3% to clinic, allocates 1% to risk pool
+  it('platform fee + clinic share + reserve < platform fee (FuzzyCat retains margin)', () => {
+    // FuzzyCat charges 6% to owner, pays 3% to clinic, allocates 1% to platform reserve
     // Remaining ~2% is gross margin before processing costs
-    expect(CLINIC_SHARE_RATE + RISK_POOL_RATE).toBeLessThan(PLATFORM_FEE_RATE);
+    expect(CLINIC_SHARE_RATE + PLATFORM_RESERVE_RATE).toBeLessThan(PLATFORM_FEE_RATE);
   });
 
   it('deposit + installments cover the full amount', () => {

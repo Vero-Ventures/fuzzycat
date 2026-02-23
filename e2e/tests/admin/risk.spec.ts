@@ -10,12 +10,12 @@ test.describe('Admin Risk', () => {
     await expect(page.getByRole('heading', { name: /risk/i })).toBeVisible();
   });
 
-  test('shows risk pool dashboard', async ({ page }) => {
-    // The page should display risk pool / fund health information
-    const riskPoolSection = page.getByText(
-      /risk pool|fund health|pool balance|fund balance|guarantee fund/i,
+  test('shows platform reserve dashboard', async ({ page }) => {
+    // The page should display platform reserve / fund health information
+    const reserveSection = page.getByText(
+      /platform reserve|reserve balance|reserve health|fund balance/i,
     );
-    await expect(riskPoolSection.first()).toBeVisible({ timeout: 10000 });
+    await expect(reserveSection.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('shows soft collections list', async ({ page }) => {

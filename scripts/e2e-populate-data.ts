@@ -20,7 +20,7 @@ import {
   CLINIC_SHARE_RATE,
   NUM_INSTALLMENTS,
   PLATFORM_FEE_RATE,
-  RISK_POOL_RATE,
+  PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 import { db } from '@/server/db';
 import type * as schema from '@/server/db/schema';
@@ -117,7 +117,7 @@ async function createPlanWithPayments(
   // Risk pool + audit
   await tx.insert(riskPool).values({
     planId: planRecord.id,
-    contributionCents: Math.round(calc.totalWithFeeCents * RISK_POOL_RATE),
+    contributionCents: Math.round(calc.totalWithFeeCents * PLATFORM_RESERVE_RATE),
     type: 'contribution',
   });
 

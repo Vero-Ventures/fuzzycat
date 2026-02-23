@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
@@ -321,7 +321,7 @@ async function recordRiskPoolContribution(
   planId: string,
   amountCents: number,
 ): Promise<void> {
-  const riskContributionCents = percentOfCents(amountCents, RISK_POOL_RATE);
+  const riskContributionCents = percentOfCents(amountCents, PLATFORM_RESERVE_RATE);
 
   await tx.insert(riskPool).values({
     planId: planId,
@@ -366,7 +366,7 @@ async function createPendingPayout(
   }
 
   // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
-  const riskContributionCents = percentOfCents(params.amountCents, RISK_POOL_RATE);
+  const riskContributionCents = percentOfCents(params.amountCents, PLATFORM_RESERVE_RATE);
   const platformRetainedCents = percentOfCents(params.amountCents, PLATFORM_FEE_RATE / 2);
   const transferAmountCents = params.amountCents - platformRetainedCents - riskContributionCents;
   const clinicShareCents = percentOfCents(params.amountCents, CLINIC_SHARE_RATE);
@@ -571,7 +571,7 @@ export async function triggerPayout(paymentId: string): Promise<void> {
     return;
   }
 
-  const riskContributionCents = percentOfCents(payment.amountCents, RISK_POOL_RATE);
+  const riskContributionCents = percentOfCents(payment.amountCents, PLATFORM_RESERVE_RATE);
   const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
   const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
 

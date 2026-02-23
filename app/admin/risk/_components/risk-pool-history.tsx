@@ -46,21 +46,19 @@ export function RiskPoolHistory() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Risk Pool History</CardTitle>
-        <CardDescription>
-          Timeline of contributions, claims, and recoveries in the guarantee fund.
-        </CardDescription>
+        <CardTitle>Platform Reserve History</CardTitle>
+        <CardDescription>Timeline of contributions to the platform reserve fund.</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <RiskPoolHistorySkeleton />
         ) : error ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            Unable to load risk pool history.
+            Unable to load reserve history.
           </p>
         ) : !data || data.entries.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            No risk pool entries yet. Entries will appear as enrollments are created.
+            No reserve entries yet. Entries will appear as enrollments are created.
           </p>
         ) : (
           <>

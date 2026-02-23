@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Clinics', href: '/admin/clinics', icon: Building2 },
   { label: 'Payments', href: '/admin/payments', icon: CreditCard },
-  { label: 'Risk Pool', href: '/admin/risk', icon: Shield },
+  { label: 'Platform Reserve', href: '/admin/risk', icon: Shield },
 ] as const;
 
 export function AdminSidebar() {

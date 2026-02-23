@@ -407,7 +407,7 @@ describe('retryFailedPayment', () => {
 describe('escalateDefault', () => {
   afterEach(clearAllMocks);
 
-  it('marks plan as defaulted and creates risk pool claim', async () => {
+  it('marks plan as defaulted and writes off payments', async () => {
     // First tx select: fetch plan
     mockTxSelectLimit.mockResolvedValueOnce([
       { id: 'plan-1', status: 'active', remainingCents: 60_000, clinicId: 'clinic-1' },
@@ -423,13 +423,13 @@ describe('escalateDefault', () => {
     // Verify plan status updated to defaulted
     expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'defaulted' }));
 
-    // Verify risk pool claim created
+    // Verify no risk pool claim is created (guarantee removed)
     const insertCalls = mockTxInsertValues.mock.calls;
     const riskPoolClaim = insertCalls.find((call: unknown[]) => {
       const arg = call[0] as Record<string, unknown>;
       return arg.type === 'claim';
     });
-    expect(riskPoolClaim).toBeTruthy();
+    expect(riskPoolClaim).toBeUndefined();
   });
 
   it('skips when plan is already defaulted', async () => {

@@ -10,8 +10,11 @@ export const DEPOSIT_RATE = 0.25;
 /** Revenue share paid to clinics per enrollment. */
 export const CLINIC_SHARE_RATE = 0.03;
 
-/** Fraction of each transaction allocated to the risk/guarantee pool. */
-export const RISK_POOL_RATE = 0.01;
+/** Fraction of each transaction allocated to the platform reserve. */
+export const PLATFORM_RESERVE_RATE = 0.01;
+
+/** @deprecated Use PLATFORM_RESERVE_RATE instead. */
+export const RISK_POOL_RATE = PLATFORM_RESERVE_RATE;
 
 /** Number of biweekly installments after the deposit. */
 export const NUM_INSTALLMENTS = 6;

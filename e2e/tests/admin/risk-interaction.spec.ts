@@ -23,20 +23,20 @@ test.describe('Admin Risk — Interactions', () => {
     await mockAllTrpc(page);
   });
 
-  test('risk pool balance breakdown renders', async ({ page }) => {
+  test('platform reserve balance breakdown renders', async ({ page }) => {
     await gotoPortalPage(page, '/admin/risk');
 
     // Balance: $12,500.00
     await expect(page.getByText(/\$12,500/).first()).toBeVisible({ timeout: 5000 });
 
-    // Contributions, claims, recoveries
+    // Contributions
     await expect(page.getByText(/contribution/i).first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('risk pool entries table renders', async ({ page }) => {
+  test('reserve entries table renders', async ({ page }) => {
     await gotoPortalPage(page, '/admin/risk');
 
-    // Pool entries
+    // Reserve entries
     const table = page.locator('table').or(page.locator('[role="table"]'));
     await expect(table.first()).toBeVisible({ timeout: 5000 });
   });

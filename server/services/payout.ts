@@ -1,5 +1,5 @@
 import { and, count, desc, eq, sum } from 'drizzle-orm';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
@@ -87,7 +87,7 @@ export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBrea
   // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)
   const billPortionCents = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
   const platformFeeCents = paymentAmountCents - billPortionCents;
-  const riskPoolCents = percentOfCents(billPortionCents, RISK_POOL_RATE);
+  const riskPoolCents = percentOfCents(billPortionCents, PLATFORM_RESERVE_RATE);
   const clinicShareCents = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
 
   // Transfer = bill portion - risk pool + clinic share

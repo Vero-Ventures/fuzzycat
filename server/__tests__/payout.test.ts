@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, RISK_POOL_RATE } from '@/lib/constants';
+import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ describe('calculatePayoutBreakdown', () => {
     // Bill portion = 15900 / 1.06 = 15000 (rounded)
     const expectedBillPortion = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
     const expectedPlatformFee = paymentAmountCents - expectedBillPortion;
-    const expectedRiskPool = percentOfCents(expectedBillPortion, RISK_POOL_RATE);
+    const expectedRiskPool = percentOfCents(expectedBillPortion, PLATFORM_RESERVE_RATE);
     const expectedClinicShare = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
     const expectedTransfer = expectedBillPortion - expectedRiskPool + expectedClinicShare;
 
@@ -84,7 +84,7 @@ describe('calculatePayoutBreakdown', () => {
 
     const expectedBillPortion = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
     const expectedPlatformFee = paymentAmountCents - expectedBillPortion;
-    const expectedRiskPool = percentOfCents(expectedBillPortion, RISK_POOL_RATE);
+    const expectedRiskPool = percentOfCents(expectedBillPortion, PLATFORM_RESERVE_RATE);
     const expectedClinicShare = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
     const expectedTransfer = expectedBillPortion - expectedRiskPool + expectedClinicShare;
 

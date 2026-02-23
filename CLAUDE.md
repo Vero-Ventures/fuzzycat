@@ -1,16 +1,16 @@
 # FuzzyCat
 
-Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). Pet owners pay a flat 6% platform fee. Clinics earn a 3% revenue share per enrollment.
+Payment plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). Pet owners pay a flat 6% platform fee. Clinics earn a 3% revenue share per enrollment.
 
-**Not a lender.** No credit checks, no interest, no loan origination. FuzzyCat guarantees clinic payment through a risk pool model. Legal classification must be resolved before production launch (see GitHub issues #1–#7).
+**Not a lender.** No credit checks, no interest, no loan origination. FuzzyCat does **not** guarantee clinic payment — clinics are responsible for collecting from defaulting owners. Legal classification must be resolved before production launch (see GitHub issues #1–#7).
 
 ## Key Business Rules
 
 - **Bill range**: $500 minimum (processing costs exceed margin below this), $25,000 maximum (risk exposure cap). Enforced in `lib/constants.ts` and enrollment router Zod schema.
-- **Fee structure**: 6% platform fee to pet owner, 3% revenue share to clinic, 1% to risk pool
+- **Fee structure**: 6% platform fee to pet owner, 3% revenue share to clinic, 1% platform reserve
 - **Deposit**: 25% of total (incl. fee), charged immediately via debit card (not ACH — too slow)
 - **Installments**: remaining 75% split into 6 biweekly ACH debits
-- **Default handling**: 3 failed retries -> plan marked "defaulted" -> risk pool reimburses clinic. Retries are payday-aligned (next Friday, 1st, or 15th at least 2 days out).
+- **Default handling**: 3 failed retries -> plan marked "defaulted" -> clinic notified, responsible for collection. Retries are payday-aligned (next Friday, 1st, or 15th at least 2 days out).
 - **Soft collection**: Escalating email reminders at day 1, 7, and 14 after a missed payment before hard default
 - **Clinic 3% share**: Structure as "platform administration compensation", never "referral commission" (anti-kickback risk)
 - **No NY launch** until DFS finalizes BNPL Act regulations (expected late 2026)
@@ -70,7 +70,7 @@ All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Ve
 - **`main` branch is protected.** No direct commits to main — ever. All changes go through feature branches and pull requests. PRs require CI checks to pass before merging.
 - **All work goes through PRs.** Even documentation-only changes (like CLAUDE.md updates) must be on their own branch with a PR.
 - **Squash merge** is the standard merge strategy. Use `gh pr merge N --squash --auto` or `gh pr merge N --squash --delete-branch`.
-- **Required CI checks** (14) — configured via GitHub Branch Protection API (Settings > Branches > main), not in any repo file. All must pass before a PR can merge:
+- **Required CI checks** (13) — configured via GitHub Branch Protection API (Settings > Branches > main), not in any repo file. All must pass before a PR can merge:
   1. `Lint & Format (Biome)` — Biome lint + format
   2. `Type Check` — `tsc --noEmit`
   3. `Build` — `next build`
@@ -84,7 +84,6 @@ All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Ve
   11. `License Compliance` — license compatibility check
   12. `Type Coverage (≥95%)` — TypeScript type coverage threshold
   13. `E2E Tests (Playwright)` — end-to-end browser tests
-  14. `codecov/patch` — code coverage threshold on changed lines
 - **Informational checks** (not required): CodeQL, Vercel Preview, Smoke Test, E2E Production Tests.
 - **`strict: true`** — PRs must be up-to-date with `main` before merging.
 
@@ -259,7 +258,7 @@ fuzzycat/
 │   │   ├── plaid.ts              # Plaid Link + balance check
 │   │   ├── collection.ts         # Failed payment retry logic
 │   │   ├── soft-collection.ts    # Escalating email reminders (day 1/7/14)
-│   │   ├── guarantee.ts          # Risk pool (contributions, claims, recoveries)
+│   │   ├── guarantee.ts          # Platform reserve (contributions, balance queries)
 │   │   └── sms.ts                # SMS notifications (Twilio)
 │   └── trpc.ts                   # tRPC init
 ├── scripts/                      # seed.ts, create-admin.ts, e2e-create-test-users.ts
@@ -295,7 +294,7 @@ COLLECTION (biweekly cron):
   2. On success → update status, trigger clinic payout via Stripe Connect
   3. On failure → retry in 3 days (up to 3 retries), SMS/email owner
   4. Soft collection: escalating email reminders at day 1, 7, 14 after missed payment
-  5. After 3 failures → plan "defaulted", risk pool reimburses clinic
+  5. After 3 failures → plan "defaulted", clinic notified (responsible for collection)
 
 PAYOUTS:
   1. Stripe Connect transfer to clinic after each successful installment
@@ -382,7 +381,7 @@ When addressing review comments:
 | Area | Issues | Status |
 |------|--------|--------|
 | Project scaffold, Biome, Drizzle, tRPC, Auth, CI | #8–#14 | Done |
-| Backend services (enrollment, payment, payout, audit, risk pool) | #15–#18 | Done |
+| Backend services (enrollment, payment, payout, audit, platform reserve) | #15–#18 | Done |
 | Stripe integration (Checkout, ACH, Connect, webhooks) | #19 | Done |
 | Plaid integration (Link, balance check, webhooks) | #20 | Done |
 | Resend email (10 React Email templates incl. soft-collection) | #21 | Done |
@@ -404,6 +403,8 @@ When addressing review comments:
 | Save debit card during deposit checkout | #165 | Done (PR #170) |
 | Codecov coverage threshold enforcement (80% project, 70% patch) | #171 | Done (PR #173) |
 | Client-side bundle size budget (750 kB gzip) | #172 | Done (PR #174) |
+| Payment method integration (debit card + ACH selection) | #166–#169 | Done |
+| Remove risk pool guarantee logic, rename to platform reserve | — | Done |
 
 ### Open — Security (Remaining)
 
@@ -424,7 +425,7 @@ Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
 
 | Issue | Summary |
 |-------|---------|
-| #125 | Enable "Update Payment Method" in owner settings |
+| #125 | Enable "Update Payment Method" in owner settings (superseded by #168) |
 | #150 | Fix non-functional "Initiate Enrollment" button on Clinic Dashboard (supersedes #130) |
 | #151 | All dashboards show "Unable to load" — tRPC identity resolution failures (supersedes #123, #131) |
 | #152 | Clinic portal pages stuck in loading state (blocked by #151, supersedes #132) |

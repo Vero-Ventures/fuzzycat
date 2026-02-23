@@ -129,6 +129,27 @@ export async function mockExternalServices(page: Page) {
 }
 
 /**
+ * Open the mobile hamburger menu if it exists (i.e. the viewport is narrow enough
+ * for the sidebar to be collapsed into a slide-out drawer).
+ *
+ * Both `AdminSidebar` and `ClinicSidebar` render a button with
+ * `aria-label="Open menu"` that is only visible on viewports below the `md`
+ * breakpoint. This helper clicks that button and waits for the sidebar to
+ * slide open so that nav links become interactable.
+ *
+ * Safe to call on desktop viewports — the button won't be visible and the
+ * helper simply returns without doing anything.
+ */
+export async function openMobileMenuIfNeeded(page: Page) {
+  const openMenuBtn = page.locator('button[aria-label="Open menu"]');
+  if (await openMenuBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await openMenuBtn.click();
+    // Wait for the slide-out animation to complete
+    await page.waitForTimeout(500);
+  }
+}
+
+/**
  * Navigate to a portal page with standard waits.
  * Asserts the page is not redirected to /login and waits for hydration.
  */

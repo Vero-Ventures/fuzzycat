@@ -17,6 +17,7 @@ import {
   gotoPortalPage,
   mockAllTrpc,
   mockExternalServices,
+  openMobileMenuIfNeeded,
   setupPortalMocks,
 } from '../../helpers/portal-test-base';
 import { mockTrpcMutation, mockTrpcQuery, mockTrpcQueryError } from '../../helpers/trpc-mock';
@@ -216,29 +217,15 @@ test.describe('Admin Portal — Mobile', () => {
 
     await gotoPortalPage(page, '/admin/dashboard');
 
-    // Mobile hamburger menu
-    const hamburger = page
-      .getByRole('button', { name: /menu|navigation|toggle/i })
-      .or(page.locator('[aria-label*="menu"]'))
-      .or(page.locator('[aria-label*="Menu"]'));
-
-    if (await hamburger.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await hamburger.click();
-      await page.waitForTimeout(500);
-    }
+    // Open the mobile hamburger menu so sidebar links become visible
+    await openMobileMenuIfNeeded(page);
 
     // Navigate to clinics
     const clinicsLink = page.getByRole('link', { name: /clinic/i });
-    if (
-      await clinicsLink
-        .first()
-        .isVisible({ timeout: 3000 })
-        .catch(() => false)
-    ) {
-      await clinicsLink.first().click();
-      await page.waitForLoadState('domcontentloaded');
-      expect(page.url()).toContain('clinics');
-    }
+    await expect(clinicsLink.first()).toBeVisible({ timeout: 5000 });
+    await clinicsLink.first().click();
+    await page.waitForLoadState('domcontentloaded');
+    expect(page.url()).toContain('clinics');
   });
 
   test('sign out accessible on mobile', async ({ page }) => {
@@ -247,6 +234,9 @@ test.describe('Admin Portal — Mobile', () => {
     await mockAllTrpc(page);
 
     await gotoPortalPage(page, '/admin/dashboard');
+
+    // Sign Out is inside the sidebar — open hamburger menu first on mobile
+    await openMobileMenuIfNeeded(page);
 
     const signOut = page.getByRole('button', { name: /sign out|log out/i });
     await expect(signOut).toBeVisible({ timeout: 5000 });

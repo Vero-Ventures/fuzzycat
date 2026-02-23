@@ -99,7 +99,7 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
       tags: { component: 'signup', step: 'role_assignment' },
       extra: { userId: data.user.id, role },
     });
-    await admin.auth.admin.deleteUser(data.user.id);
+    await deleteAuthUser(data.user.id);
     return {
       userId: null,
       hasSession: false,

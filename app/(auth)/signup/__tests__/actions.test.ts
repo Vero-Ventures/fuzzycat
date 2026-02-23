@@ -322,6 +322,7 @@ describe('validateCaptcha (DISABLE_CAPTCHA flag)', () => {
     mockInsertValues.mockClear();
     mockCapture.mockClear();
     mockVerifyCaptcha.mockClear();
+    mockCaptureException.mockClear();
   });
 
   it('bypasses CAPTCHA when DISABLE_CAPTCHA=true even with TURNSTILE_SECRET_KEY set', async () => {

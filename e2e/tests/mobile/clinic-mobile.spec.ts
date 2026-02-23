@@ -26,6 +26,8 @@ import { mockTrpcMutation, mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Clinic Portal — Mobile', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
+
   // ── Dashboard ──────────────────────────────────────────────────────────────
 
   test('dashboard KPI cards stack correctly on mobile', async ({ page }, testInfo) => {

@@ -10,6 +10,8 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Accessibility — Portals', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
+
   test('portal pages have proper heading hierarchy', async ({ page }) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'clinic.getDashboardStats', clinicDashboardStats);

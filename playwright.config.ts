@@ -81,24 +81,6 @@ export default defineConfig({
       testDir: './e2e/tests/cross-cutting',
       use: { ...devices['Desktop Chrome'] },
     },
-    // ── CI Portal: Owner (mocked tRPC, no auth state) ─────────────────
-    {
-      name: 'owner-ci',
-      testDir: './e2e/tests/owner',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    // ── CI Portal: Clinic (mocked tRPC, no auth state) ────────────────
-    {
-      name: 'clinic-ci',
-      testDir: './e2e/tests/clinic',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    // ── CI Portal: Admin (mocked tRPC, no auth state) ─────────────────
-    {
-      name: 'admin-ci',
-      testDir: './e2e/tests/admin',
-      use: { ...devices['Desktop Chrome'] },
-    },
     // ── Mobile responsive (public/cross-cutting) ──────────────────────
     {
       name: 'mobile',

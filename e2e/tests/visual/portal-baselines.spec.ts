@@ -32,6 +32,8 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Visual Baselines — Owner Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/owner.json' });
+
   test('owner payments baseline', async ({ page }) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'owner.getDashboardSummary', ownerDashboardSummary);
@@ -76,6 +78,8 @@ test.describe('Visual Baselines — Owner Portal', () => {
 });
 
 test.describe('Visual Baselines — Clinic Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
+
   test('clinic dashboard baseline', async ({ page }) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'clinic.getDashboardStats', clinicDashboardStats);
@@ -160,6 +164,8 @@ test.describe('Visual Baselines — Clinic Portal', () => {
 });
 
 test.describe('Visual Baselines — Admin Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/admin.json' });
+
   test('admin dashboard baseline', async ({ page }) => {
     await mockExternalServices(page);
     await mockTrpcQuery(page, 'admin.getPlatformStats', adminPlatformStats);

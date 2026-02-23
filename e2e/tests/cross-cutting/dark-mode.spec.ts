@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Dark Mode', () => {
+test.describe('Dark Mode — Public', () => {
   test('theme toggle switches to dark mode', async ({ page }) => {
     await page.goto('/');
 
@@ -82,9 +82,12 @@ test.describe('Dark Mode', () => {
       });
     }
   });
+});
+
+test.describe('Dark Mode — Portal', () => {
+  test.use({ storageState: 'e2e/auth-state/clinic.json' });
 
   test('portal pages render in dark mode', async ({ page }, testInfo) => {
-    // Mock tRPC for portal pages
     const { mockAllTrpc, setupPortalMocks, mockExternalServices } = await import(
       '../../helpers/portal-test-base'
     );

@@ -141,11 +141,13 @@ export async function gotoPortalPage(page: Page, url: string) {
   }
   expect(page.url()).not.toContain('/login');
 
-  // Wait for portal chrome to render
+  // Wait for portal chrome to render (use .first() to avoid strict mode violation
+  // when both Sign Out button and FuzzyCat link are present)
   await expect(
     page
       .getByRole('button', { name: /sign out/i })
-      .or(page.getByRole('link', { name: /fuzzycat/i }).first()),
+      .or(page.getByRole('link', { name: /fuzzycat/i }))
+      .first(),
   ).toBeVisible({ timeout: 15000 });
 
   // Allow React Query hydration + mock interception

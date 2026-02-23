@@ -1,21 +1,15 @@
-// ── Risk pool / guarantee service ────────────────────────────────────
-// Manages the FuzzyCat guarantee fund. The risk pool is funded by 1% of
-// each enrollment and pays clinics when a pet owner defaults.
-//
-// Three operation types:
-//   - contribution: 1% of transaction total at enrollment
-//   - claim: pays out remaining balance to clinic on default
-//   - recovery: returned funds from soft collection on defaulted plans
+// ── Platform reserve service ─────────────────────────────────────────
+// Manages the FuzzyCat platform reserve fund. The reserve is funded by
+// 1% of each enrollment and provides financial stability for the platform.
 //
 // NOTE: The `contributionCents` column in the risk_pool table is reused
-// for all three entry types (contributions, claims, and recoveries).
-// This is a known naming issue — the column would be better named
-// `amountCents` to reflect its general purpose. A schema migration to
-// rename it is deferred to a future PR to avoid unnecessary risk here.
+// for the contribution amount. This is a known naming issue — the column
+// would be better named `amountCents`. A schema migration to rename it
+// is deferred to a future PR to avoid unnecessary risk here.
 
 import { count, eq, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
-import { RISK_POOL_RATE } from '@/lib/constants';
+import { PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { plans, riskPool } from '@/server/db/schema';
@@ -26,56 +20,50 @@ type DrizzleTx = PgTransaction<any, any, any>;
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-export type RiskPoolEntryType = 'contribution' | 'claim' | 'recovery';
-
-export interface RiskPoolBalance {
-  /** Total cents contributed to the pool across all plans. */
+export interface ReserveBalance {
+  /** Total cents contributed to the reserve across all plans. */
   totalContributionsCents: number;
-  /** Total cents claimed from the pool across all defaulted plans. */
-  totalClaimsCents: number;
-  /** Total cents recovered from soft collection on defaulted plans. */
-  totalRecoveriesCents: number;
-  /** Net balance: contributions + recoveries - claims. */
+  /** Net balance (contributions only — no claims or recoveries). */
   balanceCents: number;
 }
 
-export interface RiskPoolHealth {
-  /** Current pool balance in cents. */
+export interface ReserveHealth {
+  /** Current reserve balance in cents. */
   balanceCents: number;
-  /** Total outstanding guarantee exposure (remaining cents on active plans). */
+  /** Total remaining cents on active plans (exposure metric). */
   outstandingGuaranteesCents: number;
-  /** Ratio of pool balance to outstanding guarantees (>1.0 = fully funded). */
+  /** Ratio of reserve balance to outstanding exposure. */
   coverageRatio: number;
-  /** Number of active plans currently covered by the pool. */
+  /** Number of active plans. */
   activePlanCount: number;
 }
 
 // ── Contributions ─────────────────────────────────────────────────────
 
 /**
- * Calculate the risk pool contribution for a given bill amount.
- * Uses RISK_POOL_RATE (1%) from constants.
+ * Calculate the platform reserve contribution for a given bill amount.
+ * Uses PLATFORM_RESERVE_RATE (1%) from constants.
  */
 export function calculateContribution(totalWithFeeCents: number): number {
-  return percentOfCents(totalWithFeeCents, RISK_POOL_RATE);
+  return percentOfCents(totalWithFeeCents, PLATFORM_RESERVE_RATE);
 }
 
 /**
- * Record a contribution to the risk pool at enrollment time.
+ * Record a contribution to the platform reserve at enrollment time.
  * Called once per plan creation. The contribution is 1% of the total
  * transaction amount (bill + fee).
  *
  * Supports an optional Drizzle transaction so it can be called
  * atomically with plan creation.
  */
-export async function contributeToRiskPool(
+export async function contributeToReserve(
   planId: string,
   contributionCents: number,
   tx?: DrizzleTx,
 ): Promise<void> {
   if (contributionCents <= 0) {
     throw new RangeError(
-      `contributeToRiskPool: contributionCents must be positive, got ${contributionCents}`,
+      `contributeToReserve: contributionCents must be positive, got ${contributionCents}`,
     );
   }
 
@@ -99,89 +87,17 @@ export async function contributeToRiskPool(
   );
 }
 
-// ── Claims ────────────────────────────────────────────────────────────
-
-/**
- * Record a claim against the risk pool when a plan defaults.
- * The claim amount is the remaining unpaid balance that FuzzyCat
- * guarantees to the clinic.
- *
- * Supports an optional Drizzle transaction for atomicity with the
- * plan default operation.
- */
-export async function claimFromRiskPool(
-  planId: string,
-  claimCents: number,
-  tx?: DrizzleTx,
-): Promise<void> {
-  if (claimCents <= 0) {
-    throw new RangeError(`claimFromRiskPool: claimCents must be positive, got ${claimCents}`);
-  }
-
-  const executor = tx ?? db;
-
-  await executor.insert(riskPool).values({
-    planId,
-    contributionCents: claimCents,
-    type: 'claim',
-  });
-
-  await logAuditEvent(
-    {
-      entityType: 'risk_pool',
-      entityId: planId,
-      action: 'claimed',
-      newValue: { type: 'claim', claimCents },
-      actorType: 'system',
-    },
-    tx,
-  );
-}
-
-// ── Recoveries ────────────────────────────────────────────────────────
-
-/**
- * Record a recovery (funds returned to the pool from soft collection
- * on a defaulted plan).
- */
-export async function recordRecovery(
-  planId: string,
-  recoveryCents: number,
-  tx?: DrizzleTx,
-): Promise<void> {
-  if (recoveryCents <= 0) {
-    throw new RangeError(`recordRecovery: recoveryCents must be positive, got ${recoveryCents}`);
-  }
-
-  const executor = tx ?? db;
-
-  await executor.insert(riskPool).values({
-    planId,
-    contributionCents: recoveryCents,
-    type: 'recovery',
-  });
-
-  await logAuditEvent(
-    {
-      entityType: 'risk_pool',
-      entityId: planId,
-      action: 'recovered',
-      newValue: { type: 'recovery', recoveryCents },
-      actorType: 'system',
-    },
-    tx,
-  );
-}
-
 // ── Balance & health queries ──────────────────────────────────────────
 
 /**
- * Get the current risk pool balance broken down by type.
+ * Get the current platform reserve balance.
  *
- * Contributions and recoveries increase the pool; claims decrease it.
- * Uses a single SQL query with conditional aggregation.
+ * Returns total contributions. Claims and recoveries are no longer used
+ * but the query still aggregates them for backwards-compatible admin views.
  */
-export async function getRiskPoolBalance(): Promise<RiskPoolBalance> {
+export async function getRiskPoolBalance(): Promise<
+  ReserveBalance & { totalClaimsCents: number; totalRecoveriesCents: number }
+> {
   const result = await db
     .select({
       totalContributionsCents: sql<number>`coalesce(sum(case when ${riskPool.type} = 'contribution' then ${riskPool.contributionCents} else 0 end), 0)`,
@@ -210,13 +126,13 @@ export async function getRiskPoolBalance(): Promise<RiskPoolBalance> {
 }
 
 /**
- * Get risk pool health metrics for the admin dashboard.
+ * Get platform reserve health metrics for the admin dashboard.
  *
- * Returns the pool balance, total outstanding guarantee exposure
+ * Returns the reserve balance, total outstanding exposure
  * (remaining cents on active plans), coverage ratio, and active
  * plan count.
  */
-export async function getRiskPoolHealth(): Promise<RiskPoolHealth> {
+export async function getRiskPoolHealth(): Promise<ReserveHealth> {
   const [balance, outstandingResult] = await Promise.all([
     getRiskPoolBalance(),
     db

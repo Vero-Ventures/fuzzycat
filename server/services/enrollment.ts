@@ -3,7 +3,7 @@
 // payment records. All financial operations are wrapped in db.transaction().
 
 import { and, eq } from 'drizzle-orm';
-import { MIN_BILL_CENTS, RISK_POOL_RATE } from '@/lib/constants';
+import { MIN_BILL_CENTS, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
@@ -109,7 +109,10 @@ export async function createEnrollment(
   const schedule = calculatePaymentSchedule(billAmountCents, enrollmentDate);
 
   // ── Risk pool contribution (1% of total with fee) ────────────────
-  const riskPoolContributionCents = percentOfCents(schedule.totalWithFeeCents, RISK_POOL_RATE);
+  const riskPoolContributionCents = percentOfCents(
+    schedule.totalWithFeeCents,
+    PLATFORM_RESERVE_RATE,
+  );
 
   // ── Execute all inserts in a single transaction ──────────────────
   return await db.transaction(async (tx) => {

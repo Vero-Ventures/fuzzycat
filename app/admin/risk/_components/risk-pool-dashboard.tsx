@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, Shield, TrendingDown, TrendingUp } from 'lucide-react';
+import { DollarSign, Shield, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +21,7 @@ export function RiskPoolDashboard() {
     return (
       <Card>
         <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">Unable to load risk pool data.</p>
+          <p className="text-sm text-muted-foreground">Unable to load platform reserve data.</p>
         </CardContent>
       </Card>
     );
@@ -39,18 +39,16 @@ export function RiskPoolDashboard() {
   return (
     <div className="space-y-4">
       {/* Key metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Pool Balance */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Reserve Balance */}
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pool Balance</CardTitle>
+            <CardTitle className="text-sm font-medium">Reserve Balance</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCents(balance.balanceCents)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Net: contributions + recoveries - claims
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Net platform reserve</p>
           </CardContent>
         </Card>
 
@@ -66,27 +64,15 @@ export function RiskPoolDashboard() {
           </CardContent>
         </Card>
 
-        {/* Total Claims */}
+        {/* Active Plans */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Claims</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCents(balance.totalClaimsCents)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Paid to clinics on defaults</p>
-          </CardContent>
-        </Card>
-
-        {/* Recoveries */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recoveries</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCents(balance.totalRecoveriesCents)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Recovered from soft collection</p>
+            <div className="text-2xl font-bold">{health.activePlanCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Currently in repayment</p>
           </CardContent>
         </Card>
       </div>
@@ -94,12 +80,12 @@ export function RiskPoolDashboard() {
       {/* Coverage ratio */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Coverage Health</CardTitle>
+          <CardTitle className="text-sm font-medium">Reserve Health</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              {formatCents(health.balanceCents)} pool /{' '}
+              {formatCents(health.balanceCents)} reserve /{' '}
               {formatCents(health.outstandingGuaranteesCents)} outstanding
             </span>
             <span className="text-sm font-medium">{healthStatus}</span>
@@ -120,8 +106,8 @@ export function RiskPoolDashboard() {
 function RiskPoolDashboardSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-24" />

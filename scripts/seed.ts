@@ -3,7 +3,7 @@ import {
   DEPOSIT_RATE,
   NUM_INSTALLMENTS,
   PLATFORM_FEE_RATE,
-  RISK_POOL_RATE,
+  PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 import { db } from '@/server/db';
 import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
@@ -306,7 +306,7 @@ async function seed() {
     console.log('Seeding risk pool...');
     await tx.insert(riskPool).values({
       planId: PLAN_1_ID,
-      contributionCents: Math.round(PLAN_1_BILL_CENTS * RISK_POOL_RATE),
+      contributionCents: Math.round(PLAN_1_BILL_CENTS * PLATFORM_RESERVE_RATE),
       type: 'contribution',
     });
 

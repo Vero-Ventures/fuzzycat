@@ -2,7 +2,7 @@ import { and, eq, inArray, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { getNextLikelyPaydayAfterDays } from '@/lib/utils/payday';
 import { db } from '@/server/db';
-import { payments, plans, riskPool } from '@/server/db/schema';
+import { payments, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 
 /** Maximum number of retry attempts before escalating to default. */
@@ -146,8 +146,8 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
 
 /**
  * Escalate a plan to defaulted status after a payment has exhausted all retries.
- * Marks the plan as 'defaulted' and creates a risk pool claim for the
- * remaining unpaid balance to guarantee clinic payment.
+ * Marks the plan as 'defaulted', writes off remaining unpaid payments, and
+ * notifies the clinic. The clinic is responsible for collecting from the owner.
  *
  * All operations run inside a transaction.
  */
@@ -210,35 +210,6 @@ export async function escalateDefault(planId: string): Promise<void> {
       },
       tx,
     );
-
-    // Create risk pool claim if there's unpaid balance
-    if (unpaidCents > 0) {
-      await tx.insert(riskPool).values({
-        planId,
-        contributionCents: unpaidCents,
-        type: 'claim',
-      });
-
-      await logAuditEvent(
-        {
-          entityType: 'risk_pool',
-          entityId: planId,
-          action: 'claim_created',
-          newValue: {
-            claimAmountCents: unpaidCents,
-            clinicId: plan.clinicId,
-          },
-          actorType: 'system',
-        },
-        tx,
-      );
-
-      logger.info('Risk pool claim created for defaulted plan', {
-        planId,
-        unpaidCents,
-        clinicId: plan.clinicId,
-      });
-    }
 
     // Mark remaining unpaid payments as written_off
     await tx

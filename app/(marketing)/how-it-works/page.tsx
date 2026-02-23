@@ -171,9 +171,9 @@ export default function HowItWorksPage() {
             Increase treatment acceptance. Earn revenue.
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            FuzzyCat is the only payment plan product that pays clinics instead of charging them.
-            Offer flexible payment options to your clients and earn a {clinicSharePercent}% revenue
-            share on every enrollment.
+            FuzzyCat is the only payment plan product that pays clinics a revenue share instead of
+            charging them fees. Offer flexible payment options to your clients and earn a{' '}
+            {clinicSharePercent}% revenue share on every enrollment.
           </p>
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -199,12 +199,12 @@ export default function HowItWorksPage() {
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                   <Shield className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-lg">Guaranteed payment</CardTitle>
+                <CardTitle className="text-lg">Automated payment recovery</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  If a pet owner defaults on their payment plan, FuzzyCat&apos;s risk pool covers
-                  your remaining balance. You never absorb the default risk.
+                  If a payment fails, FuzzyCat automatically retries with smart scheduling. We send
+                  friendly reminders to pet owners and keep clinics informed throughout the process.
                 </p>
               </CardContent>
             </Card>
@@ -289,10 +289,10 @@ export default function HowItWorksPage() {
               <AccordionItem value="what-is-fuzzycat">
                 <AccordionTrigger>What is FuzzyCat?</AccordionTrigger>
                 <AccordionContent>
-                  FuzzyCat is a guaranteed payment plan platform for veterinary care. We help pet
-                  owners pay their vet bills in {NUM_INSTALLMENTS} biweekly installments over 12
-                  weeks. We are not a lender &mdash; we are a payment facilitation platform with a
-                  flat {feePercent}% fee and no credit check.
+                  FuzzyCat is a payment plan platform for veterinary care. We help pet owners pay
+                  their vet bills in {NUM_INSTALLMENTS} biweekly installments over 12 weeks. We are
+                  not a lender &mdash; we are a payment facilitation platform with a flat{' '}
+                  {feePercent}% fee and no credit check.
                 </AccordionContent>
               </AccordionItem>
 
@@ -355,9 +355,10 @@ export default function HowItWorksPage() {
               <AccordionItem value="clinic-guarantee">
                 <AccordionTrigger>What if a pet owner defaults?</AccordionTrigger>
                 <AccordionContent>
-                  FuzzyCat maintains a risk pool funded by a portion of platform revenue. If a pet
-                  owner defaults after all retry attempts, the risk pool covers the remaining
-                  balance owed to the clinic. The clinic never bears the default risk.
+                  FuzzyCat automatically retries failed payments with smart scheduling aligned to
+                  common paydays. We send escalating email reminders at days 1, 7, and 14. If a plan
+                  ultimately defaults after all retry attempts, the clinic is notified and can work
+                  directly with the pet owner to resolve the outstanding balance.
                 </AccordionContent>
               </AccordionItem>
 

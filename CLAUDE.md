@@ -48,7 +48,7 @@ Guaranteed Payment Plan platform for veterinary clinics. Pet owners split vet bi
 
 All accounts use `fuzzycatapp@gmail.com`. Secrets in `.env.local` (local) and Vercel env vars (production). Never commit secrets.
 
-**GitHub Secrets**: `SENTRY_AUTH_TOKEN`, `E2E_TEST_PASSWORD`, plus Supabase/Stripe/Plaid/Resend/Twilio keys.
+**GitHub Secrets**: `SENTRY_AUTH_TOKEN`, `E2E_TEST_PASSWORD`, `CODECOV_TOKEN`, plus Supabase/Stripe/Plaid/Resend/Twilio keys.
 
 ## Security
 
@@ -89,6 +89,7 @@ bun run test:e2e:mobile          # E2E mobile responsive (Pixel 5)
 bun run e2e:setup-users          # Provision E2E test users in Supabase
 bun run e2e:populate-data        # Populate E2E accounts with test plans/payments
 bun run ci                       # Full CI (biome ci + tsc + circular deps + secrets)
+bun run check:bundle             # Bundle size budget (run after build)
 bunx drizzle-kit push            # Push schema to DB (dev only)
 bunx drizzle-kit generate        # Generate SQL migrations
 bunx drizzle-kit migrate         # Run migrations (production)
@@ -384,6 +385,9 @@ When addressing review comments:
 | Security audit — MEDIUM (race conditions, payout calc, error handling) | #136, #139 | Done (PR #143) |
 | Security audit — LOW (a11y, testing, code quality, frontend) | #136, #140 | Done (PR #144) |
 | Vercel Web Analytics + Speed Insights | #154, #155 | Done (PR #156) |
+| Save debit card during deposit checkout | #165 | Done (PR #170) |
+| Codecov coverage threshold enforcement (80% project, 70% patch) | #171 | Done (PR #173) |
+| Client-side bundle size budget (750 kB gzip) | #172 | Done (PR #174) |
 
 ### Open — Security (Remaining)
 
@@ -420,7 +424,7 @@ Issues #32, #33: PCI SAQ A self-assessment, pilot clinic recruitment.
 
 ### Test Suite
 
-493 unit tests across 36 test files. Bun test runner. All external services mocked. Run via `bun run test` (not bare `bun test`, which picks up `node_modules`).
+757 unit tests across 41 test files. Bun test runner. All external services mocked. Run via `bun run test` (not bare `bun test`, which picks up `node_modules`).
 
 **E2E Tests:** 30 Playwright spec files covering all page routes + API health endpoint.
 

@@ -32,7 +32,7 @@ export function PlanList() {
           <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">No payment plans yet</h3>
           <p className="text-sm text-muted-foreground max-w-sm">
-            When your veterinary clinic sets up a payment plan for you, it will appear here.
+            When you enroll in a payment plan, it will appear here.
           </p>
         </CardContent>
       </Card>

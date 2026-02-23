@@ -55,7 +55,7 @@ export default function HowItWorksPage() {
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">How FuzzyCat Works</h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            A simple, transparent way to split veterinary bills into manageable payments.
+            A simple, transparent way to pay veterinary bills in manageable installments.
           </p>
         </div>
       </section>
@@ -69,10 +69,12 @@ export default function HowItWorksPage() {
               For Pet Owners
             </Badge>
           </div>
-          <h2 className="mt-4 text-3xl font-bold tracking-tight">Split your vet bill in minutes</h2>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight">
+            Set up your payment plan in minutes
+          </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
             When your pet needs care, the last thing you want to worry about is how to pay. FuzzyCat
-            lets you split the bill into affordable biweekly payments with no credit check.
+            lets you pay the bill in affordable biweekly installments with no credit check.
           </p>
 
           <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -125,7 +127,7 @@ export default function HowItWorksPage() {
                   <strong className="text-foreground">
                     {NUM_INSTALLMENTS} biweekly installments
                   </strong>{' '}
-                  &mdash; the remaining 75% is split equally and deducted via ACH every 2 weeks.
+                  &mdash; the remaining 75% is divided equally and deducted via ACH every 2 weeks.
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -287,7 +289,7 @@ export default function HowItWorksPage() {
                 <AccordionTrigger>What is FuzzyCat?</AccordionTrigger>
                 <AccordionContent>
                   FuzzyCat is a guaranteed payment plan platform for veterinary care. We help pet
-                  owners split their vet bills into {NUM_INSTALLMENTS} biweekly payments over 12
+                  owners pay their vet bills in {NUM_INSTALLMENTS} biweekly installments over 12
                   weeks. We are not a lender &mdash; we are a payment facilitation platform with a
                   flat {feePercent}% fee and no credit check.
                 </AccordionContent>

@@ -6,7 +6,7 @@ test.describe('Landing page', () => {
 
     await expect(page.locator('h1')).toContainText('Your pet deserves care');
     await expect(page.getByText('No credit check required')).toBeVisible();
-    await expect(page.getByRole('link', { name: /split my vet bill/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /start my payment plan/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /see how it works/i })).toBeVisible();
 
     const screenshot = await page.screenshot({ fullPage: true });
@@ -61,10 +61,10 @@ test.describe('Landing page', () => {
   test('hero CTAs navigate correctly', async ({ page }, testInfo) => {
     await page.goto('/');
 
-    const splitBillCta = page.getByRole('link', {
-      name: /split my vet bill/i,
+    const paymentPlanCta = page.getByRole('link', {
+      name: /start my payment plan/i,
     });
-    await expect(splitBillCta).toHaveAttribute('href', /\/signup/);
+    await expect(paymentPlanCta).toHaveAttribute('href', /\/signup/);
 
     const howItWorksCta = page.getByRole('link', {
       name: /see how it works/i,

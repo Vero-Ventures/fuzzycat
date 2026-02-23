@@ -25,11 +25,11 @@ import {
 export const metadata: Metadata = {
   title: 'FuzzyCat - Guaranteed Payment Plans for Veterinary Care',
   description:
-    'Split your vet bill into easy biweekly payments over 12 weeks. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment. Guaranteed payment plans for veterinary care.',
+    'Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment. Guaranteed payment plans for veterinary care.',
   openGraph: {
     title: 'FuzzyCat - Guaranteed Payment Plans for Veterinary Care',
     description:
-      'Split your vet bill into easy biweekly payments. No credit check. No hidden fees.',
+      'Pay your vet bill in easy biweekly installments. No credit check. No hidden fees.',
     type: 'website',
   },
 };
@@ -67,13 +67,13 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Split your vet bill into {NUM_INSTALLMENTS} easy biweekly payments over 12 weeks. Just a
+            Pay your vet bill in {NUM_INSTALLMENTS} easy biweekly installments over 12 weeks. Just a
             flat {feePercent}% fee &mdash; no interest, no credit check, no surprises.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/signup">
               <Button size="lg" className="w-full sm:w-auto">
-                Split My Vet Bill
+                Start My Payment Plan
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </Link>
@@ -107,7 +107,7 @@ export default function LandingPage() {
             <StepCard
               step={2}
               title="Automatic payments"
-              description={`The remaining balance is split into ${NUM_INSTALLMENTS} biweekly payments, automatically deducted every two weeks.`}
+              description={`The remaining balance is paid in ${NUM_INSTALLMENTS} biweekly installments, automatically deducted every two weeks.`}
               icon={<Banknote className="h-6 w-6" />}
             />
             <StepCard
@@ -246,7 +246,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-3xl text-center">
           <Cat className="mx-auto mb-6 h-12 w-12 text-amber-600 dark:text-amber-400" />
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Ready to split your vet bill?
+            Ready to make vet care affordable?
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             Sign up in minutes. No credit check. See your full payment schedule before you commit.

@@ -1,6 +1,15 @@
 import type { Page } from '@playwright/test';
 
 /**
+ * Wrap response data in the superjson envelope expected by the tRPC client.
+ * The tRPC client is configured with `transformer: superjson` (see lib/trpc/provider.tsx),
+ * so all successful responses must use the `{ json: data }` wire format.
+ */
+function superjsonResult(data: unknown) {
+  return { result: { data: { json: data } } };
+}
+
+/**
  * Intercepts a tRPC query and returns a mock response.
  * Matches GET requests to /api/trpc/<procedure>
  */
@@ -10,7 +19,7 @@ export async function mockTrpcQuery(page: Page, procedure: string, response: unk
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: response } }]),
+        body: JSON.stringify([superjsonResult(response)]),
       });
     } else {
       await route.fallback();
@@ -28,7 +37,7 @@ export async function mockTrpcMutation(page: Page, procedure: string, response: 
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: response } }]),
+        body: JSON.stringify([superjsonResult(response)]),
       });
     } else {
       await route.fallback();
@@ -122,7 +131,7 @@ export async function mockTrpcQueryDelayed(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ result: { data } }]),
+        body: JSON.stringify([superjsonResult(data)]),
       });
     } else {
       await route.fallback();

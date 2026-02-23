@@ -80,13 +80,13 @@ export async function mockAllTrpc(page: Page) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: null } }]),
+        body: JSON.stringify([{ result: { data: { json: null } } }]),
       });
     } else if (request.method() === 'POST') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([{ result: { data: { success: true } } }]),
+        body: JSON.stringify([{ result: { data: { json: { success: true } } } }]),
       });
     } else {
       await route.fallback();

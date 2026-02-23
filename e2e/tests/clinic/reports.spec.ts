@@ -12,7 +12,7 @@ test.describe('Clinic Reports', () => {
 
   test('shows report content', async ({ page }) => {
     // The reports page contains: RevenueReport, EnrollmentTrends, ExportButtons
-    const revenueReport = page.getByText(/revenue report/i);
+    const revenueReport = page.getByRole('heading', { name: /revenue report/i });
     await expect(revenueReport).toBeVisible({ timeout: 10000 });
 
     const enrollmentTrends = page.getByText(/enrollment trends/i);

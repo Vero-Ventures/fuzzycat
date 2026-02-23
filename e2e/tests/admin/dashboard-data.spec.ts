@@ -27,7 +27,7 @@ test.describe('Admin Dashboard — Data Assertions', () => {
     await expect(page.getByText('87').first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('risk pool health metrics render', async ({ page }) => {
+  test('platform reserve health metrics render', async ({ page }) => {
     await mockTrpcQuery(page, 'admin.getPlatformStats', adminPlatformStats);
     await mockTrpcQuery(page, 'admin.riskPoolHealth', adminRiskPoolHealth);
     await mockTrpcQuery(page, 'admin.getRecentAuditLog', adminRecentAuditLog);
@@ -35,8 +35,8 @@ test.describe('Admin Dashboard — Data Assertions', () => {
 
     await gotoPortalPage(page, '/admin/dashboard');
 
-    // Risk pool section
-    await expect(page.getByText(/risk pool/i).first()).toBeVisible({ timeout: 5000 });
+    // Platform reserve section
+    await expect(page.getByText(/platform reserve/i).first()).toBeVisible({ timeout: 5000 });
 
     // Balance: $12,500.00
     await expect(page.getByText(/\$12,500/).first()).toBeVisible({ timeout: 5000 });

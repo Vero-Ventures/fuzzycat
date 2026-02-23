@@ -107,6 +107,7 @@ mock.module('@/server/db/schema', () => ({
     stripeCustomerId: 'owners.stripe_customer_id',
     stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
     stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
+    paymentMethod: 'owners.payment_method',
   },
   clinics: {
     id: 'clinics.id',
@@ -401,7 +402,14 @@ describe('processInstallment', () => {
         },
       ])
       .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
-      .mockResolvedValueOnce([{ stripeCustomerId: 'cus_456' }]);
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
 
     // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
@@ -424,13 +432,161 @@ describe('processInstallment', () => {
         },
       ])
       .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
-      .mockResolvedValueOnce([{ stripeCustomerId: 'cus_456' }]);
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
 
     // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processInstallment({ paymentId: 'pay-3' });
 
     expect(result.paymentIntentId).toBe('pi_ach_789');
+  });
+
+  it('routes to ACH when owner prefers bank_account', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-4',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
+
+    await processInstallment({ paymentId: 'pay-4' });
+
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method).toBe('pm_ach_saved');
+    expect(callArgs.payment_method_types).toEqual(['us_bank_account']);
+  });
+
+  it('routes to card when owner prefers debit_card', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-5',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'debit_card',
+          stripeCardPaymentMethodId: 'pm_card_saved',
+          stripeAchPaymentMethodId: null,
+        },
+      ]);
+
+    await processInstallment({ paymentId: 'pay-5' });
+
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method).toBe('pm_card_saved');
+    expect(callArgs.payment_method_types).toEqual(['card']);
+  });
+
+  it('uses explicit paymentMethodId override over owner preference', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-6',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
+
+    await processInstallment({ paymentId: 'pay-6', paymentMethodId: 'pm_override_123' });
+
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method).toBe('pm_override_123');
+  });
+
+  it('throws when owner prefers bank_account but has no saved ACH method', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-7',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: null,
+        },
+      ]);
+
+    await expect(processInstallment({ paymentId: 'pay-7' })).rejects.toThrow(
+      'prefers bank_account but has no saved ACH payment method',
+    );
+  });
+
+  it('throws when owner prefers debit_card but has no saved card method', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-8',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'debit_card',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
+
+    await expect(processInstallment({ paymentId: 'pay-8' })).rejects.toThrow(
+      'prefers debit_card but has no saved card payment method',
+    );
   });
 });
 

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium, type FullConfig } from '@playwright/test';
 import { TEST_PASSWORD, TEST_USERS } from './helpers/test-users';
 
@@ -104,6 +104,38 @@ async function loginAndSaveState(
   }
 }
 
+/**
+ * Rewrite auth state cookie domains from production to the local test domain.
+ * Browsers silently reject cookies whose domain doesn't match the page origin,
+ * so saved production cookies (e.g. www.fuzzycatapp.com) won't work on localhost.
+ */
+function rewriteAuthStateForLocalhost(filePath: string, baseURL: string) {
+  if (!existsSync(filePath)) return;
+
+  const raw = readFileSync(filePath, 'utf-8');
+  const state = JSON.parse(raw) as {
+    cookies?: { domain?: string; secure?: boolean }[];
+    origins?: { origin?: string }[];
+  };
+
+  const localDomain = new URL(baseURL).hostname;
+
+  for (const cookie of state.cookies ?? []) {
+    if (cookie.domain?.includes('fuzzycatapp.com')) {
+      cookie.domain = localDomain;
+      cookie.secure = false;
+    }
+  }
+
+  for (const origin of state.origins ?? []) {
+    if (origin.origin?.includes('fuzzycatapp.com')) {
+      origin.origin = baseURL;
+    }
+  }
+
+  writeFileSync(filePath, JSON.stringify(state, null, 2));
+}
+
 /** Warm up the dev server by hitting the homepage before running login flows. */
 async function warmUpServer(baseURL: string) {
   console.log('[e2e:global-setup] Warming up dev server...');
@@ -145,6 +177,16 @@ async function globalSetup(config: FullConfig) {
   }
 
   await browser.close();
+
+  // Rewrite cookie domains when running against a non-production URL (e.g. localhost).
+  // Production cookies have domain=www.fuzzycatapp.com which browsers reject on localhost.
+  const isProduction = baseURL.includes('fuzzycatapp.com');
+  if (!isProduction) {
+    for (const [roleName, user] of Object.entries(TEST_USERS)) {
+      rewriteAuthStateForLocalhost(user.storageStatePath, baseURL);
+      console.log(`[e2e:global-setup] Rewrote cookie domains for ${roleName} → ${baseURL}`);
+    }
+  }
 }
 
 export default globalSetup;

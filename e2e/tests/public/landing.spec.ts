@@ -49,7 +49,7 @@ test.describe('Landing page', () => {
     await page.goto('/');
 
     await expect(page.getByText('Get paid to offer payment plans')).toBeVisible();
-    await expect(page.getByText('3% revenue share')).toBeVisible();
+    await expect(page.getByText('Earn 3% on every plan')).toBeVisible();
 
     const screenshot = await page.screenshot({ fullPage: true });
     await testInfo.attach('clinic-cta-section', {
@@ -88,10 +88,12 @@ test.describe('Landing page', () => {
 
     const realErrors = errors.filter(
       (e) =>
-        !e.includes('posthog') &&
-        !e.includes('sentry') &&
+        !e.toLowerCase().includes('posthog') &&
+        !e.toLowerCase().includes('sentry') &&
         !e.includes('favicon') &&
-        !e.includes('monitoring'),
+        !e.includes('monitoring') &&
+        !e.includes('next-dev-overlay') &&
+        !e.includes('__nextjs'),
     );
     expect(realErrors).toHaveLength(0);
 

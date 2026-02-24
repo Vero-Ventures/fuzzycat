@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Public Pages — Mobile', () => {
   test('landing page hero renders on mobile', async ({ page }, testInfo) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.getByText('No credit check required')).toBeVisible();
@@ -27,7 +27,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('landing page pricing section on mobile', async ({ page }, testInfo) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Pricing section
     const pricing = page.getByText(/transparent pricing/i);
@@ -46,7 +46,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('landing page navigation CTAs work on mobile', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // CTA to signup
     const signupCta = page.getByRole('link', { name: /start my payment plan/i });
@@ -55,7 +55,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('how-it-works page renders on mobile', async ({ page }, testInfo) => {
-    await page.goto('/how-it-works');
+    await page.goto('/how-it-works', { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.getByText(/How FuzzyCat Works/i)).toBeVisible();
@@ -70,7 +70,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('payment calculator on mobile', async ({ page }, testInfo) => {
-    await page.goto('/how-it-works');
+    await page.goto('/how-it-works', { waitUntil: 'domcontentloaded' });
 
     // Calculator section
     const billInput = page.locator('#bill-amount');
@@ -97,7 +97,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('FAQ accordion on mobile', async ({ page }, testInfo) => {
-    await page.goto('/how-it-works');
+    await page.goto('/how-it-works', { waitUntil: 'domcontentloaded' });
 
     // FAQ section
     const faqSection = page.getByText(/frequently asked/i);
@@ -119,7 +119,7 @@ test.describe('Public Pages — Mobile', () => {
   });
 
   test('dark mode toggle on mobile', async ({ page }, testInfo) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const themeToggle = page
       .getByRole('button', { name: /toggle.*theme|dark.*mode|light.*mode|theme/i })

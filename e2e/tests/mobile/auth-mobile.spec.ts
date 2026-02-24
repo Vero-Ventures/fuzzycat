@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Auth Pages — Mobile', () => {
   test('login form fully functional on mobile', async ({ page }, testInfo) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
     // All form elements visible
     const emailInput = page.locator('input[type="email"]');
@@ -37,7 +37,7 @@ test.describe('Auth Pages — Mobile', () => {
   });
 
   test('login validation on mobile', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
     const emailInput = page.locator('input[type="email"]');
     const submitBtn = page.getByRole('button', { name: /sign in|log in|submit/i });
@@ -57,7 +57,7 @@ test.describe('Auth Pages — Mobile', () => {
         body: 'window.turnstile = { render: function(el, opts) { if (opts && opts.callback) opts.callback("mock-token"); return "mock-id"; }, reset: function() {}, remove: function() {} };',
       }),
     );
-    await page.goto('/signup');
+    await page.goto('/signup', { waitUntil: 'domcontentloaded' });
 
     // Tab switching works on mobile
     const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
@@ -94,7 +94,16 @@ test.describe('Auth Pages — Mobile', () => {
   });
 
   test('forgot password flow on mobile', async ({ page }, testInfo) => {
-    await page.goto('/forgot-password');
+    // Mock the Supabase auth endpoint so "Send reset link" succeeds
+    await page.route('**/auth/v1/recover**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      }),
+    );
+
+    await page.goto('/forgot-password', { waitUntil: 'domcontentloaded' });
 
     const emailInput = page.locator('#email');
     await expect(emailInput).toBeVisible();
@@ -116,7 +125,7 @@ test.describe('Auth Pages — Mobile', () => {
   });
 
   test('reset password form on mobile', async ({ page }, testInfo) => {
-    await page.goto('/reset-password');
+    await page.goto('/reset-password', { waitUntil: 'domcontentloaded' });
 
     const passwordInput = page.locator('#password');
     const confirmInput = page.locator('#confirm-password');

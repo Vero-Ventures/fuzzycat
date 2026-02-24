@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { getAuthCookies } from '../helpers/auth';
+import { getAuthCookies, hasAuth } from '../helpers/auth';
 import { fetchPage } from '../helpers/fetch';
 
-describe('Owner portal pages', () => {
+describe.skipIf(!hasAuth())('Owner portal pages', () => {
   describe('layout (header)', () => {
     test('FuzzyCat logo links to /owner/payments', async () => {
       const cookies = await getAuthCookies('owner');

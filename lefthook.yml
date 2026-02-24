@@ -24,3 +24,5 @@ pre-push:
       run: bunx madge --circular --extensions ts,tsx .
     security:
       run: semgrep scan --config auto --error --quiet .
+    fast-tests:
+      run: bun run test:fast

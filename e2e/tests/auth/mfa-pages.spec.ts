@@ -17,9 +17,14 @@ test.describe('MFA Setup Page', () => {
     } else {
       // Page rendered the MFA setup content
       const heading = page.getByRole('heading', {
-        name: /mfa|multi-factor|two-factor|authenticator|setup/i,
+        name: /set up two-factor authentication/i,
       });
       await expect(heading).toBeVisible();
+
+      // Verify button is present and disabled until factor is loaded
+      const verifyBtn = page.getByRole('button', { name: /verify and enable/i });
+      await expect(verifyBtn).toBeVisible();
+      await expect(verifyBtn).toBeDisabled();
 
       await testInfo.attach('mfa-setup-page', {
         body: await page.screenshot(),
@@ -47,7 +52,7 @@ test.describe('MFA Verify Page', () => {
       // Page rendered the MFA verify content
       // The heading is "Two-factor authentication"
       const heading = page.getByRole('heading', {
-        name: /verify|verification|code|authentication|two-factor/i,
+        name: /two-factor authentication/i,
       });
       await expect(heading).toBeVisible();
 
@@ -64,21 +69,13 @@ test.describe('MFA Verify Page', () => {
     const currentUrl = page.url();
 
     if (!currentUrl.includes('/login')) {
-      // Look for a code input field (could be a single input or multiple digit inputs)
-      const codeInput = page.locator(
-        'input[maxlength="6"], input[name="code"], input[name="token"], input[type="tel"], input[inputmode="numeric"]',
-      );
-      const digitInputs = page.locator('input[maxlength="1"]');
+      // Look for the verification code input
+      const codeInput = page.getByRole('textbox', { name: /verification code/i });
+      await expect(codeInput).toBeVisible();
 
-      const singleInputCount = await codeInput.count();
-      const multiInputCount = await digitInputs.count();
-
-      // Either a single 6-digit input or 6 individual digit inputs should exist
-      expect(singleInputCount + multiInputCount).toBeGreaterThan(0);
-
-      if (multiInputCount > 0) {
-        expect(multiInputCount).toBe(6);
-      }
+      // Verify it accepts 6-digit codes
+      const maxLength = await codeInput.getAttribute('maxlength');
+      expect(maxLength).toBe('6');
 
       await testInfo.attach('mfa-verify-code-input', {
         body: await page.screenshot(),
@@ -100,7 +97,7 @@ test.describe('MFA Verify Page', () => {
 
     if (!currentUrl.includes('/login')) {
       const submitButton = page.getByRole('button', {
-        name: /verify|submit|confirm|continue/i,
+        name: /^verify$/i,
       });
       await expect(submitButton).toBeVisible();
 

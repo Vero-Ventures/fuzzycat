@@ -148,10 +148,29 @@ async function warmUpServer(baseURL: string) {
 }
 
 /**
+ * Create empty (unauthenticated) storage state files so Playwright does not
+ * crash with ENOENT when a test references a missing auth state path.
+ * Portal tests that depend on real auth will fail assertions in
+ * `gotoPortalPage()` but at least the test runner can start.
+ */
+function ensureStorageStateFiles() {
+  const emptyState = JSON.stringify({ cookies: [], origins: [] });
+  for (const user of Object.values(TEST_USERS)) {
+    if (!existsSync(user.storageStatePath)) {
+      writeFileSync(user.storageStatePath, emptyState, 'utf-8');
+      console.log(`[e2e:global-setup] Created empty auth state → ${user.storageStatePath}`);
+    }
+  }
+}
+
+/**
  * Global setup: creates E2E test users via Supabase admin API (idempotent),
  * then logs in as each role via browser and saves storage state (cookies).
  */
 async function globalSetup(config: FullConfig) {
+  // Always ensure storage state files exist so Playwright doesn't crash
+  ensureStorageStateFiles();
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

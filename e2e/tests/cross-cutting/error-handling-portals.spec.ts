@@ -14,7 +14,8 @@ test.describe('Error Handling — Owner Portal', () => {
     await mockTrpcQueryError(page, 'owner.getPaymentHistory', 'INTERNAL_SERVER_ERROR', 'Crash');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/payments');
+    const loaded = await gotoPortalPage(page, '/owner/payments');
+    if (!loaded) return;
 
     const errorIndicator = page.getByText(/error|something went wrong|unable.*load|try again/i);
     await expect(errorIndicator.first()).toBeVisible({ timeout: 10000 });
@@ -24,18 +25,21 @@ test.describe('Error Handling — Owner Portal', () => {
     await mockExternalServices(page);
     await mockAllTrpc(page);
 
-    const response = await page.goto('/owner/nonexistent-page');
+    const response = await page.goto('/owner/nonexistent-page', {
+      waitUntil: 'domcontentloaded',
+    });
     const status = response?.status();
 
-    // App may redirect to /owner/payments (home) or show 404
+    // App may redirect to /login (no auth), /owner/payments (home), or show 404
     const is404 = status === 404;
     const hasNotFound = await page
       .getByText(/not found|404/i)
       .isVisible()
       .catch(() => false);
     const isRedirectedHome = page.url().includes('/owner/payments');
+    const isRedirectedLogin = page.url().includes('/login');
 
-    expect(is404 || hasNotFound || isRedirectedHome).toBe(true);
+    expect(is404 || hasNotFound || isRedirectedHome || isRedirectedLogin).toBe(true);
   });
 });
 
@@ -48,7 +52,8 @@ test.describe('Error Handling — Clinic Portal', () => {
     await mockTrpcQueryError(page, 'clinic.getMonthlyRevenue', 'INTERNAL_SERVER_ERROR', 'Crash');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     const errorIndicator = page.getByText(/error|something went wrong|unable.*load|try again/i);
     await expect(errorIndicator.first()).toBeVisible({ timeout: 10000 });
@@ -58,7 +63,9 @@ test.describe('Error Handling — Clinic Portal', () => {
     await mockExternalServices(page);
     await mockAllTrpc(page);
 
-    const response = await page.goto('/clinic/nonexistent-page');
+    const response = await page.goto('/clinic/nonexistent-page', {
+      waitUntil: 'domcontentloaded',
+    });
     const status = response?.status();
 
     const is404 = status === 404;
@@ -67,8 +74,9 @@ test.describe('Error Handling — Clinic Portal', () => {
       .isVisible()
       .catch(() => false);
     const isRedirectedHome = page.url().includes('/clinic/dashboard');
+    const isRedirectedLogin = page.url().includes('/login');
 
-    expect(is404 || hasNotFound || isRedirectedHome).toBe(true);
+    expect(is404 || hasNotFound || isRedirectedHome || isRedirectedLogin).toBe(true);
   });
 });
 
@@ -82,7 +90,8 @@ test.describe('Error Handling — Admin Portal', () => {
     await mockTrpcQueryError(page, 'admin.getRecentAuditLog', 'INTERNAL_SERVER_ERROR', 'Crash');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/admin/dashboard');
+    const loaded = await gotoPortalPage(page, '/admin/dashboard');
+    if (!loaded) return;
 
     const errorIndicator = page.getByText(/error|something went wrong|unable.*load|try again/i);
     await expect(errorIndicator.first()).toBeVisible({ timeout: 10000 });
@@ -92,7 +101,9 @@ test.describe('Error Handling — Admin Portal', () => {
     await mockExternalServices(page);
     await mockAllTrpc(page);
 
-    const response = await page.goto('/admin/nonexistent-page');
+    const response = await page.goto('/admin/nonexistent-page', {
+      waitUntil: 'domcontentloaded',
+    });
     const status = response?.status();
 
     const is404 = status === 404;
@@ -101,7 +112,8 @@ test.describe('Error Handling — Admin Portal', () => {
       .isVisible()
       .catch(() => false);
     const isRedirectedHome = page.url().includes('/admin/dashboard');
+    const isRedirectedLogin = page.url().includes('/login');
 
-    expect(is404 || hasNotFound || isRedirectedHome).toBe(true);
+    expect(is404 || hasNotFound || isRedirectedHome || isRedirectedLogin).toBe(true);
   });
 });

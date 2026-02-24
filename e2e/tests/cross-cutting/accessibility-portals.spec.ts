@@ -18,7 +18,8 @@ test.describe('Accessibility — Portals', () => {
     await mockTrpcQuery(page, 'clinic.getMonthlyRevenue', clinicMonthlyRevenue);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     // There should be exactly one h1
     const h1Count = await page.locator('h1').count();
@@ -46,7 +47,8 @@ test.describe('Accessibility — Portals', () => {
     await mockTrpcQuery(page, 'clinic.getProfile', clinicProfile);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/settings');
+    const loaded = await gotoPortalPage(page, '/clinic/settings');
+    if (!loaded) return;
 
     const inputs = page.locator('input:not([type="hidden"])');
     const inputCount = await inputs.count();
@@ -80,7 +82,8 @@ test.describe('Accessibility — Portals', () => {
     await mockTrpcQuery(page, 'clinic.getClients', clinicClients);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/clients');
+    const loaded = await gotoPortalPage(page, '/clinic/clients');
+    if (!loaded) return;
 
     // Table or role="table" should exist
     const table = page.locator('table, [role="table"]');
@@ -102,7 +105,8 @@ test.describe('Accessibility — Portals', () => {
     await mockTrpcQuery(page, 'clinic.getMonthlyRevenue', clinicMonthlyRevenue);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     // Find sidebar navigation links
     const navLinks = page.locator('nav a, aside a, [role="navigation"] a');

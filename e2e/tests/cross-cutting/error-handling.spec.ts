@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Error handling', () => {
   test('404 page for unknown route', async ({ page }) => {
-    const response = await page.goto('/nonexistent-page-xyz');
+    const response = await page.goto('/nonexistent-page-xyz', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
 
     // Either the server returns a 404 status or the page shows "not found" content
     const is404Status = response?.status() === 404;
@@ -15,8 +18,10 @@ test.describe('Error handling', () => {
   });
 
   test('captures screenshot of 404 page', async ({ page }, testInfo) => {
-    await page.goto('/nonexistent-page-xyz');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/nonexistent-page-xyz', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
 
     const screenshot = await page.screenshot({ fullPage: true });
     await testInfo.attach('404-page', {

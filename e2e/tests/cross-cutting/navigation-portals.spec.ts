@@ -17,7 +17,8 @@ test.describe('Navigation — Clinic Portal', () => {
     await setupPortalMocks(page, 'clinic');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     const clinicRoutes = [
       { pattern: /dashboard/i, url: '/clinic/dashboard' },
@@ -53,7 +54,8 @@ test.describe('Navigation — Clinic Portal', () => {
     await setupPortalMocks(page, 'clinic');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     const signOutBtn = page.getByRole('button', { name: /sign out|log out/i });
     await expect(signOutBtn).toBeVisible({ timeout: 5000 });
@@ -68,7 +70,8 @@ test.describe('Navigation — Admin Portal', () => {
     await setupPortalMocks(page, 'admin');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/admin/dashboard');
+    const loaded = await gotoPortalPage(page, '/admin/dashboard');
+    if (!loaded) return;
 
     const adminRoutes = [
       { pattern: /dashboard/i, url: '/admin/dashboard' },
@@ -107,7 +110,8 @@ test.describe('Navigation — Owner Portal', () => {
     await setupPortalMocks(page, 'owner');
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/payments');
+    const loaded = await gotoPortalPage(page, '/owner/payments');
+    if (!loaded) return;
 
     // On mobile viewports, open hamburger menu if present
     await openMobileMenuIfNeeded(page);

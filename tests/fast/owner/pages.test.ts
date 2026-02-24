@@ -23,9 +23,7 @@ describe('Owner portal pages', () => {
     test('Sign Out button', async () => {
       const cookies = await getAuthCookies('owner');
       const { $ } = await fetchPage('/owner/payments', { cookies, followRedirects: true });
-      const signOutBtn = $('button').filter(function () {
-        return $(this).text().includes('Sign Out');
-      });
+      const signOutBtn = $('button:contains("Sign Out")');
       expect(signOutBtn.length).toBeGreaterThan(0);
     });
   });

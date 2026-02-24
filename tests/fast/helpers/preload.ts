@@ -34,8 +34,8 @@ if (!ready) {
   console.log('[fast:preload] Dev server not running, starting...');
   serverProcess = Bun.spawn(['bun', 'run', 'dev'], {
     cwd: process.cwd(),
-    stdout: 'ignore',
-    stderr: 'ignore',
+    stdout: 'inherit',
+    stderr: 'inherit',
   });
   await waitForServer();
   console.log('[fast:preload] Dev server ready.');

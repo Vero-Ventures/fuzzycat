@@ -47,16 +47,14 @@ export async function getAuthCookies(role: 'owner' | 'clinic' | 'admin'): Promis
   const ref = new URL(supabaseUrl).hostname.split('.')[0];
   const cookieName = `sb-${ref}-auth-token`;
 
-  const encoded = encodeURIComponent(base64Value);
-
   const cookieParts: string[] = [];
-  if (encoded.length <= MAX_CHUNK) {
+  if (base64Value.length <= MAX_CHUNK) {
     cookieParts.push(`${cookieName}=${base64Value}`);
   } else {
-    let remaining = encoded;
+    let remaining = base64Value;
     let i = 0;
     while (remaining.length > 0) {
-      const chunk = decodeURIComponent(remaining.substring(0, MAX_CHUNK));
+      const chunk = remaining.substring(0, MAX_CHUNK);
       cookieParts.push(`${cookieName}.${i}=${chunk}`);
       remaining = remaining.substring(MAX_CHUNK);
       i++;

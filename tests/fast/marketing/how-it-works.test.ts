@@ -77,12 +77,7 @@ describe('How It Works /how-it-works', () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
     expect(text).toContain('Ready to get started?');
-    expect(text).toContain('Sign Up as Pet Owner');
-    expect(text).toContain('Register Your Clinic');
-
-    const links = $('a')
-      .toArray()
-      .map((el) => $(el).attr('href'));
-    expect(links).toContain('/signup');
+    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup');
+    expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup');
   });
 });

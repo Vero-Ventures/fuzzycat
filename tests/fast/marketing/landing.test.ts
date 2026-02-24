@@ -16,11 +16,8 @@ describe('Landing page /', () => {
 
   test('hero CTAs link to correct pages', async () => {
     const { $ } = await fetchPage('/');
-    const links = $('a')
-      .toArray()
-      .map((el) => $(el).attr('href'));
-    expect(links).toContain('/signup');
-    expect(links).toContain('/how-it-works');
+    expect($('a:contains("Start My Payment Plan")').attr('href')).toBe('/signup');
+    expect($('a:contains("See How It Works")').attr('href')).toBe('/how-it-works');
   });
 
   test('three "how it works" steps', async () => {

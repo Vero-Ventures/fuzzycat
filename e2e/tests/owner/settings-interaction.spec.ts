@@ -1,37 +1,63 @@
 import { expect, test } from '@playwright/test';
 import { ownerPlans, ownerProfile } from '../../helpers/audit-mock-data';
 import { gotoPortalPage, mockAllTrpc } from '../../helpers/portal-test-base';
-import { mockTrpcMutation, mockTrpcQuery, mockTrpcQueryError } from '../../helpers/trpc-mock';
+import { mockTrpcMutation, mockTrpcMutationError, mockTrpcQuery } from '../../helpers/trpc-mock';
 
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Owner Settings — Interactions', () => {
-  test('profile form shows current data', async ({ page }) => {
+  test('profile form pre-fills with owner data (name, email, phone)', async ({ page }) => {
     await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
     await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
     await mockAllTrpc(page);
 
     await gotoPortalPage(page, '/owner/settings');
 
-    // Profile heading
-    await expect(page.getByRole('heading', { name: /settings|profile/i }).first()).toBeVisible({
+    // Page heading renders
+    await expect(page.getByRole('heading', { name: /account settings/i })).toBeVisible({
       timeout: 5000,
     });
 
+    // Profile section heading
+    await expect(page.getByRole('heading', { name: /profile information/i })).toBeVisible();
+
     // Name pre-filled
     const nameInput = page.locator('#name');
-    if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(nameInput).toHaveValue('Jane Doe');
-    }
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await expect(nameInput).toHaveValue('Jane Doe');
 
     // Email pre-filled
     const emailInput = page.locator('#email');
-    if (await emailInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(emailInput).toHaveValue('jane.doe@example.com');
-    }
+    await expect(emailInput).toBeVisible();
+    await expect(emailInput).toHaveValue('jane.doe@example.com');
+
+    // Phone pre-filled
+    const phoneInput = page.locator('#phone');
+    await expect(phoneInput).toBeVisible();
+    await expect(phoneInput).toHaveValue('+15551234567');
   });
 
-  test('profile form submission', async ({ page }) => {
+  test('profile form save button is disabled when no changes made', async ({ page }) => {
+    await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
+    await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
+    await mockAllTrpc(page);
+
+    await gotoPortalPage(page, '/owner/settings');
+
+    // Wait for the profile form to load with pre-filled data
+    const nameInput = page.locator('#name');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await expect(nameInput).toHaveValue('Jane Doe');
+
+    // Save button should be disabled because no changes have been made
+    const saveBtn = page.getByRole('button', { name: /save changes/i });
+    await expect(saveBtn).toBeVisible();
+    await expect(saveBtn).toBeDisabled();
+  });
+
+  test('editing name enables save button and submitting shows success message', async ({
+    page,
+  }) => {
     await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
     await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
     await mockTrpcMutation(page, 'owner.updateProfile', { success: true });
@@ -39,69 +65,95 @@ test.describe('Owner Settings — Interactions', () => {
 
     await gotoPortalPage(page, '/owner/settings');
 
-    // Update name
+    // Wait for profile form to load
     const nameInput = page.locator('#name');
-    if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await nameInput.clear();
-      await nameInput.fill('Jane Updated');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await expect(nameInput).toHaveValue('Jane Doe');
 
-      // Submit
-      const saveBtn = page.getByRole('button', { name: /save/i });
-      await expect(saveBtn).toBeVisible();
-      await saveBtn.click();
+    // Save button starts disabled
+    const saveBtn = page.getByRole('button', { name: /save changes/i });
+    await expect(saveBtn).toBeDisabled();
 
-      // Success message
-      await expect(page.getByText(/updated|saved|success/i).first()).toBeVisible({ timeout: 5000 });
-    }
+    // Edit the name field
+    await nameInput.clear();
+    await nameInput.fill('Jane Updated');
+
+    // Save button should now be enabled
+    await expect(saveBtn).toBeEnabled();
+
+    // Click save
+    await saveBtn.click();
+
+    // Success message should appear
+    await expect(page.getByText('Profile updated successfully.')).toBeVisible({ timeout: 5000 });
   });
 
-  test('payment method section visible', async ({ page }) => {
+  test('profile update failure shows error message', async ({ page }) => {
     await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
     await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/settings');
-
-    // Payment method section should show debit card info (from mock data)
-    const paymentSection = page
-      .getByText(/payment.*method|debit.*card|card.*ending/i)
-      .or(page.getByText(/payment/i));
-    await expect(paymentSection.first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('active plans section', async ({ page }) => {
-    await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
-    await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/settings');
-
-    // Active plans or plan list
-    const planSection = page.getByText(/active.*plan|my.*plan|happy paws/i);
-    if (
-      await planSection
-        .first()
-        .isVisible({ timeout: 5000 })
-        .catch(() => false)
-    ) {
-      expect(await planSection.count()).toBeGreaterThan(0);
-    }
-  });
-
-  test('error state: profile load failure', async ({ page }) => {
-    await mockTrpcQueryError(
+    await mockTrpcMutationError(
       page,
-      'owner.getProfile',
+      'owner.updateProfile',
       'INTERNAL_SERVER_ERROR',
-      'Failed to load profile',
+      'Failed to update',
     );
+    await mockAllTrpc(page);
+
+    await gotoPortalPage(page, '/owner/settings');
+
+    // Wait for profile form to load
+    const nameInput = page.locator('#name');
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
+    await expect(nameInput).toHaveValue('Jane Doe');
+
+    // Make a change to enable the save button
+    await nameInput.clear();
+    await nameInput.fill('Jane Fail');
+
+    // Submit the form
+    const saveBtn = page.getByRole('button', { name: /save changes/i });
+    await expect(saveBtn).toBeEnabled();
+    await saveBtn.click();
+
+    // Error message should appear
+    await expect(page.getByText('Failed to update profile. Please try again.')).toBeVisible({
+      timeout: 5000,
+    });
+  });
+
+  test('active plans section shows active plan with clinic name', async ({ page }) => {
+    await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
     await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
     await mockAllTrpc(page);
 
     await gotoPortalPage(page, '/owner/settings');
 
-    // Error message
-    const error = page.getByText(/unable.*load|error|failed/i);
-    await expect(error.first()).toBeVisible({ timeout: 10000 });
+    // Payment Plans section heading
+    await expect(page.getByRole('heading', { name: /payment plans/i })).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Active plan shows the clinic name from mock data
+    await expect(page.getByText('Happy Paws Veterinary')).toBeVisible({ timeout: 5000 });
+
+    // Active badge is visible for the first plan
+    await expect(page.getByText('Active', { exact: true })).toBeVisible();
+  });
+
+  test('completed plan shows completed status', async ({ page }) => {
+    await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
+    await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
+    await mockAllTrpc(page);
+
+    await gotoPortalPage(page, '/owner/settings');
+
+    // Wait for plans section to render
+    await expect(page.getByRole('heading', { name: /payment plans/i })).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Second plan (Whisker Wellness Clinic) should show with completed status
+    await expect(page.getByText('Whisker Wellness Clinic')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Completed', { exact: true })).toBeVisible();
   });
 });

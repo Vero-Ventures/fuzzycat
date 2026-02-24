@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { chromium, type FullConfig } from '@playwright/test';
+import { existsSync, writeFileSync } from 'node:fs';
+import type { FullConfig } from '@playwright/test';
 import { TEST_PASSWORD, TEST_USERS } from './helpers/test-users';
 
 /** Ensure a single test user exists via Supabase Admin API (create-first approach). */
@@ -51,89 +51,99 @@ async function ensureUser(
   );
 }
 
-/** Log in as a role via browser and save storage state, with retry. */
-async function loginAndSaveState(
+/**
+ * Authenticate via Supabase Auth API and write a Playwright-compatible
+ * storage state file with the auth cookie. This bypasses the browser
+ * login form entirely, avoiding React hydration timing issues.
+ */
+async function loginViaAPI(
+  supabaseUrl: string,
+  anonKey: string,
   baseURL: string,
   roleName: string,
   user: (typeof TEST_USERS)[keyof typeof TEST_USERS],
-  browser: Awaited<ReturnType<typeof chromium.launch>>,
 ) {
-  const maxAttempts = 3;
+  console.log(`[e2e:global-setup] Authenticating ${roleName} via API...`);
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    console.log(
-      `[e2e:global-setup] Logging in as ${roleName}...${attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : ''}`,
-    );
-    const context = await browser.newContext();
-    const page = await context.newPage();
+  const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+    },
+    body: JSON.stringify({ email: user.email, password: TEST_PASSWORD }),
+  });
 
-    try {
-      await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await page.waitForSelector('input[name="email"], input[type="email"]', { timeout: 10_000 });
-      await page.fill('input[name="email"], input[type="email"]', user.email);
-      await page.fill('input[name="password"], input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 });
-      await context.storageState({ path: user.storageStatePath });
-      console.log(`  ✓ Saved auth state → ${user.storageStatePath}`);
-      return;
-    } catch (error) {
-      const isLastAttempt = attempt === maxAttempts;
-      if (isLastAttempt) {
-        const hasExisting = existsSync(user.storageStatePath);
-        if (hasExisting) {
-          console.warn(
-            `[e2e:global-setup] Login failed for ${roleName} after ${maxAttempts} attempts — using existing auth state from ${user.storageStatePath}`,
-          );
-        } else {
-          console.error(
-            '[e2e:global-setup] Login failed for %s after %d attempts and no existing auth state:',
-            roleName,
-            maxAttempts,
-            error,
-          );
-        }
-      } else {
-        console.warn(
-          `[e2e:global-setup] Login attempt ${attempt} failed for ${roleName}, retrying...`,
-        );
-      }
-    } finally {
-      await context.close();
-    }
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`[e2e:global-setup] Auth API failed for ${roleName}: ${res.status} ${body}`);
+    return;
   }
-}
 
-/**
- * Rewrite auth state cookie domains from production to the local test domain.
- * Browsers silently reject cookies whose domain doesn't match the page origin,
- * so saved production cookies (e.g. www.fuzzycatapp.com) won't work on localhost.
- */
-function rewriteAuthStateForLocalhost(filePath: string, baseURL: string) {
-  if (!existsSync(filePath)) return;
+  const session = await res.json();
 
-  const raw = readFileSync(filePath, 'utf-8');
-  const state = JSON.parse(raw) as {
-    cookies?: { domain?: string; secure?: boolean }[];
-    origins?: { origin?: string }[];
+  // Build the cookie value in the format @supabase/ssr expects:
+  // "base64-" + base64url(JSON.stringify(session))
+  const sessionJson = JSON.stringify(session);
+  const base64Value = `base64-${Buffer.from(sessionJson).toString('base64url')}`;
+
+  // Extract project ref from Supabase URL (e.g. "nkndduzbzshjaaeicmad")
+  const ref = new URL(supabaseUrl).hostname.split('.')[0];
+  const cookieName = `sb-${ref}-auth-token`;
+
+  // @supabase/ssr chunks cookies at 3180 chars (after URI-encoding).
+  // Build the cookie array — single cookie or chunked.
+  const MAX_CHUNK = 3180;
+  const encoded = encodeURIComponent(base64Value);
+
+  type CookieEntry = {
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: string;
+    expires: number;
   };
 
-  const localDomain = new URL(baseURL).hostname;
+  const domain = new URL(baseURL).hostname;
+  const cookies: CookieEntry[] = [];
 
-  for (const cookie of state.cookies ?? []) {
-    if (cookie.domain?.includes('fuzzycatapp.com')) {
-      cookie.domain = localDomain;
-      cookie.secure = false;
+  if (encoded.length <= MAX_CHUNK) {
+    cookies.push({
+      name: cookieName,
+      value: base64Value,
+      domain,
+      path: '/',
+      httpOnly: false,
+      secure: false,
+      sameSite: 'Lax',
+      expires: -1,
+    });
+  } else {
+    // Chunk the encoded value
+    let remaining = encoded;
+    let i = 0;
+    while (remaining.length > 0) {
+      cookies.push({
+        name: `${cookieName}.${i}`,
+        value: decodeURIComponent(remaining.substring(0, MAX_CHUNK)),
+        domain,
+        path: '/',
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        expires: -1,
+      });
+      remaining = remaining.substring(MAX_CHUNK);
+      i++;
     }
   }
 
-  for (const origin of state.origins ?? []) {
-    if (origin.origin?.includes('fuzzycatapp.com')) {
-      origin.origin = baseURL;
-    }
-  }
-
-  writeFileSync(filePath, JSON.stringify(state, null, 2));
+  const storageState = { cookies, origins: [] };
+  writeFileSync(user.storageStatePath, JSON.stringify(storageState, null, 2));
+  console.log(`  ✓ Saved auth state → ${user.storageStatePath}`);
 }
 
 /** Warm up the dev server by hitting the homepage before running login flows. */
@@ -165,13 +175,14 @@ function ensureStorageStateFiles() {
 
 /**
  * Global setup: creates E2E test users via Supabase admin API (idempotent),
- * then logs in as each role via browser and saves storage state (cookies).
+ * then authenticates each role via the Auth REST API and saves storage state.
  */
 async function globalSetup(config: FullConfig) {
   // Always ensure storage state files exist so Playwright doesn't crash
   ensureStorageStateFiles();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const isPlaceholder = !supabaseUrl || !serviceRoleKey || supabaseUrl.includes('placeholder');
@@ -189,22 +200,14 @@ async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use?.baseURL ?? 'http://localhost:3000';
   await warmUpServer(baseURL);
 
-  const browser = await chromium.launch();
-
-  for (const [roleName, user] of Object.entries(TEST_USERS)) {
-    await loginAndSaveState(baseURL, roleName, user, browser);
+  // Authenticate via API — no browser needed, no hydration dependency
+  if (!anonKey) {
+    console.warn('[e2e:global-setup] Missing SUPABASE_ANON_KEY — skipping API login.');
+    return;
   }
 
-  await browser.close();
-
-  // Rewrite cookie domains when running against a non-production URL (e.g. localhost).
-  // Production cookies have domain=www.fuzzycatapp.com which browsers reject on localhost.
-  const isProduction = baseURL.includes('fuzzycatapp.com');
-  if (!isProduction) {
-    for (const [roleName, user] of Object.entries(TEST_USERS)) {
-      rewriteAuthStateForLocalhost(user.storageStatePath, baseURL);
-      console.log(`[e2e:global-setup] Rewrote cookie domains for ${roleName} → ${baseURL}`);
-    }
+  for (const [roleName, user] of Object.entries(TEST_USERS)) {
+    await loginViaAPI(supabaseUrl, anonKey, baseURL, roleName, user);
   }
 }
 

@@ -5,6 +5,7 @@ import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { useState } from 'react';
 import superjson from 'superjson';
+import { SentryUserSync } from '@/components/sentry-user-sync';
 import { PostHogProvider } from '@/lib/posthog/provider';
 import type { AppRouter } from '@/server/routers';
 import { TRPCProvider } from './client';
@@ -41,6 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
           {children}
+          <SentryUserSync />
           <SpeedInsights />
         </TRPCProvider>
       </QueryClientProvider>

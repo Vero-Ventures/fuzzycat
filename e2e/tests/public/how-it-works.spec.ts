@@ -49,7 +49,7 @@ test.describe('How It Works page', () => {
 
     // Multiple elements contain "3%" so use first() to avoid strict mode violation
     await expect(page.getByText('3%', { exact: false }).first()).toBeVisible();
-    await expect(page.getByText('Guaranteed payment').first()).toBeVisible();
+    await expect(page.getByText('Automated payment recovery').first()).toBeVisible();
 
     const screenshot = await page.screenshot({ fullPage: true });
     await testInfo.attach('clinic-benefits', {

@@ -63,7 +63,7 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
           <Section style={content}>{children}</Section>
           <Hr style={{ borderColor: '#e6ebf1', margin: '20px 48px' }} />
           <Section style={footer}>
-            <Text style={footerText}>FuzzyCat - Guaranteed Payment Plans for Veterinary Care</Text>
+            <Text style={footerText}>FuzzyCat - Flexible Payment Plans for Veterinary Care</Text>
             <Text style={footerText}>
               This is an automated message from FuzzyCat. Please do not reply directly to this
               email.

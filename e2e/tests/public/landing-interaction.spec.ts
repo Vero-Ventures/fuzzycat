@@ -2,39 +2,57 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Landing Page — Interactions', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Wait for React hydration so Next.js Link components are interactive
+    await page.waitForTimeout(1000);
   });
 
   test('"Start My Payment Plan" button navigates to /signup', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /start my payment plan/i });
+    // Use CSS selector for the <a> to avoid <button> inside <a> click issues
+    const cta = page.locator('a[href="/signup"]', {
+      hasText: /start my payment plan/i,
+    });
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/signup/);
   });
 
   test('"See How It Works" button navigates to /how-it-works', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /see how it works/i });
+    const cta = page.locator('a[href="/how-it-works"]', {
+      hasText: /see how it works/i,
+    });
+    await cta.scrollIntoViewIfNeeded();
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/how-it-works/);
   });
 
   test('"Partner With FuzzyCat" button navigates to /signup', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /partner with fuzzycat/i });
+    const cta = page.locator('a[href="/signup"]', {
+      hasText: /partner with fuzzycat/i,
+    });
+    await cta.scrollIntoViewIfNeeded();
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/signup/);
   });
 
   test('"Get Started" bottom CTA navigates to /signup', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /get started/i });
-    await expect(cta).toBeVisible();
-    await cta.click();
+    // "Get Started" appears in both header nav and bottom CTA; target the bottom one
+    const cta = page.locator('main a[href="/signup"]', {
+      hasText: /get started/i,
+    });
+    await cta.last().scrollIntoViewIfNeeded();
+    await expect(cta.last()).toBeVisible();
+    await cta.last().click();
     await expect(page).toHaveURL(/\/signup/);
   });
 
   test('"Learn More" bottom CTA navigates to /how-it-works', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /learn more/i });
+    const cta = page.locator('a[href="/how-it-works"]', {
+      hasText: /learn more/i,
+    });
+    await cta.scrollIntoViewIfNeeded();
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/how-it-works/);
@@ -45,7 +63,7 @@ test.describe('Landing Page — Interactions', () => {
   });
 
   test('fee section shows "Flat 6% Fee", "No Credit Check", "12-Week Plan"', async ({ page }) => {
-    await expect(page.getByText('Flat 6% Fee')).toBeVisible();
+    await expect(page.getByText('Flat 6% Fee', { exact: true })).toBeVisible();
     await expect(page.getByText('No Credit Check', { exact: true })).toBeVisible();
     await expect(page.getByText('12-Week Plan')).toBeVisible();
   });

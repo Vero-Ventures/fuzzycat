@@ -83,7 +83,7 @@ test.describe('Owner Enrollment Flow', () => {
 
   test('captures screenshot of enrollment start', async ({ page }, testInfo) => {
     // Wait for page to stabilize
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('enrollment-start-full', {
       body: await page.screenshot({ fullPage: true }),

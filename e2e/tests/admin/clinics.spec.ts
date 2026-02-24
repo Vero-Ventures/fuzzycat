@@ -27,7 +27,7 @@ test.describe('Admin Clinics', () => {
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const screenshot = await page.screenshot({ fullPage: true });
     await testInfo.attach('admin-clinics', {

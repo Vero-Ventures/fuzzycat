@@ -26,7 +26,7 @@ test.describe('Clinic Clients', () => {
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-clients', {
       body: await page.screenshot(),

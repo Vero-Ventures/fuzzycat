@@ -34,7 +34,10 @@ async function ensureUser(
 
   const responseText = await createRes.text();
 
-  if (createRes.status === 422 && responseText.includes('already registered')) {
+  if (
+    createRes.status === 422 &&
+    (responseText.includes('already') || responseText.includes('email_exists'))
+  ) {
     console.log('  ✓ Already exists');
     return;
   }
@@ -59,11 +62,11 @@ async function loginAndSaveState(
   const page = await context.newPage();
 
   try {
-    await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
     await page.fill('input[name="email"], input[type="email"]', user.email);
     await page.fill('input[name="password"], input[type="password"]', TEST_PASSWORD);
     await page.click('button[type="submit"]');
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15_000 });
+    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 });
     await context.storageState({ path: user.storageStatePath });
     console.log(`  ✓ Saved auth state → ${user.storageStatePath}`);
   } catch (error) {

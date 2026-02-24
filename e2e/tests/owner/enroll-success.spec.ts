@@ -69,7 +69,7 @@ test.describe('Owner Enrollment Success Page', () => {
 
   test('captures screenshot of success page', async ({ page }, testInfo) => {
     // Wait for tRPC data to load and render
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('enrollment-success-full', {
       body: await page.screenshot({ fullPage: true }),

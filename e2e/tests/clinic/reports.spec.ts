@@ -12,18 +12,19 @@ test.describe('Clinic Reports', () => {
 
   test('shows report content', async ({ page }) => {
     // The reports page contains: RevenueReport, EnrollmentTrends, ExportButtons
-    const revenueReport = page.getByRole('heading', { name: /revenue report/i });
+    // CardTitle renders as a <div>, not a heading element, so use getByText
+    const revenueReport = page.getByText(/revenue report/i).first();
     await expect(revenueReport).toBeVisible({ timeout: 10000 });
 
-    const enrollmentTrends = page.getByText(/enrollment trends/i);
+    const enrollmentTrends = page.getByText(/enrollment trends/i).first();
     await expect(enrollmentTrends).toBeVisible({ timeout: 10000 });
 
-    const exportData = page.getByText(/export data/i);
+    const exportData = page.getByText(/export data/i).first();
     await expect(exportData).toBeVisible({ timeout: 10000 });
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-reports', {
       body: await page.screenshot({ fullPage: true }),

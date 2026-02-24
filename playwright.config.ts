@@ -7,27 +7,36 @@ import { defineConfig, devices } from '@playwright/test';
 loadEnvConfig(process.cwd());
 
 const isCI = !!process.env.CI;
+const isProduction = process.env.E2E_ENV === 'production';
+
+const PRODUCTION_BASE_URL = 'https://www.fuzzycatapp.com';
 
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
-  reporter: isCI
+  retries: isProduction ? 1 : isCI ? 2 : 0,
+  workers: isProduction ? 8 : isCI ? 1 : undefined,
+  reporter: isProduction
     ? [
-        ['github'],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
         ['json', { outputFile: 'playwright-report/results.json' }],
-        ['html', { open: 'never' }],
+        ['list'],
       ]
-    : 'html',
+    : isCI
+      ? [
+          ['github'],
+          ['json', { outputFile: 'playwright-report/results.json' }],
+          ['html', { open: 'never' }],
+        ]
+      : 'html',
   globalSetup: './e2e/global-setup.ts',
   globalTeardown: './e2e/global-teardown.ts',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: isProduction ? PRODUCTION_BASE_URL : 'http://localhost:3000',
     trace: 'on-first-retry',
-    screenshot: isCI ? 'on' : 'only-on-failure',
-    video: isCI ? 'on-first-retry' : 'off',
+    screenshot: isProduction || isCI ? 'on' : 'only-on-failure',
+    video: isProduction || isCI ? 'on-first-retry' : 'off',
   },
   projects: [
     // ── Public pages (no auth) ────────────────────────────────────────
@@ -95,11 +104,15 @@ export default defineConfig({
       use: { ...devices['Pixel 5'] },
     },
     // ── Visual regression baselines ─────────────────────────────────
-    {
-      name: 'visual',
-      testDir: './e2e/tests/visual',
-      use: { ...devices['Desktop Chrome'] },
-    },
+    ...(isProduction
+      ? []
+      : [
+          {
+            name: 'visual',
+            testDir: './e2e/tests/visual',
+            use: { ...devices['Desktop Chrome'] },
+          },
+        ]),
     // ── Edge case tests ─────────────────────────────────────────────
     {
       name: 'edge-cases',
@@ -113,7 +126,7 @@ export default defineConfig({
       testMatch: 'public-pages.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://fuzzycatapp.com',
+        ...(isProduction ? {} : { baseURL: PRODUCTION_BASE_URL }),
       },
     },
     // ── Production: auth flow ─────────────────────────────────────────
@@ -123,14 +136,18 @@ export default defineConfig({
       testMatch: 'login-flow.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'https://fuzzycatapp.com',
+        ...(isProduction ? {} : { baseURL: PRODUCTION_BASE_URL }),
       },
     },
   ],
-  webServer: {
-    command: isCI ? 'bun run build && bun run start' : 'bun run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !isCI,
-    timeout: 120_000,
-  },
+  ...(isProduction
+    ? {}
+    : {
+        webServer: {
+          command: isCI ? 'bun run build && bun run start' : 'bun run dev',
+          url: 'http://localhost:3000',
+          reuseExistingServer: !isCI,
+          timeout: 120_000,
+        },
+      }),
 });

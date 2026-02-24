@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { chromium, type FullConfig } from '@playwright/test';
 import { TEST_PASSWORD, TEST_USERS } from './helpers/test-users';
 
@@ -50,29 +51,67 @@ async function ensureUser(
   );
 }
 
-/** Log in as a role via browser and save storage state. */
+/** Log in as a role via browser and save storage state, with retry. */
 async function loginAndSaveState(
   baseURL: string,
   roleName: string,
   user: (typeof TEST_USERS)[keyof typeof TEST_USERS],
   browser: Awaited<ReturnType<typeof chromium.launch>>,
 ) {
-  console.log(`[e2e:global-setup] Logging in as ${roleName}...`);
-  const context = await browser.newContext();
-  const page = await context.newPage();
+  const maxAttempts = 3;
 
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(
+      `[e2e:global-setup] Logging in as ${roleName}...${attempt > 1 ? ` (attempt ${attempt}/${maxAttempts})` : ''}`,
+    );
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    try {
+      await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForSelector('input[name="email"], input[type="email"]', { timeout: 10_000 });
+      await page.fill('input[name="email"], input[type="email"]', user.email);
+      await page.fill('input[name="password"], input[type="password"]', TEST_PASSWORD);
+      await page.click('button[type="submit"]');
+      await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 });
+      await context.storageState({ path: user.storageStatePath });
+      console.log(`  ✓ Saved auth state → ${user.storageStatePath}`);
+      return;
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts;
+      if (isLastAttempt) {
+        const hasExisting = existsSync(user.storageStatePath);
+        if (hasExisting) {
+          console.warn(
+            `[e2e:global-setup] Login failed for ${roleName} after ${maxAttempts} attempts — using existing auth state from ${user.storageStatePath}`,
+          );
+        } else {
+          console.error(
+            '[e2e:global-setup] Login failed for %s after %d attempts and no existing auth state:',
+            roleName,
+            maxAttempts,
+            error,
+          );
+        }
+      } else {
+        console.warn(
+          `[e2e:global-setup] Login attempt ${attempt} failed for ${roleName}, retrying...`,
+        );
+      }
+    } finally {
+      await context.close();
+    }
+  }
+}
+
+/** Warm up the dev server by hitting the homepage before running login flows. */
+async function warmUpServer(baseURL: string) {
+  console.log('[e2e:global-setup] Warming up dev server...');
   try {
-    await page.goto(`${baseURL}/login`, { waitUntil: 'domcontentloaded' });
-    await page.fill('input[name="email"], input[type="email"]', user.email);
-    await page.fill('input[name="password"], input[type="password"]', TEST_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30_000 });
-    await context.storageState({ path: user.storageStatePath });
-    console.log(`  ✓ Saved auth state → ${user.storageStatePath}`);
-  } catch (error) {
-    console.error('[e2e:global-setup] Login failed for %s:', roleName, error);
-  } finally {
-    await context.close();
+    const res = await fetch(`${baseURL}/api/health`, { signal: AbortSignal.timeout(15_000) });
+    console.log(`  ✓ Server responded (${res.status})`);
+  } catch {
+    console.warn('  ⚠ Health check failed — continuing anyway');
   }
 }
 
@@ -97,6 +136,8 @@ async function globalSetup(config: FullConfig) {
   }
 
   const baseURL = config.projects[0]?.use?.baseURL ?? 'http://localhost:3000';
+  await warmUpServer(baseURL);
+
   const browser = await chromium.launch();
 
   for (const [roleName, user] of Object.entries(TEST_USERS)) {

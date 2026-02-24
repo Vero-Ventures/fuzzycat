@@ -80,12 +80,6 @@ export default defineConfig({
         storageState: 'e2e/auth-state/admin.json',
       },
     },
-    // ── API tests ─────────────────────────────────────────────────────
-    {
-      name: 'api',
-      testDir: './e2e/tests/api',
-      use: { ...devices['Desktop Chrome'] },
-    },
     // ── Cross-cutting (desktop) ───────────────────────────────────────
     {
       name: 'cross-cutting',

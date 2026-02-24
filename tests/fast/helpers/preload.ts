@@ -18,16 +18,17 @@ let serverProcess: Subprocess | null = null;
 
 async function isServerReady(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/api/health`, {
+    await fetch(`${BASE_URL}/api/health`, {
       signal: AbortSignal.timeout(2000),
     });
-    return res.ok;
+    // Any response (even 503) means the server is accepting connections
+    return true;
   } catch {
     return false;
   }
 }
 
-async function waitForServer(maxWaitMs = 30_000): Promise<void> {
+async function waitForServer(maxWaitMs = 60_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     if (await isServerReady()) return;

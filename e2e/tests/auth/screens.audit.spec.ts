@@ -27,10 +27,12 @@ test.describe('UI Audit: Auth Pages', () => {
 
     await page.goto('/login');
 
-    await expect(page.getByRole('heading', { name: /log in/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /log in to fuzzycat/i })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /log in|sign in|submit/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 
     await takeScreenshot(page, testInfo, 'login-form', SUBDIR);
   });
@@ -40,15 +42,13 @@ test.describe('UI Audit: Auth Pages', () => {
 
     await page.goto('/signup');
 
-    await expect(
-      page.getByRole('heading', { name: /sign up|create.*account|get started/i }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /create an account/i })).toBeVisible({
+      timeout: 10000,
+    });
 
-    // Role selection tabs (Pet Owner / Clinic)
-    const ownerTab = page
-      .getByRole('tab', { name: /pet owner|owner/i })
-      .or(page.getByText(/pet owner/i));
-    await expect(ownerTab.first()).toBeVisible();
+    // Role selection tabs (Pet Owner / Veterinary Clinic)
+    const ownerTab = page.getByRole('tab', { name: /pet owner/i });
+    await expect(ownerTab).toBeVisible();
 
     await takeScreenshot(page, testInfo, 'signup-form', SUBDIR);
   });
@@ -58,10 +58,10 @@ test.describe('UI Audit: Auth Pages', () => {
 
     await page.goto('/forgot-password', { waitUntil: 'domcontentloaded' });
 
-    await expect(
-      page.getByRole('heading', { name: /forgot.*password|reset.*password/i }),
-    ).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /reset your password/i })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
 
     await takeScreenshot(page, testInfo, 'forgot-password', SUBDIR);
   });
@@ -71,11 +71,9 @@ test.describe('UI Audit: Auth Pages', () => {
 
     await page.goto('/reset-password');
 
-    // May show error without valid token, but page should render
-    const heading = page
-      .getByRole('heading', { name: /reset.*password|new.*password/i })
-      .or(page.getByText(/reset.*password|new.*password/i));
-    await expect(heading.first()).toBeVisible({ timeout: 10000 });
+    // Heading is "Set a new password"
+    const heading = page.getByRole('heading', { name: /set a new password/i });
+    await expect(heading).toBeVisible({ timeout: 10000 });
 
     await takeScreenshot(page, testInfo, 'reset-password', SUBDIR);
   });
@@ -87,7 +85,7 @@ test.describe('UI Audit: Auth Pages', () => {
 
     // May redirect to login if unauthenticated — capture whatever renders
     const mfaHeading = page
-      .getByRole('heading', { name: /mfa|multi-factor|two-factor|authenticator/i })
+      .getByRole('heading', { name: /set up two-factor authentication/i })
       .or(page.getByRole('heading', { name: /log in/i }));
     await expect(mfaHeading.first()).toBeVisible({ timeout: 10000 });
 
@@ -101,8 +99,8 @@ test.describe('UI Audit: Auth Pages', () => {
 
     // May redirect to login if unauthenticated — capture whatever renders
     const heading = page
-      .getByRole('heading', { name: /verify|mfa|code|log in/i })
-      .or(page.getByText(/verification code|enter.*code/i));
+      .getByRole('heading', { name: /two-factor authentication/i })
+      .or(page.getByRole('heading', { name: /log in/i }));
     await expect(heading.first()).toBeVisible({ timeout: 10000 });
 
     await takeScreenshot(page, testInfo, 'mfa-verify', SUBDIR);

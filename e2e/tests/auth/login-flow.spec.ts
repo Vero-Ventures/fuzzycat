@@ -7,9 +7,9 @@ test.describe('Login Page', () => {
 
   test('renders login form', async ({ page }, testInfo) => {
     await expect(page.getByRole('heading', { name: /log in to fuzzycat/i })).toBeVisible();
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /log in|sign in|submit/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 
     await testInfo.attach('login-form', {
       body: await page.screenshot(),
@@ -18,13 +18,14 @@ test.describe('Login Page', () => {
   });
 
   test('shows required field validation', async ({ page }, testInfo) => {
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
 
+    // Both inputs have required attribute in the DOM
     await expect(emailInput).toHaveAttribute('required', '');
     await expect(passwordInput).toHaveAttribute('required', '');
 
-    await page.getByRole('button', { name: /log in|sign in|submit/i }).click();
+    await page.getByRole('button', { name: /sign in/i }).click();
 
     // The form should not navigate away due to HTML validation
     await expect(page).toHaveURL(/\/login/);
@@ -36,7 +37,7 @@ test.describe('Login Page', () => {
   });
 
   test('email field has correct attributes', async ({ page }) => {
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     await expect(emailInput).toHaveAttribute('type', 'email');
     await expect(emailInput).toHaveAttribute('autocomplete', /.*/);
   });
@@ -47,12 +48,14 @@ test.describe('Login Page', () => {
   });
 
   test('shows error for invalid credentials', async ({ page }, testInfo) => {
-    await page.locator('input[type="email"]').fill('invalid@example.com');
+    await page.getByRole('textbox', { name: /email/i }).fill('invalid@example.com');
     await page.locator('input[type="password"]').fill('wrongpassword123');
-    await page.getByRole('button', { name: /log in|sign in|submit/i }).click();
+    await page.getByRole('button', { name: /sign in/i }).click();
 
-    // Wait for the error message to appear after form submission
-    const errorMessage = page.getByText(/invalid|incorrect|wrong|error|failed|not found/i);
+    // Wait for the error message to appear after form submission.
+    // Supabase may return different error messages depending on configuration;
+    // the form catch block returns "Something went wrong" when the call throws.
+    const errorMessage = page.getByRole('alert');
     await expect(errorMessage).toBeVisible({ timeout: 10000 });
 
     await testInfo.attach('invalid-credentials-error', {
@@ -62,14 +65,14 @@ test.describe('Login Page', () => {
   });
 
   test('has link to signup page', async ({ page }) => {
-    const signupLink = page.getByRole('link', { name: /sign up|create.*account|register/i });
+    const signupLink = page.getByRole('link', { name: /sign up/i });
     await expect(signupLink).toBeVisible();
     await expect(signupLink).toHaveAttribute('href', /\/signup/);
   });
 
   test('has link to forgot password', async ({ page }) => {
     const forgotLink = page.getByRole('link', {
-      name: /forgot.*password|reset.*password/i,
+      name: /forgot.*password/i,
     });
     await expect(forgotLink).toBeVisible();
     await expect(forgotLink).toHaveAttribute('href', /\/forgot-password/);

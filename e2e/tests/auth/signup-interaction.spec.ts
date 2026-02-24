@@ -15,11 +15,11 @@ test.describe('Signup Form — Interactions', () => {
 
   test('owner signup form validates required fields', async ({ page }) => {
     // Should default to Pet Owner tab
-    const submitBtn = page.getByRole('button', { name: /create account|sign up|register/i });
+    const submitBtn = page.getByRole('button', { name: /create account/i });
     await expect(submitBtn).toBeVisible();
 
     // Email is required
-    const emailInput = page.locator('#email');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     await expect(emailInput).toBeVisible();
 
     // Try to submit empty form
@@ -32,19 +32,19 @@ test.describe('Signup Form — Interactions', () => {
 
   test('clinic signup form is accessible via tab', async ({ page }) => {
     // Click Veterinary Clinic tab
-    const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
+    const clinicTab = page.getByRole('tab', { name: /veterinary clinic/i });
     await expect(clinicTab).toBeVisible();
     await clinicTab.click();
 
     // Clinic-specific fields should appear
-    const clinicNameInput = page.locator('#clinicName');
+    const clinicNameInput = page.getByRole('textbox', { name: /clinic name/i });
     await expect(clinicNameInput).toBeVisible({ timeout: 3000 });
   });
 
   test('weak password shows error', async ({ page }) => {
-    const emailInput = page.locator('#email');
-    const passwordInput = page.locator('#password');
-    const nameInput = page.locator('#name');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
+    const passwordInput = page.locator('input[type="password"]');
+    const nameInput = page.getByRole('textbox', { name: /full name/i });
 
     await emailInput.fill('test@example.com');
     if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -52,7 +52,7 @@ test.describe('Signup Form — Interactions', () => {
     }
     await passwordInput.fill('123'); // Too short
 
-    const submitBtn = page.getByRole('button', { name: /create account|sign up|register/i });
+    const submitBtn = page.getByRole('button', { name: /create account/i });
     await submitBtn.click();
 
     // Should show password error (minLength=8)
@@ -64,17 +64,17 @@ test.describe('Signup Form — Interactions', () => {
 
   test('tab switching preserves email data', async ({ page }) => {
     // Fill email on owner tab
-    const emailInput = page.locator('#email');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     await emailInput.fill('test@example.com');
 
     // Switch to clinic tab
-    const clinicTab = page.getByRole('tab', { name: /veterinary clinic|clinic/i });
+    const clinicTab = page.getByRole('tab', { name: /veterinary clinic/i });
     await clinicTab.click();
 
     await page.waitForTimeout(500);
 
     // Switch back to owner tab
-    const ownerTab = page.getByRole('tab', { name: /pet owner|owner/i });
+    const ownerTab = page.getByRole('tab', { name: /pet owner/i });
     await ownerTab.click();
 
     await page.waitForTimeout(500);

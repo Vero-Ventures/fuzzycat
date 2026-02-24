@@ -17,11 +17,11 @@ test.describe('Signup Page', () => {
   test('shows pet owner tab by default', async ({ page }, testInfo) => {
     const ownerTab = page.getByRole('tab', { name: /pet owner/i });
     await expect(ownerTab).toBeVisible();
-    // Active tab has bg-primary class
-    await expect(ownerTab).toHaveClass(/bg-primary/);
+    // Active tab has aria-selected="true"
+    await expect(ownerTab).toHaveAttribute('aria-selected', 'true');
 
     // Owner-specific fields should be visible
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
 
     await testInfo.attach('owner-tab-default', {
@@ -36,11 +36,11 @@ test.describe('Signup Page', () => {
     });
     await clinicTab.click();
 
-    // Active tab has bg-primary class
-    await expect(clinicTab).toHaveClass(/bg-primary/);
+    // Active tab has aria-selected="true"
+    await expect(clinicTab).toHaveAttribute('aria-selected', 'true');
 
     // Clinic-specific fields should now be visible
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
 
     await testInfo.attach('clinic-tab-selected', {
@@ -50,7 +50,7 @@ test.describe('Signup Page', () => {
   });
 
   test('owner form has required fields', async ({ page }) => {
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
 
     await expect(emailInput).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('Signup Page', () => {
     });
     await clinicTab.click();
 
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
 
     await expect(emailInput).toBeVisible();
@@ -77,13 +77,13 @@ test.describe('Signup Page', () => {
   });
 
   test('shows validation for empty submission', async ({ page }, testInfo) => {
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
 
     await expect(emailInput).toHaveAttribute('required', '');
     await expect(passwordInput).toHaveAttribute('required', '');
 
-    await page.getByRole('button', { name: /sign up|create.*account|register|submit/i }).click();
+    await page.getByRole('button', { name: /create account/i }).click();
 
     // The form should not navigate away due to HTML validation
     await expect(page).toHaveURL(/\/signup/);
@@ -96,7 +96,7 @@ test.describe('Signup Page', () => {
 
   test('has link to login page', async ({ page }) => {
     const loginLink = page.getByRole('link', {
-      name: /log in|sign in|already have.*account/i,
+      name: /log in/i,
     });
     await expect(loginLink).toBeVisible();
     await expect(loginLink).toHaveAttribute('href', /\/login/);
@@ -112,9 +112,9 @@ test.describe('Signup Page', () => {
       expect(Number(minlength)).toBeGreaterThanOrEqual(8);
     } else {
       // If no minlength attribute, try submitting a short password
-      await page.locator('input[type="email"]').fill('test@example.com');
+      await page.getByRole('textbox', { name: /email/i }).fill('test@example.com');
       await passwordInput.fill('short');
-      await page.getByRole('button', { name: /sign up|create.*account|register|submit/i }).click();
+      await page.getByRole('button', { name: /create account/i }).click();
 
       // Expect an error about password length
       const errorMessage = page.getByText(

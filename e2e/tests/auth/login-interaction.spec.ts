@@ -6,9 +6,9 @@ test.describe('Login Form — Interactions', () => {
   });
 
   test('invalid email format triggers HTML validation', async ({ page }) => {
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
-    const submitBtn = page.getByRole('button', { name: /sign in|log in|submit/i });
+    const submitBtn = page.getByRole('button', { name: /sign in/i });
 
     await emailInput.fill('not-an-email');
     await passwordInput.fill('password123');
@@ -29,9 +29,9 @@ test.describe('Login Form — Interactions', () => {
       }),
     );
 
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
-    const submitBtn = page.getByRole('button', { name: /sign in|log in|submit/i });
+    const submitBtn = page.getByRole('button', { name: /sign in/i });
 
     await emailInput.fill('test@example.com');
     await passwordInput.fill('TestPassword123!');
@@ -44,7 +44,7 @@ test.describe('Login Form — Interactions', () => {
   test('redirectTo parameter is forwarded', async ({ page }) => {
     await page.goto('/login?redirectTo=/owner/payments');
 
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
 
     // The form should preserve the redirectTo query param

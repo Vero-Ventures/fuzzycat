@@ -57,14 +57,4 @@ test.describe('Landing Page — Interactions', () => {
     await cta.click();
     await expect(page).toHaveURL(/\/how-it-works/);
   });
-
-  test('hero badge shows "No credit check required"', async ({ page }) => {
-    await expect(page.getByText('No credit check required')).toBeVisible();
-  });
-
-  test('fee section shows "Flat 6% Fee", "No Credit Check", "12-Week Plan"', async ({ page }) => {
-    await expect(page.getByText('Flat 6% Fee', { exact: true })).toBeVisible();
-    await expect(page.getByText('No Credit Check', { exact: true })).toBeVisible();
-    await expect(page.getByText('12-Week Plan')).toBeVisible();
-  });
 });

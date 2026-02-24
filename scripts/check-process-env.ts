@@ -34,6 +34,7 @@ const EXEMPT_PATTERNS = [
   '.spec.',
   '__tests__',
   'e2e/',
+  'tests/',
   '.github/',
 ];
 

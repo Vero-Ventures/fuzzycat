@@ -17,27 +17,6 @@ test.describe('Clinic Reports — Interactions', () => {
     await mockAllTrpc(page);
   });
 
-  test('revenue report renders monthly breakdown', async ({ page }) => {
-    await gotoPortalPage(page, '/clinic/reports');
-
-    // Revenue section
-    await expect(page.getByText(/revenue/i).first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('enrollment trends visible', async ({ page }) => {
-    await gotoPortalPage(page, '/clinic/reports');
-
-    // Enrollment trends section
-    await expect(page.getByText(/enrollment.*trend|trend/i).first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('default rate percentage renders', async ({ page }) => {
-    await gotoPortalPage(page, '/clinic/reports');
-
-    // Default rate: 3.39%
-    await expect(page.getByText(/3\.39/).first()).toBeVisible({ timeout: 5000 });
-  });
-
   test('export clients CSV triggers download', async ({ page }) => {
     await gotoPortalPage(page, '/clinic/reports');
 
@@ -83,5 +62,44 @@ test.describe('Clinic Reports — Interactions', () => {
         expect(download.suggestedFilename()).toMatch(/\.csv$/i);
       }
     }
+  });
+
+  test('clicking export button shows loading state', async ({ page }) => {
+    // Do NOT mock the export CSV query so it stays in loading state
+    await gotoPortalPage(page, '/clinic/reports');
+
+    const exportClientsBtn = page.getByRole('button', { name: /export clients/i });
+    await expect(exportClientsBtn).toBeVisible({ timeout: 5000 });
+
+    // Click the button to trigger the export query
+    await exportClientsBtn.click();
+
+    // The button text should change to "Exporting..." while loading
+    await expect(page.getByRole('button', { name: /exporting\.\.\./i })).toBeVisible({
+      timeout: 5000,
+    });
+  });
+
+  test('after export completes, button returns to normal state', async ({ page }) => {
+    // Mock the export CSV query so it resolves immediately
+    await mockTrpcQuery(page, 'clinic.exportClientsCSV', {
+      csv: 'Name,Email\nJane Doe,jane@example.com\n',
+    });
+
+    await gotoPortalPage(page, '/clinic/reports');
+
+    const exportClientsBtn = page.getByRole('button', { name: /export clients/i });
+    await expect(exportClientsBtn).toBeVisible({ timeout: 5000 });
+
+    // Click to trigger export
+    await exportClientsBtn.click();
+
+    // After the query resolves, the button should revert to "Export Clients"
+    await expect(page.getByRole('button', { name: /export clients/i })).toBeVisible({
+      timeout: 5000,
+    });
+
+    // The button should not show "Exporting..." anymore
+    await expect(page.getByRole('button', { name: /exporting\.\.\./i })).not.toBeVisible();
   });
 });

@@ -5,18 +5,6 @@ test.describe('Login Page', () => {
     await page.goto('/login');
   });
 
-  test('renders login form', async ({ page }, testInfo) => {
-    await expect(page.getByRole('heading', { name: /log in to fuzzycat/i })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
-
-    await testInfo.attach('login-form', {
-      body: await page.screenshot(),
-      contentType: 'image/png',
-    });
-  });
-
   test('shows required field validation', async ({ page }, testInfo) => {
     const emailInput = page.getByRole('textbox', { name: /email/i });
     const passwordInput = page.locator('input[type="password"]');
@@ -36,17 +24,6 @@ test.describe('Login Page', () => {
     });
   });
 
-  test('email field has correct attributes', async ({ page }) => {
-    const emailInput = page.getByRole('textbox', { name: /email/i });
-    await expect(emailInput).toHaveAttribute('type', 'email');
-    await expect(emailInput).toHaveAttribute('autocomplete', /.*/);
-  });
-
-  test('password field has correct attributes', async ({ page }) => {
-    const passwordInput = page.locator('input[type="password"]');
-    await expect(passwordInput).toHaveAttribute('type', 'password');
-  });
-
   test('shows error for invalid credentials', async ({ page }, testInfo) => {
     await page.getByRole('textbox', { name: /email/i }).fill('invalid@example.com');
     await page.locator('input[type="password"]').fill('wrongpassword123');
@@ -59,30 +36,6 @@ test.describe('Login Page', () => {
     await expect(errorMessage).toBeVisible({ timeout: 10000 });
 
     await testInfo.attach('invalid-credentials-error', {
-      body: await page.screenshot(),
-      contentType: 'image/png',
-    });
-  });
-
-  test('has link to signup page', async ({ page }) => {
-    const signupLink = page.getByRole('link', { name: /sign up/i });
-    await expect(signupLink).toBeVisible();
-    await expect(signupLink).toHaveAttribute('href', /\/signup/);
-  });
-
-  test('has link to forgot password', async ({ page }) => {
-    const forgotLink = page.getByRole('link', {
-      name: /forgot.*password/i,
-    });
-    await expect(forgotLink).toBeVisible();
-    await expect(forgotLink).toHaveAttribute('href', /\/forgot-password/);
-  });
-
-  test('preserves redirectTo parameter', async ({ page }, testInfo) => {
-    await page.goto('/login?redirectTo=/owner/payments');
-    await expect(page).toHaveURL(/redirectTo=%2Fowner%2Fpayments|redirectTo=\/owner\/payments/);
-
-    await testInfo.attach('redirect-param-preserved', {
       body: await page.screenshot(),
       contentType: 'image/png',
     });

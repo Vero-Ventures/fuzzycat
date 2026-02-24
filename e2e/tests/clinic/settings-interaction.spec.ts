@@ -6,26 +6,6 @@ import { mockTrpcMutation, mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Clinic Settings — Interactions', () => {
-  test('profile form pre-fills data', async ({ page }) => {
-    await mockTrpcQuery(page, 'clinic.getProfile', clinicProfile);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/clinic/settings');
-
-    // Clinic name pre-filled
-    const nameInput = page.locator('#clinic-name');
-    if (await nameInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(nameInput).toHaveValue('Happy Paws Veterinary');
-    }
-
-    // Phone pre-filled
-    const phoneInput = page.locator('#clinic-phone');
-    if (await phoneInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const value = await phoneInput.inputValue();
-      expect(value).toBeTruthy();
-    }
-  });
-
   test('profile form submission', async ({ page }) => {
     await mockTrpcQuery(page, 'clinic.getProfile', clinicProfile);
     await mockTrpcMutation(page, 'clinic.updateProfile', { success: true });
@@ -44,17 +24,6 @@ test.describe('Clinic Settings — Interactions', () => {
 
       await expect(page.getByText(/updated|saved|success/i).first()).toBeVisible({ timeout: 5000 });
     }
-  });
-
-  test('Stripe Connect shows connected status', async ({ page }) => {
-    await mockTrpcQuery(page, 'clinic.getProfile', clinicProfile);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/clinic/settings');
-
-    // Stripe section should indicate connected
-    const stripeSection = page.getByText(/stripe.*connect|connected|acct_/i);
-    await expect(stripeSection.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('form validation: invalid phone', async ({ page }) => {

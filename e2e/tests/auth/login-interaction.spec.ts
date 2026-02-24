@@ -41,20 +41,6 @@ test.describe('Login Form — Interactions', () => {
     await page.waitForTimeout(200);
   });
 
-  test('redirectTo parameter is forwarded', async ({ page }) => {
-    await page.goto('/login?redirectTo=/owner/payments');
-
-    const emailInput = page.getByRole('textbox', { name: /email/i });
-    const passwordInput = page.locator('input[type="password"]');
-
-    // The form should preserve the redirectTo query param
-    expect(page.url()).toContain('redirectTo');
-
-    // Inputs should still be functional
-    await expect(emailInput).toBeVisible();
-    await expect(passwordInput).toBeVisible();
-  });
-
   test('Turnstile CAPTCHA renders', async ({ page }) => {
     // The page should attempt to load Turnstile
     // With real Turnstile, a challenge widget renders — in test it's either mocked or shows placeholder

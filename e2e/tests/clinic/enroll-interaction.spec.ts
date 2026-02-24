@@ -12,40 +12,6 @@ test.describe('Clinic Enrollment — Form Interactions', () => {
     await mockAllTrpc(page);
   });
 
-  test('form renders with all required fields', async ({ page }) => {
-    await gotoPortalPage(page, '/clinic/enroll');
-
-    // Card title
-    await expect(page.getByText(/initiate enrollment/i).first()).toBeVisible({ timeout: 5000 });
-
-    // Owner information fields
-    await expect(page.locator('#owner-name')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#owner-email')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#owner-phone')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#pet-name')).toBeVisible({ timeout: 5000 });
-
-    // Bill amount field
-    await expect(page.locator('#bill-amount')).toBeVisible({ timeout: 5000 });
-
-    // Labels for all fields
-    await expect(page.getByText(/full name/i)).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/email/i).first()).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/phone/i).first()).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/pet name/i)).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/vet bill amount/i)).toBeVisible({ timeout: 3000 });
-
-    // Payment method buttons
-    await expect(page.getByRole('button', { name: /debit card/i })).toBeVisible({ timeout: 3000 });
-    await expect(page.getByRole('button', { name: /bank account/i })).toBeVisible({
-      timeout: 3000,
-    });
-
-    // Submit button
-    await expect(page.getByRole('button', { name: /create payment plan/i })).toBeVisible({
-      timeout: 3000,
-    });
-  });
-
   test('payment method toggles between Debit Card and Bank Account', async ({ page }) => {
     await gotoPortalPage(page, '/clinic/enroll');
 

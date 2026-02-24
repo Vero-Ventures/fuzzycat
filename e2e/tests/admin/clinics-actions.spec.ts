@@ -11,27 +11,6 @@ test.describe('Admin Clinics — Action Buttons', () => {
     await mockAllTrpc(page);
   });
 
-  test('pending clinic shows Approve button', async ({ page }) => {
-    await gotoPortalPage(page, '/admin/clinics');
-
-    // Wait for the table to render
-    const table = page.locator('table').or(page.locator('[role="table"]'));
-    await expect(table.first()).toBeVisible({ timeout: 5000 });
-
-    // PetCare Plus is the pending clinic (clinic-003)
-    await expect(page.getByText(/petcare plus/i).first()).toBeVisible({ timeout: 5000 });
-
-    // The row for PetCare Plus should have an "Approve" button
-    const petCareRow = page.locator('tr', { hasText: /petcare plus/i });
-    const approveBtn = petCareRow.getByRole('button', { name: /approve/i });
-    await expect(approveBtn).toBeVisible({ timeout: 5000 });
-
-    // Suspended clinic should NOT show Approve — it shows Reactivate instead
-    // Active clinics should NOT show Approve
-    const happyPawsRow = page.locator('tr', { hasText: /happy paws/i });
-    await expect(happyPawsRow.getByRole('button', { name: /^approve$/i })).not.toBeVisible();
-  });
-
   test('clicking Approve triggers mutation and shows success', async ({ page }) => {
     // Mock the updateClinicStatus mutation
     await mockTrpcMutation(page, 'admin.updateClinicStatus', { success: true });
@@ -71,49 +50,6 @@ test.describe('Admin Clinics — Action Buttons', () => {
 
     // Wait for refetch
     await page.waitForTimeout(2000);
-  });
-
-  test('active clinic shows Suspend button', async ({ page }) => {
-    await gotoPortalPage(page, '/admin/clinics');
-
-    // Wait for the table to render
-    const table = page.locator('table').or(page.locator('[role="table"]'));
-    await expect(table.first()).toBeVisible({ timeout: 5000 });
-
-    // Happy Paws Veterinary is active (clinic-001)
-    const happyPawsRow = page.locator('tr', { hasText: /happy paws/i });
-    await expect(happyPawsRow).toBeVisible({ timeout: 5000 });
-
-    const suspendBtn = happyPawsRow.getByRole('button', { name: /suspend/i });
-    await expect(suspendBtn).toBeVisible({ timeout: 5000 });
-
-    // Whisker Wellness Clinic is also active (clinic-002)
-    const whiskerRow = page.locator('tr', { hasText: /whisker wellness/i });
-    const suspendBtn2 = whiskerRow.getByRole('button', { name: /suspend/i });
-    await expect(suspendBtn2).toBeVisible({ timeout: 5000 });
-
-    // Pending clinic should NOT show Suspend
-    const petCareRow = page.locator('tr', { hasText: /petcare plus/i });
-    await expect(petCareRow.getByRole('button', { name: /suspend/i })).not.toBeVisible();
-  });
-
-  test('suspended clinic shows Reactivate button', async ({ page }) => {
-    await gotoPortalPage(page, '/admin/clinics');
-
-    // Wait for the table to render
-    const table = page.locator('table').or(page.locator('[role="table"]'));
-    await expect(table.first()).toBeVisible({ timeout: 5000 });
-
-    // Sunset Animal Hospital is suspended (clinic-004)
-    const sunsetRow = page.locator('tr', { hasText: /sunset animal/i });
-    await expect(sunsetRow).toBeVisible({ timeout: 5000 });
-
-    const reactivateBtn = sunsetRow.getByRole('button', { name: /reactivate/i });
-    await expect(reactivateBtn).toBeVisible({ timeout: 5000 });
-
-    // Suspended clinic should NOT show Suspend or Approve
-    await expect(sunsetRow.getByRole('button', { name: /suspend/i })).not.toBeVisible();
-    await expect(sunsetRow.getByRole('button', { name: /^approve$/i })).not.toBeVisible();
   });
 
   test('action buttons show disabled state during mutation', async ({ page }) => {

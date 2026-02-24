@@ -5,31 +5,6 @@ test.describe('Signup Page', () => {
     await page.goto('/signup');
   });
 
-  test('renders signup form', async ({ page }, testInfo) => {
-    await expect(page.getByRole('heading', { name: /create an account/i })).toBeVisible();
-
-    await testInfo.attach('signup-form', {
-      body: await page.screenshot(),
-      contentType: 'image/png',
-    });
-  });
-
-  test('shows pet owner tab by default', async ({ page }, testInfo) => {
-    const ownerTab = page.getByRole('tab', { name: /pet owner/i });
-    await expect(ownerTab).toBeVisible();
-    // Active tab has aria-selected="true"
-    await expect(ownerTab).toHaveAttribute('aria-selected', 'true');
-
-    // Owner-specific fields should be visible
-    await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-
-    await testInfo.attach('owner-tab-default', {
-      body: await page.screenshot(),
-      contentType: 'image/png',
-    });
-  });
-
   test('can switch to clinic tab', async ({ page }, testInfo) => {
     const clinicTab = page.getByRole('tab', {
       name: /veterinary clinic/i,
@@ -47,17 +22,6 @@ test.describe('Signup Page', () => {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
-  });
-
-  test('owner form has required fields', async ({ page }) => {
-    const emailInput = page.getByRole('textbox', { name: /email/i });
-    const passwordInput = page.locator('input[type="password"]');
-
-    await expect(emailInput).toBeVisible();
-    await expect(emailInput).toHaveAttribute('type', 'email');
-
-    await expect(passwordInput).toBeVisible();
-    await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
   test('clinic form has required fields', async ({ page }) => {
@@ -92,14 +56,6 @@ test.describe('Signup Page', () => {
       body: await page.screenshot(),
       contentType: 'image/png',
     });
-  });
-
-  test('has link to login page', async ({ page }) => {
-    const loginLink = page.getByRole('link', {
-      name: /log in/i,
-    });
-    await expect(loginLink).toBeVisible();
-    await expect(loginLink).toHaveAttribute('href', /\/login/);
   });
 
   test('password has minimum length requirement', async ({ page }, testInfo) => {

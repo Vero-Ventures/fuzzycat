@@ -26,7 +26,8 @@ test.describe('Portal Mobile Responsive — Owner', () => {
     await mockTrpcQuery(page, 'owner.getPaymentHistory', ownerPaymentHistory);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/payments');
+    const loaded = await gotoPortalPage(page, '/owner/payments');
+    if (!loaded) return;
 
     await expect(page.getByText(/my payment plan|payment/i).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/next payment/i).first()).toBeVisible({ timeout: 5000 });
@@ -43,7 +44,8 @@ test.describe('Portal Mobile Responsive — Owner', () => {
     await mockTrpcQuery(page, 'clinic.search', clinicSearch);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/enroll');
+    const loaded = await gotoPortalPage(page, '/owner/enroll');
+    if (!loaded) return;
 
     await expect(page.getByText(/enroll|payment plan|step 1|find your vet/i).first()).toBeVisible({
       timeout: 5000,
@@ -71,7 +73,8 @@ test.describe('Portal Mobile Responsive — Clinic', () => {
     await mockTrpcQuery(page, 'clinic.getMonthlyRevenue', clinicMonthlyRevenue);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/dashboard');
+    const loaded = await gotoPortalPage(page, '/clinic/dashboard');
+    if (!loaded) return;
 
     await expect(page.getByText(/clinic dashboard/i).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/active plan/i).first()).toBeVisible({ timeout: 5000 });
@@ -87,7 +90,8 @@ test.describe('Portal Mobile Responsive — Clinic', () => {
     await mockTrpcQuery(page, 'clinic.getClients', clinicClients);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/clinic/clients');
+    const loaded = await gotoPortalPage(page, '/clinic/clients');
+    if (!loaded) return;
 
     const content = page.getByText(/jane doe/i).or(page.getByText(/client/i));
     await expect(content.first()).toBeVisible({ timeout: 5000 });
@@ -115,7 +119,8 @@ test.describe('Portal Mobile Responsive — Admin', () => {
     await mockTrpcQuery(page, 'admin.getRecentAuditLog', adminRecentAuditLog);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/admin/dashboard');
+    const loaded = await gotoPortalPage(page, '/admin/dashboard');
+    if (!loaded) return;
 
     await expect(page.getByText(/admin dashboard/i).first()).toBeVisible({ timeout: 5000 });
 

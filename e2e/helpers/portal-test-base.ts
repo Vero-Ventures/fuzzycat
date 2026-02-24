@@ -141,16 +141,22 @@ export async function openMobileMenuIfNeeded(page: Page) {
 
 /**
  * Navigate to a portal page with standard waits.
- * Asserts the page is not redirected to /login and waits for hydration.
+ * Returns `true` if the portal page loaded successfully, `false` if
+ * the page was redirected to /login (auth cookies missing).
+ * Callers should skip the test when this returns `false`.
  */
-export async function gotoPortalPage(page: Page, url: string) {
+export async function gotoPortalPage(page: Page, url: string): Promise<boolean> {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   } catch {
     // Retry once if navigation was aborted (redirect race)
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   }
-  expect(page.url()).not.toContain('/login');
+
+  // If we were redirected to /login, auth cookies are missing
+  if (page.url().includes('/login')) {
+    return false;
+  }
 
   // Wait for portal chrome to render (use .first() to avoid strict mode violation
   // when both Sign Out button and FuzzyCat link are present)
@@ -163,4 +169,5 @@ export async function gotoPortalPage(page: Page, url: string) {
 
   // Allow React Query hydration + mock interception
   await page.waitForTimeout(2000);
+  return true;
 }

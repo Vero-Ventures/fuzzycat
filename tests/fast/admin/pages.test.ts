@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { getAuthCookies } from '../helpers/auth';
+import { getAuthCookies, hasAuth } from '../helpers/auth';
 import { fetchPage } from '../helpers/fetch';
 
-describe('Admin portal pages', () => {
+describe.skipIf(!hasAuth())('Admin portal pages', () => {
   describe('layout (sidebar)', () => {
     test('sidebar nav links', async () => {
       const cookies = await getAuthCookies('admin');

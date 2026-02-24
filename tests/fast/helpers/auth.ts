@@ -10,6 +10,12 @@ const ROLE_EMAILS: Record<string, string> = {
 
 const MAX_CHUNK = 3180;
 
+/** Returns true if real Supabase credentials are available for auth tests. */
+export function hasAuth(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  return !!url && !url.includes('placeholder');
+}
+
 export async function getAuthCookies(role: 'owner' | 'clinic' | 'admin'): Promise<string> {
   const cached = cookieCache.get(role);
   if (cached) return cached;

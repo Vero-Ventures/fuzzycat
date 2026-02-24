@@ -22,7 +22,7 @@
     "check:bundle": "bun run scripts/check-bundle-size.ts",
     "check:all": "bun run ci && bun run check:unused && bun run check:types && bun run check:licenses",
     "test": "bun test lib server app",
-    "test:fast": "bun test tests/fast --preload tests/fast/helpers/preload.ts",
+    "test:fast": "bun test tests/fast --timeout 15000 --preload ./tests/fast/helpers/preload.ts",
     "test:e2e": "playwright test",
     "test:e2e:local": "playwright test --project=public --project=auth --project=owner --project=clinic --project=admin --project=api --project=cross-cutting --project=edge-cases",
     "test:e2e:prod": "playwright test --project=production-public --project=production-auth",

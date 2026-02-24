@@ -31,7 +31,7 @@ export function ClinicWelcome({
 
       <Text style={paragraph}>
         We are thrilled to have {clinicName} join the FuzzyCat family! Your clinic is now registered
-        on our platform and ready to offer Guaranteed Payment Plans to your clients.
+        on our platform and ready to offer payment plans to your clients.
       </Text>
 
       <Section style={tableContainer}>
@@ -44,7 +44,7 @@ export function ClinicWelcome({
         <Text style={tableRow}>
           2. Clients pay 25% upfront and the rest in 6 biweekly installments
         </Text>
-        <Text style={tableRow}>3. Your clinic receives payments as they come in -- guaranteed</Text>
+        <Text style={tableRow}>3. Your clinic receives payments as each installment clears</Text>
         <Text style={tableRow}>4. Earn a 3% revenue share on every enrollment</Text>
       </Section>
 

@@ -35,9 +35,7 @@ test.describe('Clinic Onboarding', () => {
   });
 
   test('shows description', async ({ page }) => {
-    const description = page.getByText(
-      /complete the steps below to start offering guaranteed payment plans/i,
-    );
+    const description = page.getByText(/complete the steps below to start offering payment plans/i);
     await expect(description).toBeVisible();
   });
 

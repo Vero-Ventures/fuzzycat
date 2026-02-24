@@ -41,7 +41,8 @@ export function SoftCollectionDay7({
       <Section style={warningBox}>
         <Text style={{ ...paragraph, color: '#92400e', margin: '0' }}>
           To avoid further complications with your payment plan, please update your payment method
-          as soon as possible. Continued non-payment may result in a guarantee claim being filed.
+          as soon as possible. Continued non-payment may result in your balance being referred to
+          the clinic for collection.
         </Text>
       </Section>
 

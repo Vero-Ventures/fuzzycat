@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 export const metadata: Metadata = {
   title: {
     template: '%s | FuzzyCat',
-    default: 'FuzzyCat - Guaranteed Payment Plans for Veterinary Care',
+    default: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   },
   description:
     'Pay your vet bill in easy biweekly installments. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment.',
@@ -72,7 +72,7 @@ function Footer() {
               <span className="text-lg font-bold">FuzzyCat</span>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Guaranteed payment plans for veterinary care. No credit check. No surprises.
+              Flexible payment plans for veterinary care. No credit check. No surprises.
             </p>
           </div>
           <div>

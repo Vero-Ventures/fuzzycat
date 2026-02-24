@@ -374,7 +374,7 @@ export async function sendSoftCollectionReminder(
   const messages: Record<string, string> = {
     day_1_reminder: `FuzzyCat: Your payment plan for ${params.petName} has been paused. Please update your payment method at ${params.updatePaymentUrl} to resume.`,
     day_7_followup: `FuzzyCat: Action required -- your payment plan for ${params.petName} has been paused for 7 days. Update your payment method at ${params.updatePaymentUrl} to avoid further action.`,
-    day_14_final: `FuzzyCat: Final notice -- your payment plan for ${params.petName} will have a guarantee claim finalized soon. Update your payment method now at ${params.updatePaymentUrl}`,
+    day_14_final: `FuzzyCat: Final notice -- your payment plan for ${params.petName} will be referred to the clinic for collection soon. Update your payment method now at ${params.updatePaymentUrl}`,
   };
 
   const body = messages[params.stage];

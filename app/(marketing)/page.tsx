@@ -23,11 +23,11 @@ import {
 } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: 'FuzzyCat - Guaranteed Payment Plans for Veterinary Care',
+  title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   description:
-    'Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment. Guaranteed payment plans for veterinary care.',
+    'Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment. Flexible payment plans for veterinary care.',
   openGraph: {
-    title: 'FuzzyCat - Guaranteed Payment Plans for Veterinary Care',
+    title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
     description:
       'Pay your vet bill in easy biweekly installments. No credit check. No hidden fees.',
     type: 'website',
@@ -218,8 +218,8 @@ export default function LandingPage() {
                   />
                   <ClinicBenefit
                     icon={<Shield className="h-5 w-5" />}
-                    title="Guaranteed payment"
-                    description="If a pet owner defaults, FuzzyCat's risk pool covers your payout."
+                    title="Built-in default protection"
+                    description="25% upfront deposit and automated collection reduce your default risk."
                   />
                   <ClinicBenefit
                     icon={<BadgeCheck className="h-5 w-5" />}

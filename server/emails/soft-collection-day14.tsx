@@ -41,9 +41,9 @@ export function SoftCollectionDay14({
 
       <Section style={warningBox}>
         <Text style={{ ...paragraph, color: '#92400e', margin: '0', fontWeight: 'bold' }}>
-          If your payment method is not updated within the next few days, the guarantee claim for
-          your remaining balance will be finalized. This is your last opportunity to resolve this
-          matter directly.
+          If your payment method is not updated within the next few days, your remaining balance
+          will be referred to the clinic for direct collection. This is your last opportunity to
+          resolve this matter directly.
         </Text>
       </Section>
 

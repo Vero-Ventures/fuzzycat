@@ -12,7 +12,7 @@ export default function ClinicOnboardingPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Welcome to FuzzyCat</h1>
         <p className="mt-2 text-muted-foreground">
-          Complete the steps below to start offering Guaranteed Payment Plans to your clients.
+          Complete the steps below to start offering payment plans to your clients.
         </p>
       </div>
       <OnboardingChecklist />

@@ -18,12 +18,12 @@ test.describe('Clinic Payouts', () => {
     await expect(description).toBeVisible();
 
     // Wait for at least one earnings card or skeleton to appear
-    const cards = page.locator('[class*="card"]');
+    const cards = page.locator('.rounded-xl.border');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-payouts', {
       body: await page.screenshot(),

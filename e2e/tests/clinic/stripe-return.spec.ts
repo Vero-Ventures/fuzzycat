@@ -16,7 +16,7 @@ test.describe('Clinic Stripe Return', () => {
 
   test('captures screenshot', async ({ page }, testInfo) => {
     await page.goto('/clinic/onboarding/stripe-return');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-stripe-return', {
       body: await page.screenshot(),

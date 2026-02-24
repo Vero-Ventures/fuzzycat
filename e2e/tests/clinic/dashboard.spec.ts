@@ -17,7 +17,7 @@ test.describe('Clinic Dashboard', () => {
     await expect(statsSection).toBeVisible({ timeout: 10000 });
 
     // At least one stat card should be present (loading skeleton or real data)
-    const cards = page.locator('[class*="card"]');
+    const cards = page.locator('.rounded-xl.border');
     await expect(cards.first()).toBeVisible({ timeout: 10000 });
   });
 
@@ -26,7 +26,7 @@ test.describe('Clinic Dashboard', () => {
       name: /initiate enrollment/i,
     });
     await expect(enrollButton).toBeVisible();
-    await expect(enrollButton).toHaveAttribute('href', /\/owner\/enroll/);
+    await expect(enrollButton).toHaveAttribute('href', /\/clinic\/enroll/);
   });
 
   test('shows recent enrollments', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Clinic Dashboard', () => {
 
   test('captures screenshot', async ({ page }, testInfo) => {
     // Wait for the page to settle
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-dashboard', {
       body: await page.screenshot(),

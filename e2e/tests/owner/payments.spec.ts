@@ -54,7 +54,7 @@ test.describe('Owner Payments Page', () => {
 
   test('captures screenshot of full dashboard', async ({ page }, testInfo) => {
     // Wait for the page to stabilize after data loading
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('full-payments-dashboard', {
       body: await page.screenshot({ fullPage: true }),

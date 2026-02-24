@@ -68,7 +68,7 @@ test.describe('Owner Settings Page', () => {
 
   test('captures screenshot of settings page', async ({ page }, testInfo) => {
     // Wait for all sections to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('settings-page-full', {
       body: await page.screenshot({ fullPage: true }),

@@ -23,7 +23,7 @@ test.describe('Clinic Reports', () => {
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     await testInfo.attach('clinic-reports', {
       body: await page.screenshot({ fullPage: true }),

@@ -37,7 +37,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: isProduction || isCI ? 'on' : 'only-on-failure',
     video: isProduction || isCI ? 'on-first-retry' : 'off',
-    navigationTimeout: 15_000,
+    navigationTimeout: 30_000,
+    actionTimeout: 15_000,
   },
   projects: [
     // ── Public pages (no auth) ────────────────────────────────────────

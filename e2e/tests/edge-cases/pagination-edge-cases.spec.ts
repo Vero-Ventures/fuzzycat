@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clinicClients } from '../../helpers/audit-mock-data';
+import { clinicClients, clinicClientsPage2 } from '../../helpers/audit-mock-data';
 import { gotoPortalPage, mockAllTrpc, mockExternalServices } from '../../helpers/portal-test-base';
 import { mockTrpcQuery } from '../../helpers/trpc-mock';
 
@@ -62,7 +62,6 @@ test.describe('Pagination — Edge Cases', () => {
     const nextBtn = page.getByRole('button', { name: /next/i });
     if (await nextBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Navigate to page 2
-      const { clinicClientsPage2 } = await import('../../helpers/audit-mock-data');
       await mockTrpcQuery(page, 'clinic.getClients', clinicClientsPage2);
       await nextBtn.click();
       await page.waitForTimeout(1000);

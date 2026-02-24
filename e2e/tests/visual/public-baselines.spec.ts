@@ -12,8 +12,7 @@ test.describe('Visual Baselines — Public Pages', () => {
 
   for (const { url, name } of publicPages) {
     test(`${name} page visual baseline`, async ({ page }) => {
-      await page.goto(url);
-      await page.waitForLoadState('domcontentloaded');
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(1000); // Wait for animations to settle
 
       await expect(page).toHaveScreenshot(`public-${name}.png`, {

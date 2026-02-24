@@ -172,7 +172,14 @@ test.describe('Owner Portal — Mobile', () => {
     await page.getByText('Happy Paws Veterinary').first().click();
     await page.getByRole('button', { name: /continue/i }).click();
 
-    await expect(page.getByText(/bill details|step 2/i).first()).toBeVisible({ timeout: 5000 });
+    // The stepper label "Bill Details" is hidden on mobile (hidden md:block).
+    // Instead, look for the always-visible step indicator or the h2 heading.
+    await expect(
+      page
+        .getByText(/step 2 of/i)
+        .or(page.locator('h2').filter({ hasText: /bill details/i }))
+        .first(),
+    ).toBeVisible({ timeout: 5000 });
 
     // Form fields accessible and tapable on mobile
     await page.locator('#bill-amount').fill('1200');
@@ -181,8 +188,10 @@ test.describe('Owner Portal — Mobile', () => {
     await page.locator('#owner-phone').fill('5551234567');
     await page.locator('#pet-name').fill('Whiskers');
 
-    // Payment schedule visible
-    await expect(page.getByText(/deposit/i).first()).toBeVisible({ timeout: 5000 });
+    // Payment schedule visible — use specific text to avoid matching the hidden stepper label "Pay Deposit"
+    await expect(page.getByText(/deposit.*25%|your payment schedule/i).first()).toBeVisible({
+      timeout: 5000,
+    });
 
     // No horizontal overflow
     const hasOverflow = await page.evaluate(() => {
@@ -228,7 +237,7 @@ test.describe('Owner Portal — Mobile', () => {
     const settingsLink = page.getByRole('link', { name: /setting/i });
     if (await settingsLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       await settingsLink.click();
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForURL('**/owner/settings', { timeout: 10000 });
       expect(page.url()).toContain('/owner/settings');
     }
   });

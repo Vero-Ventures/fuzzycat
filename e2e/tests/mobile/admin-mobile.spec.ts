@@ -39,7 +39,7 @@ test.describe('Admin Portal — Mobile', () => {
     await gotoPortalPage(page, '/admin/dashboard');
 
     await expect(page.getByText('234').first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/risk pool/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/platform reserve/i).first()).toBeVisible({ timeout: 5000 });
 
     // No horizontal overflow
     const hasOverflow = await page.evaluate(() => {
@@ -224,7 +224,7 @@ test.describe('Admin Portal — Mobile', () => {
     const clinicsLink = page.getByRole('link', { name: /clinic/i });
     await expect(clinicsLink.first()).toBeVisible({ timeout: 5000 });
     await clinicsLink.first().click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForURL('**/clinics', { timeout: 10000 });
     expect(page.url()).toContain('clinics');
   });
 

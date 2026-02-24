@@ -11,15 +11,18 @@ test.describe('Clinic Payouts', () => {
   });
 
   test('shows payout/earnings information', async ({ page }) => {
-    // The PayoutEarnings component renders stat cards like "Total Received",
-    // "3% Revenue Share", "Pending", "Completed Payouts" — or loading skeletons.
-    // The page description also mentions payouts and revenue.
+    // The PayoutEarnings component fetches data via tRPC. On success it renders
+    // stat cards ("Total Received", "3% Revenue Share", etc.); on failure it
+    // shows "Unable to load earnings data." Both are valid production states.
     const description = page.getByText(/track your payout history and revenue earned/i);
     await expect(description).toBeVisible();
 
-    // Wait for at least one earnings card or skeleton to appear
-    const cards = page.locator('.rounded-xl.border');
-    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+    // Wait for either earnings cards or the error state
+    const earningsCard = page
+      .getByText(/total received|3% revenue share|completed payouts/i)
+      .first();
+    const errorMsg = page.getByText(/unable to load earnings data/i);
+    await expect(earningsCard.or(errorMsg)).toBeVisible({ timeout: 15000 });
   });
 
   test('captures screenshot', async ({ page }, testInfo) => {

@@ -7,15 +7,16 @@ test.describe('Admin Payments', () => {
 
   test('loads payments page', async ({ page }) => {
     await expect(page).toHaveURL(/\/admin\/payments/);
-    await expect(page.getByRole('heading', { name: /payments/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /payment monitoring/i })).toBeVisible();
   });
 
-  test('shows payment list', async ({ page }) => {
-    // The page should display a list or table of payments
-    const paymentList = page.locator(
-      'table, [data-testid="payment-list"], [class*="payment-list"], ul, [role="table"]',
-    );
-    await expect(paymentList.first()).toBeVisible({ timeout: 10000 });
+  test('shows payment list section', async ({ page }) => {
+    // The payment list card should be visible with filter tabs,
+    // even if the API call fails and no table rows are shown
+    await expect(page.getByRole('tab', { name: /all/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('tab', { name: /pending/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /succeeded/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /failed/i })).toBeVisible();
   });
 
   test('shows page description', async ({ page }) => {

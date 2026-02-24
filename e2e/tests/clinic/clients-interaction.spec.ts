@@ -22,10 +22,12 @@ test.describe('Clinic Clients — Interactions', () => {
     const table = page.locator('table').or(page.locator('[role="table"]'));
     await expect(table.first()).toBeVisible({ timeout: 5000 });
 
-    // Column headers
-    await expect(page.getByText(/owner/i).first()).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/pet/i).first()).toBeVisible({ timeout: 3000 });
-    await expect(page.getByText(/status/i).first()).toBeVisible({ timeout: 3000 });
+    // Column headers — use columnheader role to avoid matching hidden <option> elements
+    await expect(page.getByRole('columnheader', { name: /owner/i })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('columnheader', { name: /pet/i })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('columnheader', { name: /status/i })).toBeVisible({
+      timeout: 3000,
+    });
 
     // Client data renders
     await expect(page.getByText(/jane doe/i).first()).toBeVisible({ timeout: 3000 });
@@ -100,8 +102,9 @@ test.describe('Clinic Clients — Interactions', () => {
 
     await gotoPortalPage(page, '/clinic/clients');
 
-    // Empty state message
-    const empty = page.getByText(/no.*client.*found|no.*result/i);
+    // Empty state message — actual text is "No clients yet. Enroll your first pet owner to get started."
+    // or "No clients match your search criteria." when search/filter is active
+    const empty = page.getByText(/no clients/i);
     await expect(empty.first()).toBeVisible({ timeout: 5000 });
   });
 });

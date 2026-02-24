@@ -41,7 +41,7 @@ test.describe('Navigation — Clinic Portal', () => {
           .catch(() => false)
       ) {
         await link.first().click();
-        await page.waitForLoadState('domcontentloaded');
+        await page.waitForURL(`**${url}`, { timeout: 10000 });
         expect(page.url()).toContain(url.split('/').pop());
         await page.waitForTimeout(500);
       }
@@ -91,7 +91,7 @@ test.describe('Navigation — Admin Portal', () => {
           .catch(() => false)
       ) {
         await link.first().click();
-        await page.waitForLoadState('domcontentloaded');
+        await page.waitForURL(`**${url}`, { timeout: 10000 });
         expect(page.url()).toContain(url.split('/').pop());
         await page.waitForTimeout(500);
       }
@@ -116,7 +116,7 @@ test.describe('Navigation — Owner Portal', () => {
     const settingsLink = page.getByRole('link', { name: /setting/i });
     if (await settingsLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       await settingsLink.click();
-      await page.waitForLoadState('domcontentloaded');
+      await page.waitForURL('**/owner/settings', { timeout: 10000 });
       expect(page.url()).toContain('/owner/settings');
     }
   });

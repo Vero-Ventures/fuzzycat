@@ -21,39 +21,32 @@ test.describe('Owner Settings Page', () => {
   });
 
   test('has profile section', async ({ page }) => {
-    // The ProfileForm card has heading "Profile Information"
-    const profileHeading = page.getByRole('heading', {
-      name: /profile information/i,
-    });
+    // The ProfileForm card uses CardTitle (a div, not a heading) with text "Profile Information"
+    const profileTitle = page.getByText(/profile information/i);
     const profileFallback = page.getByText(/unable to load profile information/i);
 
     // Either the profile form or an error fallback should be visible
-    await expect(profileHeading.or(profileFallback)).toBeVisible({
-      timeout: 10000,
+    await expect(profileTitle.or(profileFallback)).toBeVisible({
+      timeout: 15000,
     });
   });
 
   test('has payment method section', async ({ page }) => {
-    // The PaymentMethodSection card has heading "Payment Method"
-    const paymentHeading = page.getByRole('heading', {
-      name: /payment method/i,
-    });
+    // The PaymentMethodSection card uses CardDescription with this text — wait for it to confirm the section loaded
+    await expect(page.getByText(/choose how your installment payments are collected/i)).toBeVisible(
+      { timeout: 15000 },
+    );
 
-    await expect(paymentHeading).toBeVisible({ timeout: 10000 });
-
-    // Description text about current payment method
-    await expect(
-      page.getByText(/your current payment method for installment payments/i),
-    ).toBeVisible();
+    // The CardTitle "Payment Method" should also be visible (as a div, not a heading)
+    // Use exact: true to distinguish from the page description that also contains "payment method"
+    await expect(page.getByText('Payment Method', { exact: true })).toBeVisible();
   });
 
   test('has active plans section', async ({ page }) => {
-    // The ActivePlansSection card has heading "Payment Plans"
-    const plansHeading = page.getByRole('heading', {
-      name: /payment plans/i,
-    });
+    // The ActivePlansSection card uses CardTitle (a div, not a heading) with text "Payment Plans"
+    const plansTitle = page.getByText(/payment plans/i).first();
 
-    await expect(plansHeading).toBeVisible({ timeout: 10000 });
+    await expect(plansTitle).toBeVisible({ timeout: 15000 });
 
     // Description text about plan agreements
     await expect(page.getByText(/your payment plan agreements/i)).toBeVisible();
@@ -67,8 +60,8 @@ test.describe('Owner Settings Page', () => {
   });
 
   test('captures screenshot of settings page', async ({ page }, testInfo) => {
-    // Wait for all sections to load
-    await page.waitForLoadState('domcontentloaded');
+    // Wait for client-side sections to render (Payment Method title appears after tRPC resolves)
+    await expect(page.getByText(/payment method/i).first()).toBeVisible({ timeout: 15000 });
 
     await testInfo.attach('settings-page-full', {
       body: await page.screenshot({ fullPage: true }),

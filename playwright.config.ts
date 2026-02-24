@@ -16,7 +16,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isProduction ? 1 : isCI ? 2 : 0,
-  workers: isProduction ? 8 : isCI ? 1 : undefined,
+  workers: isProduction ? 8 : isCI ? 1 : 4,
   reporter: isProduction
     ? [
         ['html', { open: 'never', outputFolder: 'playwright-report' }],
@@ -37,6 +37,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: isProduction || isCI ? 'on' : 'only-on-failure',
     video: isProduction || isCI ? 'on-first-retry' : 'off',
+    navigationTimeout: 15_000,
   },
   projects: [
     // ── Public pages (no auth) ────────────────────────────────────────

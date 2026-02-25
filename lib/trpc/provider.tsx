@@ -2,7 +2,6 @@
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import { useState } from 'react';
 import superjson from 'superjson';
 import { SentryUserSync } from '@/components/sentry-user-sync';
@@ -43,7 +42,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
           {children}
           <SentryUserSync />
-          <SpeedInsights />
         </TRPCProvider>
       </QueryClientProvider>
     </PostHogProvider>

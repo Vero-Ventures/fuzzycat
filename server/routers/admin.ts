@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { cachedQuery, revalidateTag } from '@/lib/cache';
 import {
   auditLog,
   clinics,
@@ -148,63 +149,75 @@ export const adminRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const conditions = [];
+      return cachedQuery(
+        async () => {
+          const conditions = [];
 
-      if (input.status) {
-        conditions.push(eq(clinics.status, input.status));
-      }
+          if (input.status) {
+            conditions.push(eq(clinics.status, input.status));
+          }
 
-      if (input.search) {
-        const searchPattern = `%${escapeIlike(input.search)}%`;
-        const searchCondition = or(
-          ilike(clinics.name, searchPattern),
-          ilike(clinics.email, searchPattern),
-        );
-        if (searchCondition) {
-          conditions.push(searchCondition);
-        }
-      }
+          if (input.search) {
+            const searchPattern = `%${escapeIlike(input.search)}%`;
+            const searchCondition = or(
+              ilike(clinics.name, searchPattern),
+              ilike(clinics.email, searchPattern),
+            );
+            if (searchCondition) {
+              conditions.push(searchCondition);
+            }
+          }
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+          const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      const [clinicRows, countResult] = await Promise.all([
-        ctx.db
-          .select({
-            id: clinics.id,
-            name: clinics.name,
-            email: clinics.email,
-            status: clinics.status,
-            stripeAccountId: clinics.stripeAccountId,
-            createdAt: clinics.createdAt,
-            enrollmentCount: sql<number>`count(distinct ${plans.id})`,
-            totalRevenueCents: sql<number>`coalesce(sum(case when ${payouts.status} = 'succeeded' then ${payouts.amountCents} else 0 end), 0)`,
-          })
-          .from(clinics)
-          .leftJoin(plans, eq(clinics.id, plans.clinicId))
-          .leftJoin(payouts, eq(clinics.id, payouts.clinicId))
-          .where(whereClause)
-          .groupBy(clinics.id)
-          .orderBy(desc(clinics.createdAt))
-          .limit(input.limit)
-          .offset(input.offset),
-        ctx.db.select({ total: count() }).from(clinics).where(whereClause),
-      ]);
+          const [clinicRows, countResult] = await Promise.all([
+            ctx.db
+              .select({
+                id: clinics.id,
+                name: clinics.name,
+                email: clinics.email,
+                status: clinics.status,
+                stripeAccountId: clinics.stripeAccountId,
+                createdAt: clinics.createdAt,
+                enrollmentCount: sql<number>`count(distinct ${plans.id})`,
+                totalRevenueCents: sql<number>`coalesce(sum(case when ${payouts.status} = 'succeeded' then ${payouts.amountCents} else 0 end), 0)`,
+              })
+              .from(clinics)
+              .leftJoin(plans, eq(clinics.id, plans.clinicId))
+              .leftJoin(payouts, eq(clinics.id, payouts.clinicId))
+              .where(whereClause)
+              .groupBy(clinics.id)
+              .orderBy(desc(clinics.createdAt))
+              .limit(input.limit)
+              .offset(input.offset),
+            ctx.db.select({ total: count() }).from(clinics).where(whereClause),
+          ]);
 
-      const totalCount = Number(countResult[0]?.total ?? 0);
+          const totalCount = Number(countResult[0]?.total ?? 0);
 
-      return {
-        clinics: clinicRows.map((row) => ({
-          ...row,
-          enrollmentCount: Number(row.enrollmentCount),
-          totalRevenueCents: Number(row.totalRevenueCents),
-          stripeConnected: row.stripeAccountId !== null,
-        })),
-        pagination: {
-          limit: input.limit,
-          offset: input.offset,
-          totalCount,
+          return {
+            clinics: clinicRows.map((row) => ({
+              ...row,
+              enrollmentCount: Number(row.enrollmentCount),
+              totalRevenueCents: Number(row.totalRevenueCents),
+              stripeConnected: row.stripeAccountId !== null,
+            })),
+            pagination: {
+              limit: input.limit,
+              offset: input.offset,
+              totalCount,
+            },
+          };
         },
-      };
+        [
+          'admin-clinics',
+          input.status ?? '',
+          input.search ?? '',
+          String(input.limit),
+          String(input.offset),
+        ],
+        { revalidate: 120, tags: ['admin:clinics'] },
+      );
     }),
 
   /**
@@ -248,6 +261,9 @@ export const adminRouter = router({
         actorType: 'admin',
         actorId: ctx.session.userId,
       });
+
+      revalidateTag(`clinic:${input.clinicId}:profile`);
+      revalidateTag('admin:clinics');
 
       return updated;
     }),

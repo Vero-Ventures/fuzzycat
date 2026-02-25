@@ -30,6 +30,7 @@
     "test:e2e:visual": "playwright test --project=visual",
     "e2e:setup-users": "bun run scripts/e2e-create-test-users.ts",
     "e2e:populate-data": "bun run scripts/e2e-populate-data.ts",
+    "e2e:reset": "bun run scripts/e2e-reset-and-seed.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

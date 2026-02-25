@@ -198,6 +198,8 @@ export const ownerRouter = router({
         actorId: ctx.ownerId,
       });
 
+      revalidateTag(`owner:${ctx.ownerId}:profile`);
+
       return updated;
     }),
 
@@ -311,6 +313,8 @@ export const ownerRouter = router({
         actorType: 'owner',
         actorId: ctx.ownerId,
       });
+
+      revalidateTag(`owner:${ctx.ownerId}:profile`);
 
       return { success: true as const, paymentMethodId };
     }),

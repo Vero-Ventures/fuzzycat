@@ -4,6 +4,7 @@
 
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { revalidateTag } from '@/lib/cache';
 import { checkBalance, createLinkToken, exchangePublicToken } from '@/server/services/plaid';
 import { ownerProcedure, router } from '@/server/trpc';
 
@@ -36,6 +37,7 @@ export const plaidRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         const result = await exchangePublicToken(input.publicToken, ctx.ownerId, input.accountId);
+        revalidateTag(`owner:${ctx.ownerId}:profile`);
         return { success: true as const, itemId: result.itemId };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to exchange public token';

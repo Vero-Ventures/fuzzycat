@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { clinics, owners, payments, plans } from '@/server/db/schema';
@@ -66,30 +67,36 @@ export const ownerRouter = router({
    * Get the authenticated owner's profile information.
    */
   getProfile: ownerProcedure.query(async ({ ctx }) => {
-    const [owner] = await ctx.db
-      .select({
-        id: owners.id,
-        name: owners.name,
-        email: owners.email,
-        phone: owners.phone,
-        petName: owners.petName,
-        paymentMethod: owners.paymentMethod,
-        stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
-        stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
-        addressLine1: owners.addressLine1,
-        addressCity: owners.addressCity,
-        addressState: owners.addressState,
-        addressZip: owners.addressZip,
-      })
-      .from(owners)
-      .where(eq(owners.id, ctx.ownerId))
-      .limit(1);
+    return cachedQuery(
+      async () => {
+        const [owner] = await ctx.db
+          .select({
+            id: owners.id,
+            name: owners.name,
+            email: owners.email,
+            phone: owners.phone,
+            petName: owners.petName,
+            paymentMethod: owners.paymentMethod,
+            stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+            stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+            addressLine1: owners.addressLine1,
+            addressCity: owners.addressCity,
+            addressState: owners.addressState,
+            addressZip: owners.addressZip,
+          })
+          .from(owners)
+          .where(eq(owners.id, ctx.ownerId))
+          .limit(1);
 
-    if (!owner) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
-    }
+        if (!owner) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
+        }
 
-    return owner;
+        return owner;
+      },
+      ['owner-profile', ctx.ownerId],
+      { revalidate: 300, tags: [`owner:${ctx.ownerId}:profile`] },
+    );
   }),
 
   /**
@@ -128,6 +135,8 @@ export const ownerRouter = router({
           petName: owners.petName,
           paymentMethod: owners.paymentMethod,
         });
+
+      revalidateTag(`owner:${ctx.ownerId}:profile`);
 
       return updated;
     }),

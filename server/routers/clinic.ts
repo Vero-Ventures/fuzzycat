@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
@@ -145,7 +146,11 @@ export const clinicRouter = router({
    * Get the authenticated clinic's profile information.
    */
   getProfile: clinicProcedure.query(async ({ ctx }) => {
-    return getClinicById(ctx.db, ctx.clinicId);
+    return cachedQuery(
+      () => getClinicById(ctx.db, ctx.clinicId),
+      ['clinic-profile', ctx.clinicId],
+      { revalidate: 300, tags: [`clinic:${ctx.clinicId}:profile`] },
+    );
   }),
 
   /**
@@ -197,6 +202,9 @@ export const clinicRouter = router({
           stripeAccountId: clinics.stripeAccountId,
           status: clinics.status,
         });
+
+      revalidateTag(`clinic:${ctx.clinicId}:profile`);
+      revalidateTag('admin:clinics');
 
       return updated;
     }),
@@ -402,6 +410,9 @@ export const clinicRouter = router({
         error: error instanceof Error ? error.message : String(error),
       });
     }
+
+    revalidateTag(`clinic:${clinic.id}:profile`);
+    revalidateTag('admin:clinics');
 
     return { status: 'active' as const, alreadyActive: false };
   }),

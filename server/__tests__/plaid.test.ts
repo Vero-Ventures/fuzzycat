@@ -139,9 +139,40 @@ import { createAuditMock } from './audit-mock';
 
 mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
 
+mock.module('next/cache', () => ({
+  unstable_cache: mock((fn: () => unknown) => fn),
+  revalidateTag: mock(),
+}));
+
 const { createLinkToken, exchangePublicToken, checkBalance } = await import(
   '@/server/services/plaid'
 );
+
+// ── Env + tRPC caller setup (for router-level tests) ────────────────
+import { _resetEnvCache } from '@/lib/env';
+
+_resetEnvCache();
+for (const [key, val] of Object.entries({
+  SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+  DATABASE_URL: 'postgres://test:test@localhost/test',
+  STRIPE_SECRET_KEY: 'sk_test_placeholder',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
+  RESEND_API_KEY: 're_test_placeholder',
+  PLAID_CLIENT_ID: 'test-plaid-client',
+  PLAID_SECRET: 'test-plaid-secret',
+  PLAID_ENV: 'sandbox',
+  TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_PHONE_NUMBER: '+15551234567',
+} as Record<string, string>)) {
+  if (!process.env[key]) process.env[key] = val;
+}
+// biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
+delete process.env.ENABLE_MFA;
+
+const { plaidRouter } = await import('@/server/routers/plaid');
+const { createCallerFactory } = await import('@/server/trpc');
+const createPlaidCaller = createCallerFactory(plaidRouter);
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -472,5 +503,65 @@ describe('checkBalance', () => {
         actorType: 'system',
       }),
     );
+  });
+});
+
+// ── Router-level tests (exercises revalidateTag) ─────────────────────
+
+describe('plaid.exchangePublicToken (router)', () => {
+  beforeEach(() => {
+    setupSelectChain();
+    setupUpdateChain();
+    setupInsertChain();
+  });
+
+  afterEach(clearAllMocks);
+
+  it('returns success and exercises revalidateTag', async () => {
+    // Global mock: service's owner lookup (stripeCustomerId)
+    mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: 'cus_test_123' }]);
+
+    // Caller-specific thenable db for ownerProcedure middleware
+    const mkChain = (res: unknown) => {
+      // biome-ignore lint/suspicious/noExplicitAny: test mock
+      const obj: any = {
+        from: () => obj,
+        where: () => obj,
+        limit: () => obj,
+        set: () => obj,
+        // biome-ignore lint/suspicious/noThenProperty: drizzle query chain
+        then: (resolve: (v: unknown) => void) => resolve(res),
+      };
+      return obj;
+    };
+
+    const callerDb = {
+      select: mock(() => mkChain([{ id: 'owner-1' }])),
+      update: mock(() => mkChain([])),
+      insert: mock(() => ({ values: mock(() => Promise.resolve([])) })),
+    };
+
+    const caller = createPlaidCaller({
+      db: callerDb,
+      session: { userId: 'user-test-plaid', role: 'owner' },
+      supabase: {
+        auth: {
+          mfa: {
+            listFactors: () => Promise.resolve({ data: { totp: [] } }),
+            getAuthenticatorAssuranceLevel: () =>
+              Promise.resolve({ data: { currentLevel: 'aal1' } }),
+          },
+        },
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: test context
+    } as any);
+
+    const result = await caller.exchangePublicToken({
+      publicToken: 'public-sandbox-test-token',
+      accountId: 'acc-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.itemId).toBe('item-sandbox-test-789');
   });
 });

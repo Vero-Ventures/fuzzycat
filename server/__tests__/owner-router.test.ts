@@ -118,10 +118,42 @@ const extendedSchemaMock = {
 
 mock.module('@/server/db/schema', () => extendedSchemaMock);
 
+mock.module('next/cache', () => ({
+  unstable_cache: mock((fn: () => unknown) => fn),
+  revalidateTag: mock(),
+}));
+
 // Note: We intentionally do NOT mock @/server/services/audit here.
 // logAuditEvent never throws (try/catch internally), so it's safe to let it
 // run against the mocked db — it will silently fail. Mocking the audit module
 // would cause cross-contamination with audit.test.ts (Bun's mock.module is global).
+
+// ── Env + tRPC caller setup ─────────────────────────────────────────
+import { _resetEnvCache } from '@/lib/env';
+
+_resetEnvCache();
+for (const [key, val] of Object.entries({
+  SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+  DATABASE_URL: 'postgres://test:test@localhost/test',
+  STRIPE_SECRET_KEY: 'sk_test_placeholder',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
+  RESEND_API_KEY: 're_test_placeholder',
+  PLAID_CLIENT_ID: 'test-plaid-client',
+  PLAID_SECRET: 'test-plaid-secret',
+  PLAID_ENV: 'sandbox',
+  TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_PHONE_NUMBER: '+15551234567',
+} as Record<string, string>)) {
+  if (!process.env[key]) process.env[key] = val;
+}
+// biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
+delete process.env.ENABLE_MFA;
+
+const { ownerRouter } = await import('@/server/routers/owner');
+const { createCallerFactory } = await import('@/server/trpc');
+
+const createOwnerCaller = createCallerFactory(ownerRouter);
 
 // ── Test data ────────────────────────────────────────────────────────
 
@@ -636,5 +668,103 @@ describe('owner.updatePaymentMethod — instrument validation', () => {
     const result = await chain.from().where().limit();
     // The router would throw: "No bank account on file"
     expect(result[0].stripeAchPaymentMethodId).toBeNull();
+  });
+});
+
+// ── Caller-based integration tests ──────────────────────────────────
+// Exercise actual router procedures via createCallerFactory to cover
+// revalidateTag lines and end-to-end flow.
+
+function createCallerDb(results: unknown[][]) {
+  let callIndex = 0;
+  const mkChain = (res: unknown) => {
+    // biome-ignore lint/suspicious/noExplicitAny: test mock
+    const obj: any = {
+      from: () => obj,
+      where: () => obj,
+      limit: () => obj,
+      orderBy: () => obj,
+      groupBy: () => obj,
+      offset: () => obj,
+      innerJoin: () => obj,
+      leftJoin: () => obj,
+      returning: () => obj,
+      set: () => obj,
+      // biome-ignore lint/suspicious/noThenProperty: drizzle query chain
+      then: (resolve: (v: unknown) => void) => resolve(res),
+    };
+    return obj;
+  };
+
+  return {
+    select: mock(() => {
+      const res = results[callIndex] ?? [];
+      callIndex++;
+      return mkChain(res);
+    }),
+    update: mock(() => {
+      const res = results[callIndex] ?? [];
+      callIndex++;
+      return mkChain(res);
+    }),
+    insert: mock(() => ({
+      values: mock(() => Promise.resolve([])),
+    })),
+  };
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: test context
+function ownerCallerCtx(db: ReturnType<typeof createCallerDb>): any {
+  return {
+    db,
+    session: { userId: 'user-test-owner', role: 'owner' },
+    supabase: {
+      auth: {
+        mfa: {
+          listFactors: () => Promise.resolve({ data: { totp: [] } }),
+          getAuthenticatorAssuranceLevel: () => Promise.resolve({ data: { currentLevel: 'aal1' } }),
+        },
+      },
+    },
+  };
+}
+
+describe('owner.updatePaymentMethod (caller)', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns updated method and exercises revalidateTag', async () => {
+    const db = createCallerDb([
+      [{ id: OWNER_ID }], // ownerProcedure middleware: owner lookup
+      [
+        {
+          stripeCardPaymentMethodId: 'pm_card_saved',
+          stripeAchPaymentMethodId: 'ba_ach_123',
+          paymentMethod: 'bank_account',
+        },
+      ], // procedure: check instruments on file
+      [{ id: OWNER_ID, paymentMethod: 'debit_card' }], // procedure: update returning
+    ]);
+
+    const caller = createOwnerCaller(ownerCallerCtx(db));
+    const result = await caller.updatePaymentMethod({ paymentMethod: 'debit_card' });
+    expect(result.paymentMethod).toBe('debit_card');
+  });
+});
+
+describe('owner.confirmCardPaymentMethod (caller)', () => {
+  beforeEach(clearAllMocks);
+  afterEach(clearAllMocks);
+
+  it('returns success and exercises revalidateTag', async () => {
+    const db = createCallerDb([
+      [{ id: OWNER_ID }], // ownerProcedure middleware: owner lookup
+      [], // procedure: db.update (no returning, awaited)
+    ]);
+
+    const caller = createOwnerCaller(ownerCallerCtx(db));
+    const result = await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
+    expect(result.success).toBe(true);
+    expect(result.paymentMethodId).toBe('pm_card_new_456');
   });
 });

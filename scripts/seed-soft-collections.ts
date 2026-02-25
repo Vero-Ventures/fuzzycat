@@ -2,18 +2,21 @@
  * Seed soft_collections with realistic data for all 3 plan scenarios.
  * Run after scripts/seed.ts to add soft collection records.
  */
+import { inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import { softCollections } from '@/server/db/schema';
-
-const PLAN_1_ID = '00000000-0000-4000-c000-000000000001'; // Active $1,200 plan (Alice/Whiskers)
-const PLAN_2_ID = '00000000-0000-4000-c000-000000000002'; // Pending $800 plan (Bob/Mittens)
-const PLAN_3_ID = '00000000-0000-4000-c000-000000000003'; // Completed $2,500 plan (Carol/Luna)
+import { PLAN_1_ID, PLAN_2_ID, PLAN_3_ID } from './seed-constants';
 
 const now = new Date();
 const day = 24 * 60 * 60 * 1000;
 
 async function seedSoftCollections() {
   console.log('Seeding soft collections...');
+
+  // Clean up existing soft collections for these plans to ensure idempotency
+  await db
+    .delete(softCollections)
+    .where(inArray(softCollections.planId, [PLAN_1_ID, PLAN_2_ID, PLAN_3_ID]));
 
   await db.insert(softCollections).values([
     {

@@ -2,7 +2,6 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { headers } from 'next/headers';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Providers } from '@/lib/trpc/provider';
 import './globals.css';
@@ -17,10 +16,6 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
-// CSP nonces require server-side rendering on every request.
-// Static pages don't go through SSR, so Next.js can't inject nonces.
-export const dynamic = 'force-dynamic';
-
 export const metadata: Metadata = {
   metadataBase: new URL('https://fuzzycatapp.com'),
   title: 'FuzzyCat — Flexible Payment Plans for Veterinary Care',
@@ -32,17 +27,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider nonce={nonce}>
+        <ThemeProvider>
           <Providers>{children}</Providers>
         </ThemeProvider>
         <Analytics />

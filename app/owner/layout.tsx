@@ -6,6 +6,8 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { getAuthFromMiddleware } from '@/lib/auth-from-middleware';
 
+export const dynamic = 'force-dynamic';
+
 export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthFromMiddleware();
 

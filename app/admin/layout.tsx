@@ -4,6 +4,8 @@ import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { AdminSidebar } from './_components/admin-sidebar';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthFromMiddleware();
 

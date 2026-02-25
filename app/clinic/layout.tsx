@@ -4,6 +4,8 @@ import { enforceMfa } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { ClinicSidebar } from './_components/clinic-sidebar';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ClinicLayout({ children }: { children: React.ReactNode }) {
   const auth = await getAuthFromMiddleware();
 

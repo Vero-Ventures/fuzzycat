@@ -118,9 +118,9 @@ describe('middleware', () => {
     expect(location).toContain('/clinic/dashboard');
   });
 
-  it('sets Content-Security-Policy header with nonce', async () => {
+  it('sets strict-dynamic CSP with nonce for dynamic routes', async () => {
     const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/');
+    const req = new NextRequest('http://localhost:3000/login');
     const response = await middleware(req);
 
     const csp = response.headers.get('Content-Security-Policy');
@@ -133,9 +133,25 @@ describe('middleware', () => {
     expect(csp).toMatch(/nonce-[0-9a-f-]{36}/);
   });
 
-  it('sets x-nonce request header', async () => {
+  it('sets relaxed CSP without nonce for static routes', async () => {
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/');
+    const response = await middleware(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("'unsafe-inline'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain('upgrade-insecure-requests');
+    // Static routes should NOT use strict-dynamic or nonces
+    expect(csp).not.toContain("'strict-dynamic'");
+    expect(csp).not.toMatch(/nonce-/);
+  });
+
+  it('sets x-nonce request header for dynamic routes', async () => {
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/login');
     const response = await middleware(req);
 
     const csp = response.headers.get('Content-Security-Policy');

@@ -7,6 +7,19 @@ const PROTECTED_PREFIXES = ['/clinic', '/owner', '/admin'];
 const AUTH_PAGES = ['/login', '/signup'];
 
 /**
+ * Routes that are statically generated at build time.
+ * These cannot use per-request CSP nonces (the HTML is fixed at build time),
+ * so they use a relaxed CSP with 'unsafe-inline' instead of 'strict-dynamic'.
+ */
+const STATIC_ROUTES = new Set([
+  '/',
+  '/how-it-works',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+]);
+
+/**
  * Parse a Sentry DSN to build the CSP report-uri endpoint.
  * DSN format: https://<key>@<host>/<projectId>
  * Report URI: https://<host>/api/<projectId>/security/?sentry_key=<key>
@@ -23,12 +36,12 @@ function buildCspReportUri(dsn: string | undefined): string | null {
   }
 }
 
-function buildCspHeader(nonce: string, sentryDsn?: string): string {
+function buildCspDirectives(scriptSrc: string, sentryDsn?: string): string {
   const reportUri = buildCspReportUri(sentryDsn);
 
   const directives = [
     "default-src 'self'",
-    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
@@ -46,10 +59,58 @@ function buildCspHeader(nonce: string, sentryDsn?: string): string {
   return directives.join('; ');
 }
 
+/**
+ * Build CSP header appropriate for the route type.
+ *
+ * Dynamic routes use 'strict-dynamic' + per-request nonce for maximum script
+ * security. Static/pre-rendered routes cannot embed nonces in their HTML at
+ * build time, so they fall back to 'unsafe-inline' for scripts like the
+ * next-themes theme-detection snippet.
+ */
+function buildCspHeader(pathname: string, nonce: string, sentryDsn?: string): string {
+  if (STATIC_ROUTES.has(pathname)) {
+    return buildCspDirectives("script-src 'self' 'unsafe-inline' https:", sentryDsn);
+  }
+  return buildCspDirectives(
+    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
+    sentryDsn,
+  );
+}
+
+function buildAuthRedirect(request: NextRequest, pathname: string): NextResponse | null {
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  if (isProtected) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+  return null;
+}
+
+function buildRoleRedirect(
+  request: NextRequest,
+  pathname: string,
+  role: string,
+): NextResponse | null {
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  if (isProtected) {
+    const allowed = ROLE_PREFIXES[role as keyof typeof ROLE_PREFIXES];
+    const hasAccess = allowed.some((prefix) => pathname.startsWith(prefix));
+    if (!hasAccess) {
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = ROLE_HOME[role as keyof typeof ROLE_HOME];
+      return NextResponse.redirect(homeUrl);
+    }
+  }
+  return null;
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: middleware is inherently sequential — auth routing requires nested conditionals
 export async function middleware(request: NextRequest) {
   const startTime = performance.now();
   const nonce = crypto.randomUUID();
+  const { pathname } = request.nextUrl;
 
   // Set x-nonce and x-request-id request headers so Server Components can access them via headers()
   const requestHeaders = new Headers(request.headers);
@@ -67,11 +128,11 @@ export async function middleware(request: NextRequest) {
     const passThrough = NextResponse.next({
       request: { headers: requestHeaders },
     });
-    passThrough.headers.set('Content-Security-Policy', buildCspHeader(nonce));
+    passThrough.headers.set('Content-Security-Policy', buildCspHeader(pathname, nonce));
     return passThrough;
   }
 
-  const cspHeader = buildCspHeader(nonce, env.NEXT_PUBLIC_SENTRY_DSN);
+  const cspHeader = buildCspHeader(pathname, nonce, env.NEXT_PUBLIC_SENTRY_DSN);
 
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },
@@ -104,7 +165,6 @@ export async function middleware(request: NextRequest) {
 
   // Determine if the route needs authentication before making the network call.
   // This avoids ~100-200ms of latency on public routes (/, /pricing, etc.).
-  const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
   const isAuthPage = AUTH_PAGES.some((page) => pathname.startsWith(page));
   const needsAuth = isProtected || isAuthPage;
@@ -122,39 +182,28 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect unauthenticated users away from protected routes
-  if (isProtected && !user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    loginUrl.searchParams.set('redirectTo', pathname);
-    return NextResponse.redirect(loginUrl);
+  if (!user) {
+    const redirect = buildAuthRedirect(request, pathname);
+    if (redirect) return redirect;
   }
 
   // Redirect authenticated users accessing a portal that doesn't match their role
-  if (isProtected && user) {
+  if (user) {
     const role = getUserRole(user);
-    const allowed = ROLE_PREFIXES[role];
-    const hasAccess = allowed.some((prefix) => pathname.startsWith(prefix));
-    if (!hasAccess) {
+    const roleRedirect = buildRoleRedirect(request, pathname, role);
+    if (roleRedirect) return roleRedirect;
+
+    // Redirect authenticated users away from auth pages to their portal
+    const isAuthPage = AUTH_PAGES.some((page) => pathname.startsWith(page));
+    if (isAuthPage) {
       const homeUrl = request.nextUrl.clone();
       homeUrl.pathname = ROLE_HOME[role];
       return NextResponse.redirect(homeUrl);
     }
-  }
 
-  // Redirect authenticated users away from auth pages to their portal
-  if (isAuthPage && user) {
-    const role = getUserRole(user);
-    const home = ROLE_HOME[role];
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = home;
-    return NextResponse.redirect(homeUrl);
-  }
-
-  // Inject auth headers so portal layouts and tRPC can skip redundant getUser() calls.
-  // These headers are internal (set via NextResponse.next({ request: { headers } }))
-  // and cannot be spoofed from the client.
-  if (user) {
-    const role = getUserRole(user);
+    // Inject auth headers so portal layouts and tRPC can skip redundant getUser() calls.
+    // These headers are internal (set via NextResponse.next({ request: { headers } }))
+    // and cannot be spoofed from the client.
     requestHeaders.set('x-user-id', user.id);
     requestHeaders.set('x-user-role', role);
 

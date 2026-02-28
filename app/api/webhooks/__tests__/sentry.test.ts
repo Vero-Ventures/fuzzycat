@@ -114,7 +114,7 @@ function mockFetchForGitHub(
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url =
       typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-    if (url.includes('api.github.com')) {
+    if (new URL(url).hostname === 'api.github.com') {
       onGitHub(JSON.parse(init?.body as string) as GitHubIssueBody);
       return new Response(JSON.stringify({ number: 1, html_url: 'https://github.com/test/1' }), {
         status: 201,

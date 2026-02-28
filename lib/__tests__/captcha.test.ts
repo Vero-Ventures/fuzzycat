@@ -3,16 +3,34 @@ import { verifyCaptcha } from '@/lib/captcha';
 import { _resetEnvCache } from '@/lib/env';
 
 describe('verifyCaptcha', () => {
-  const originalEnv = process.env.TURNSTILE_SECRET_KEY;
+  const originalEnv = { ...process.env };
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     _resetEnvCache();
+    // Set all required server env vars to prevent cross-contamination failures
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_123';
+    process.env.RESEND_API_KEY = 're_test_123';
+    process.env.PLAID_CLIENT_ID = 'test-plaid-client';
+    process.env.PLAID_SECRET = 'test-plaid-secret';
+    process.env.PLAID_ENV = 'sandbox';
+    process.env.TWILIO_ACCOUNT_SID = 'ACtest123';
+    process.env.TWILIO_AUTH_TOKEN = 'test-twilio-token';
+    process.env.TWILIO_PHONE_NUMBER = '+15551234567';
     process.env.TURNSTILE_SECRET_KEY = 'test-secret-key';
   });
 
   afterEach(() => {
-    process.env.TURNSTILE_SECRET_KEY = originalEnv;
+    // Restore original env
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
     _resetEnvCache();
     globalThis.fetch = originalFetch;
     mock.restore();

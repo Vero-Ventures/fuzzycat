@@ -101,9 +101,10 @@ export function PaymentMethodSection() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { data: profile, isLoading } = useQuery(trpc.owner.getProfile.queryOptions());
-  const { data: paymentDetails, isLoading: isLoadingDetails } = useQuery(
-    trpc.owner.getPaymentMethodDetails.queryOptions(),
-  );
+  const { data: paymentDetails, isLoading: isLoadingDetails } = useQuery({
+    ...trpc.owner.getPaymentMethodDetails.queryOptions(),
+    staleTime: 5 * 60 * 1000,
+  });
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPlaidLink, setShowPlaidLink] = useState(false);

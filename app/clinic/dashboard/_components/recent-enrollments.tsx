@@ -1,6 +1,3 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { AvatarInitials } from '@/components/shared/avatar-initials';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -14,30 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useTRPC } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
+import type { Enrollment } from './dashboard-stats';
 
-export function RecentEnrollments() {
-  const trpc = useTRPC();
-  const { data, isLoading, error } = useQuery(trpc.clinic.getDashboardStats.queryOptions());
-
-  if (isLoading) {
-    return <RecentEnrollmentsSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">Unable to load recent enrollments.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const enrollments = data?.recentEnrollments ?? [];
-
+export function RecentEnrollments({ enrollments }: { enrollments: Enrollment[] }) {
   return (
     <Card>
       <CardHeader>
@@ -94,7 +72,7 @@ export function RecentEnrollments() {
   );
 }
 
-function RecentEnrollmentsSkeleton() {
+export function RecentEnrollmentsSkeleton() {
   return (
     <Card>
       <CardHeader>

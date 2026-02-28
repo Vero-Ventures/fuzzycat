@@ -1,32 +1,30 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Clock, DollarSign, FileText, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTRPC } from '@/lib/trpc/client';
 import { formatCents } from '@/lib/utils/money';
 
-export function DashboardStats() {
-  const trpc = useTRPC();
-  const { data, isLoading, error } = useQuery(trpc.clinic.getDashboardStats.queryOptions());
+export interface Enrollment {
+  id: string;
+  ownerName: string | null;
+  petName: string | null;
+  totalBillCents: number;
+  status: string;
+  createdAt: Date | null;
+}
 
-  if (isLoading) {
-    return <DashboardStatsSkeleton />;
-  }
+export interface DashboardStatsData {
+  activePlans: number;
+  completedPlans: number;
+  defaultedPlans: number;
+  totalPlans: number;
+  totalRevenueCents: number;
+  totalPayoutCents: number;
+  pendingPayoutsCount: number;
+  pendingPayoutsCents: number;
+  recentEnrollments: Enrollment[];
+}
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">Unable to load dashboard statistics.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data) return null;
-
+export function DashboardStats({ data }: { data: DashboardStatsData }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {/* Active Plans */}
@@ -97,7 +95,7 @@ export function DashboardStats() {
   );
 }
 
-function DashboardStatsSkeleton() {
+export function DashboardStatsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[1, 2, 3, 4].map((i) => (

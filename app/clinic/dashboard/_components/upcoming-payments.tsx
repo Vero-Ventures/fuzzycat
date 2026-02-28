@@ -1,43 +1,11 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
 import { CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTRPC } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
+import type { Enrollment } from './dashboard-stats';
 
-export function UpcomingPayments() {
-  const trpc = useTRPC();
-  const { data, isLoading, error } = useQuery(trpc.clinic.getDashboardStats.queryOptions());
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">Unable to load upcoming payments.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const enrollments = data?.recentEnrollments ?? [];
+export function UpcomingPayments({ enrollments }: { enrollments: Enrollment[] }) {
   const activeEnrollments = enrollments.filter((e) => e.status === 'active');
 
   return (
@@ -71,6 +39,21 @@ export function UpcomingPayments() {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function UpcomingPaymentsSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-40" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
       </CardContent>
     </Card>
   );

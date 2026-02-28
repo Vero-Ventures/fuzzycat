@@ -26,34 +26,41 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 describe('formatDate', () => {
   it('formats a Date object', () => {
     const result = formatDate(new Date('2026-02-20T12:00:00Z'));
-    expect(result).toContain('Feb');
-    expect(result).toContain('2026');
-    expect(result).toContain('20');
+    expect(result).toBe('Feb 20, 2026');
   });
 
   it('formats a date string', () => {
     const result = formatDate('2026-12-25');
-    expect(result).toContain('Dec');
-    expect(result).toContain('25');
-    expect(result).toContain('2026');
+    expect(result).toBe('Dec 25, 2026');
   });
 
   it('returns em-dash for null', () => {
     expect(formatDate(null)).toBe('\u2014');
+  });
+
+  it('uses UTC to avoid timezone-dependent hydration mismatches', () => {
+    // A date near midnight UTC — in UTC+5 this would be the next day
+    // without the timeZone: 'UTC' option.
+    const result = formatDate('2026-03-15T23:30:00Z');
+    expect(result).toBe('Mar 15, 2026');
   });
 });
 
 describe('daysUntil', () => {
   it('returns positive number for future dates', () => {
     const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 5);
-    expect(daysUntil(futureDate)).toBeGreaterThan(0);
+    futureDate.setUTCDate(futureDate.getUTCDate() + 5);
+    expect(daysUntil(futureDate)).toBe(5);
   });
 
   it('returns negative number for past dates', () => {
     const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 3);
-    expect(daysUntil(pastDate)).toBeLessThan(0);
+    pastDate.setUTCDate(pastDate.getUTCDate() - 3);
+    expect(daysUntil(pastDate)).toBe(-3);
+  });
+
+  it('returns 0 for today', () => {
+    expect(daysUntil(new Date())).toBe(0);
   });
 });
 

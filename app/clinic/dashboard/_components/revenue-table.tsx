@@ -18,7 +18,7 @@ import { formatCents } from '@/lib/utils/money';
 function formatMonth(yyyyMm: string): string {
   const [year, month] = yyyyMm.split('-');
   const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 export function RevenueTable() {

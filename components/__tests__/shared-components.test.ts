@@ -12,7 +12,7 @@ import { formatCents } from '@/lib/utils/money';
 // ── StatusBadge logic ──────────────────────────────────────────────
 
 const STATUS_COLOR_MAP: Record<string, string> = {
-  pending: 'amber',
+  pending: 'yellow',
   processing: 'blue',
   active: 'green',
   succeeded: 'green',
@@ -51,8 +51,8 @@ describe('StatusBadge logic', () => {
     }
   });
 
-  it('maps pending to amber', () => {
-    expect(STATUS_COLOR_MAP.pending).toBe('amber');
+  it('maps pending to yellow', () => {
+    expect(STATUS_COLOR_MAP.pending).toBe('yellow');
   });
 
   it('maps processing to blue', () => {

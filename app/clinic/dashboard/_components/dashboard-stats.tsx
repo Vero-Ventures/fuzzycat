@@ -37,47 +37,47 @@ export function DashboardStats() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{data.activePlans}</div>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="mt-1 text-xs text-muted-foreground">
             {data.totalPlans} total plan{data.totalPlans !== 1 ? 's' : ''}
           </p>
         </CardContent>
       </Card>
 
-      {/* Revenue Earned (3% share) */}
+      {/* Total Outstanding */}
       <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{formatCents(data.pendingPayoutsCents)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {data.pendingPayoutsCount} pending payout{data.pendingPayoutsCount !== 1 ? 's' : ''}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Revenue MTD */}
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Revenue Earned</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCents(data.totalRevenueCents)}</div>
-          <p className="text-xs text-muted-foreground mt-1">3% platform administration share</p>
+          <p className="mt-1 text-xs text-muted-foreground">3% platform administration share</p>
         </CardContent>
       </Card>
 
-      {/* Pending Payouts */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{data.pendingPayoutsCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatCents(data.pendingPayoutsCents)} awaiting transfer
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Total Received */}
+      {/* Overdue / Default */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Received</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCents(data.totalPayoutCents)}</div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="mt-1 flex items-center gap-2">
             {data.completedPlans > 0 && (
               <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <CheckCircle2 className="h-3 w-3" />
@@ -107,7 +107,7 @@ function DashboardStatsSkeleton() {
             <Skeleton className="h-4 w-4" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="mb-2 h-8 w-32" />
             <Skeleton className="h-3 w-20" />
           </CardContent>
         </Card>

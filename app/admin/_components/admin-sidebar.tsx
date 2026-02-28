@@ -1,6 +1,16 @@
 'use client';
 
-import { Building2, CreditCard, LayoutDashboard, LogOut, Menu, Shield, X } from 'lucide-react';
+import {
+  Building2,
+  Cat,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings,
+  Shield,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -54,11 +64,16 @@ export function AdminSidebar() {
           open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        {/* Logo / Brand */}
+        {/* Brand */}
         <div className="flex h-16 items-center justify-between px-6">
           <Link href="/admin/dashboard" className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold tracking-tight">FuzzyCat Admin</span>
+            <Cat className="h-6 w-6 text-primary" />
+            <div className="flex flex-col">
+              <span className="text-lg font-bold leading-tight tracking-tight">FuzzyCat Admin</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">
+                Internal Portal
+              </span>
+            </div>
           </Link>
           <Button
             variant="ghost"
@@ -97,15 +112,26 @@ export function AdminSidebar() {
 
         <Separator />
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-3">
-          <form action={signOut}>
-            <Button variant="ghost" className="justify-start gap-3 text-muted-foreground">
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </form>
-          <ThemeToggle />
+        {/* Footer: user profile area */}
+        <div className="p-3">
+          <div className="mb-3 flex items-center gap-3 rounded-md px-3 py-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Settings className="h-4 w-4" />
+            </div>
+            <div className="flex-1 text-sm">
+              <p className="font-medium">Admin</p>
+              <p className="text-xs text-muted-foreground">Platform Admin</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <form action={signOut}>
+              <Button variant="ghost" className="justify-start gap-3 text-muted-foreground">
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </form>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
     </>

@@ -506,7 +506,120 @@ describe('checkBalance', () => {
   });
 });
 
-// ── Router-level tests (exercises revalidateTag) ─────────────────────
+// ── Router-level tests ───────────────────────────────────────────────
+
+// Helper: create a tRPC caller with mocked context
+function createTestCaller() {
+  const mkChain = (res: unknown) => {
+    // biome-ignore lint/suspicious/noExplicitAny: test mock
+    const obj: any = {
+      from: () => obj,
+      where: () => obj,
+      limit: () => obj,
+      set: () => obj,
+      // biome-ignore lint/suspicious/noThenProperty: drizzle query chain
+      then: (resolve: (v: unknown) => void) => resolve(res),
+    };
+    return obj;
+  };
+
+  const callerDb = {
+    select: mock(() => mkChain([{ id: 'owner-1' }])),
+    update: mock(() => mkChain([])),
+    insert: mock(() => ({ values: mock(() => Promise.resolve([])) })),
+  };
+
+  return createPlaidCaller({
+    db: callerDb,
+    session: { userId: 'user-test-plaid', role: 'owner' },
+    supabase: {
+      auth: {
+        mfa: {
+          listFactors: () => Promise.resolve({ data: { totp: [] } }),
+          getAuthenticatorAssuranceLevel: () => Promise.resolve({ data: { currentLevel: 'aal1' } }),
+        },
+      },
+    },
+    // biome-ignore lint/suspicious/noExplicitAny: test context
+  } as any);
+}
+
+describe('plaid.createLinkToken (router)', () => {
+  afterEach(clearAllMocks);
+
+  it('returns a link token on success', async () => {
+    const caller = createTestCaller();
+    const result = await caller.createLinkToken();
+    expect(result.linkToken).toBe('link-sandbox-test-token-123');
+  });
+
+  it('returns INTERNAL_SERVER_ERROR with user-safe message on Plaid API failure', async () => {
+    // Simulate a Plaid API error (AxiosError with Plaid response body)
+    const plaidError = Object.assign(new Error('Request failed with status code 400'), {
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: {
+          error_type: 'INVALID_REQUEST',
+          error_code: 'INVALID_FIELD',
+          error_message: 'client_id must be provided',
+          display_message: 'Something went wrong connecting to your bank. Please try again.',
+        },
+      },
+    });
+    mockLinkTokenCreate.mockRejectedValueOnce(plaidError);
+
+    const caller = createTestCaller();
+    try {
+      await caller.createLinkToken();
+      throw new Error('Expected TRPCError');
+    } catch (err) {
+      const error = err as { code: string; message: string };
+      expect(error.code).toBe('INTERNAL_SERVER_ERROR');
+      expect(error.message).toBe('Something went wrong connecting to your bank. Please try again.');
+    }
+  });
+
+  it('uses fallback message when Plaid error has no display_message', async () => {
+    const plaidError = Object.assign(new Error('Request failed'), {
+      isAxiosError: true,
+      response: {
+        status: 500,
+        data: {
+          error_type: 'API_ERROR',
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error_message: 'an unexpected error occurred',
+          display_message: null,
+        },
+      },
+    });
+    mockLinkTokenCreate.mockRejectedValueOnce(plaidError);
+
+    const caller = createTestCaller();
+    try {
+      await caller.createLinkToken();
+      throw new Error('Expected TRPCError');
+    } catch (err) {
+      const error = err as { code: string; message: string };
+      expect(error.code).toBe('INTERNAL_SERVER_ERROR');
+      expect(error.message).toBe('Failed to create bank connection. Please try again.');
+    }
+  });
+
+  it('handles non-Plaid errors with fallback message', async () => {
+    mockLinkTokenCreate.mockRejectedValueOnce(new Error('Network timeout'));
+
+    const caller = createTestCaller();
+    try {
+      await caller.createLinkToken();
+      throw new Error('Expected TRPCError');
+    } catch (err) {
+      const error = err as { code: string; message: string };
+      expect(error.code).toBe('INTERNAL_SERVER_ERROR');
+      expect(error.message).toBe('Failed to create bank connection. Please try again.');
+    }
+  });
+});
 
 describe('plaid.exchangePublicToken (router)', () => {
   beforeEach(() => {
@@ -521,40 +634,7 @@ describe('plaid.exchangePublicToken (router)', () => {
     // Global mock: service's owner lookup (stripeCustomerId)
     mockSelectLimit.mockResolvedValueOnce([{ stripeCustomerId: 'cus_test_123' }]);
 
-    // Caller-specific thenable db for ownerProcedure middleware
-    const mkChain = (res: unknown) => {
-      // biome-ignore lint/suspicious/noExplicitAny: test mock
-      const obj: any = {
-        from: () => obj,
-        where: () => obj,
-        limit: () => obj,
-        set: () => obj,
-        // biome-ignore lint/suspicious/noThenProperty: drizzle query chain
-        then: (resolve: (v: unknown) => void) => resolve(res),
-      };
-      return obj;
-    };
-
-    const callerDb = {
-      select: mock(() => mkChain([{ id: 'owner-1' }])),
-      update: mock(() => mkChain([])),
-      insert: mock(() => ({ values: mock(() => Promise.resolve([])) })),
-    };
-
-    const caller = createPlaidCaller({
-      db: callerDb,
-      session: { userId: 'user-test-plaid', role: 'owner' },
-      supabase: {
-        auth: {
-          mfa: {
-            listFactors: () => Promise.resolve({ data: { totp: [] } }),
-            getAuthenticatorAssuranceLevel: () =>
-              Promise.resolve({ data: { currentLevel: 'aal1' } }),
-          },
-        },
-      },
-      // biome-ignore lint/suspicious/noExplicitAny: test context
-    } as any);
+    const caller = createTestCaller();
 
     const result = await caller.exchangePublicToken({
       publicToken: 'public-sandbox-test-token',

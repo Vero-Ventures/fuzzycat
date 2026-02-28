@@ -5,8 +5,53 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { revalidateTag } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 import { checkBalance, createLinkToken, exchangePublicToken } from '@/server/services/plaid';
 import { ownerProcedure, router } from '@/server/trpc';
+
+/** Type guard for Plaid's AxiosError shape (avoids direct axios dependency). */
+function isPlaidApiError(
+  error: unknown,
+): error is { response: { status: number; data: Record<string, unknown> } } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response: unknown }).response === 'object' &&
+    (error as { response: { data?: unknown } }).response?.data != null
+  );
+}
+
+/**
+ * Extract a user-safe message and log structured details from Plaid API errors.
+ * Plaid wraps errors in AxiosError with a response body containing error_type,
+ * error_code, error_message, and display_message fields.
+ */
+function handlePlaidError(
+  error: unknown,
+  fallbackMessage: string,
+  context: Record<string, string>,
+) {
+  if (isPlaidApiError(error)) {
+    const data = error.response.data;
+    logger.error('Plaid API error', {
+      ...context,
+      errorType: data.error_type,
+      errorCode: data.error_code,
+      errorMessage: data.error_message,
+      httpStatus: error.response.status,
+    });
+    const displayMessage =
+      typeof data.display_message === 'string' && data.display_message
+        ? data.display_message
+        : fallbackMessage;
+    return displayMessage;
+  }
+
+  const message = error instanceof Error ? error.message : fallbackMessage;
+  logger.error(fallbackMessage, { ...context, error: message });
+  return fallbackMessage;
+}
 
 export const plaidRouter = router({
   /**
@@ -18,7 +63,14 @@ export const plaidRouter = router({
       const linkToken = await createLinkToken(ctx.session.userId);
       return { linkToken };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create Link token';
+      const message = handlePlaidError(
+        error,
+        'Failed to create bank connection. Please try again.',
+        {
+          procedure: 'createLinkToken',
+          userId: ctx.session.userId,
+        },
+      );
       throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
     }
   }),
@@ -40,8 +92,15 @@ export const plaidRouter = router({
         revalidateTag(`owner:${ctx.ownerId}:profile`);
         return { success: true as const, itemId: result.itemId };
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to exchange public token';
-        throw new TRPCError({ code: 'BAD_REQUEST', message });
+        const message = handlePlaidError(
+          error,
+          'Failed to connect bank account. Please try again.',
+          {
+            procedure: 'exchangePublicToken',
+            ownerId: ctx.ownerId,
+          },
+        );
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
       }
     }),
 
@@ -59,8 +118,11 @@ export const plaidRouter = router({
       try {
         return await checkBalance(ctx.ownerId, input.requiredCents);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to check balance';
-        throw new TRPCError({ code: 'BAD_REQUEST', message });
+        const message = handlePlaidError(error, 'Failed to check balance. Please try again.', {
+          procedure: 'checkBalance',
+          ownerId: ctx.ownerId,
+        });
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
       }
     }),
 });

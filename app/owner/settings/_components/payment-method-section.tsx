@@ -16,9 +16,11 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 function BusyIndicator({
   setupCard,
+  createLinkToken,
   exchangeToken,
 }: {
   setupCard: boolean;
+  createLinkToken: boolean;
   exchangeToken: boolean;
 }) {
   return (
@@ -26,9 +28,11 @@ function BusyIndicator({
       <Loader2 className="h-3.5 w-3.5 animate-spin" />
       {setupCard
         ? 'Redirecting to card setup...'
-        : exchangeToken
-          ? 'Connecting bank account...'
-          : 'Saving...'}
+        : createLinkToken
+          ? 'Preparing bank connection...'
+          : exchangeToken
+            ? 'Connecting bank account...'
+            : 'Saving...'}
     </p>
   );
 }
@@ -148,7 +152,14 @@ export function PaymentMethodSection() {
     }
   }, [setupSessionId]);
 
-  const createLinkToken = useMutation(trpc.plaid.createLinkToken.mutationOptions());
+  const createLinkToken = useMutation(
+    trpc.plaid.createLinkToken.mutationOptions({
+      onError: (error) => {
+        handleMutationError(error, 'Failed to connect bank. Please try again.');
+        setShowPlaidLink(false);
+      },
+    }),
+  );
 
   const updateMutation = useMutation(
     trpc.owner.updatePaymentMethod.mutationOptions({
@@ -217,6 +228,7 @@ export function PaymentMethodSection() {
     saveStatus === 'saving' ||
     setupCard.isPending ||
     confirmCard.isPending ||
+    createLinkToken.isPending ||
     exchangeToken.isPending;
 
   return (
@@ -264,7 +276,11 @@ export function PaymentMethodSection() {
         />
 
         {isBusy && (
-          <BusyIndicator setupCard={setupCard.isPending} exchangeToken={exchangeToken.isPending} />
+          <BusyIndicator
+            setupCard={setupCard.isPending}
+            createLinkToken={createLinkToken.isPending}
+            exchangeToken={exchangeToken.isPending}
+          />
         )}
         <StatusMessage saveStatus={saveStatus} errorMessage={errorMessage} />
       </CardContent>

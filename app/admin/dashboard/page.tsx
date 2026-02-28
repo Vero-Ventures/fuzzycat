@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FailedPaymentsBanner } from './_components/failed-payments-banner';
@@ -6,6 +7,10 @@ import { PlatformStats } from './_components/platform-stats';
 import { RecentActivity } from './_components/recent-activity';
 import { RecentClaims } from './_components/recent-claims';
 import { RecentClinics } from './_components/recent-clinics';
+
+export const metadata: Metadata = {
+  title: 'Admin | FuzzyCat',
+};
 
 function WidgetSkeleton({ className }: { className?: string }) {
   return <Skeleton className={className ?? 'h-64 w-full'} />;

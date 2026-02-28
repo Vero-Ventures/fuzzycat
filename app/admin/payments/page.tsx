@@ -1,4 +1,9 @@
+import type { Metadata } from 'next';
 import { PaymentList } from './_components/payment-list';
+
+export const metadata: Metadata = {
+  title: 'Payments | FuzzyCat Admin',
+};
 
 export default function AdminPaymentsPage() {
   return (

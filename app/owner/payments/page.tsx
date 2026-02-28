@@ -1,9 +1,14 @@
 import { HydrationBoundary } from '@tanstack/react-query';
+import type { Metadata } from 'next';
 import { createServerHelpers } from '@/lib/trpc/server';
 import { DashboardSummary } from './_components/dashboard-summary';
 import { PlanList } from './_components/plan-list';
 import { QuickLinks } from './_components/quick-links';
 import { RecentPayments } from './_components/recent-payments';
+
+export const metadata: Metadata = {
+  title: 'Dashboard | FuzzyCat',
+};
 
 export default async function OwnerPaymentsPage() {
   const { trpc, queryClient, dehydrate } = await createServerHelpers();

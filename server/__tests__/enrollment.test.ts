@@ -48,6 +48,10 @@ import { createAuditMock } from './audit-mock';
 
 mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
 
+mock.module('@/lib/logger', () => ({
+  logger: { info: mock(), warn: mock(), error: mock() },
+}));
+
 // Must be imported AFTER mocks are set up
 const { createEnrollment, getEnrollmentSummary, cancelEnrollment } = await import(
   '@/server/services/enrollment'
@@ -685,10 +689,10 @@ describe('cancelEnrollment', () => {
     await expect(cancelEnrollment(PLAN_ID)).rejects.toThrow('not found');
   });
 
-  it('throws when plan status is not pending', async () => {
-    setupOuterSelectChain([{ id: PLAN_ID, status: 'active' }]);
+  it('throws when plan is completed', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'completed' }]);
 
-    await expect(cancelEnrollment(PLAN_ID)).rejects.toThrow("status is 'active'");
+    await expect(cancelEnrollment(PLAN_ID)).rejects.toThrow("status is 'completed'");
   });
 
   it('throws when plan is already cancelled', async () => {
@@ -697,24 +701,54 @@ describe('cancelEnrollment', () => {
     await expect(cancelEnrollment(PLAN_ID)).rejects.toThrow("status is 'cancelled'");
   });
 
-  it('cancels a pending plan and writes off payments', async () => {
-    setupOuterSelectChain([{ id: PLAN_ID, status: 'pending' }]);
+  it('throws when plan is defaulted', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'defaulted' }]);
 
+    await expect(cancelEnrollment(PLAN_ID)).rejects.toThrow("status is 'defaulted'");
+  });
+
+  /**
+   * Helper to set up the mock transaction for cancelEnrollment tests.
+   * Provides tracking of updates, inserts, and select calls within tx.
+   */
+  function setupCancelTxMocks(opts: {
+    pendingPayments?: Array<{ id: string; status: string }>;
+    softCollection?: { id: string; stage: string } | null;
+  }) {
+    const { pendingPayments = [], softCollection = null } = opts;
     const tx = createMockTx();
-    const updatedEntities: Array<{ table: string; values: unknown }> = [];
+    const updatedEntities: Array<{ values: unknown }> = [];
     const insertedValues: unknown[] = [];
 
     mockTransaction.mockImplementation(async (fn: TxCallback) => {
-      let updateCount = 0;
+      let selectCount = 0;
+
       mockUpdate.mockImplementation(() => {
-        updateCount++;
         return {
           set: (val: unknown) => {
-            updatedEntities.push({ table: `update-${updateCount}`, values: val });
+            updatedEntities.push({ values: val });
             return {
               where: () => Promise.resolve([]),
             };
           },
+        };
+      });
+
+      mockSelect.mockImplementation(() => {
+        selectCount++;
+        return {
+          from: () => ({
+            where: () => {
+              if (selectCount === 1) {
+                // First tx.select: pending payments lookup
+                return Promise.resolve(pendingPayments);
+              }
+              // Second tx.select: soft collection lookup
+              return {
+                limit: () => Promise.resolve(softCollection ? [softCollection] : []),
+              };
+            },
+          }),
         };
       });
 
@@ -728,6 +762,19 @@ describe('cancelEnrollment', () => {
       return fn(tx);
     });
 
+    return { updatedEntities, insertedValues };
+  }
+
+  it('cancels a pending plan and writes off payments', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'pending' }]);
+
+    const pendingPayments = [
+      { id: 'pay-0', status: 'pending' },
+      { id: 'pay-1', status: 'pending' },
+    ];
+
+    const { updatedEntities, insertedValues } = setupCancelTxMocks({ pendingPayments });
+
     await cancelEnrollment(PLAN_ID, ACTOR_ID, 'clinic');
 
     // First update: plan status -> cancelled
@@ -736,43 +783,178 @@ describe('cancelEnrollment', () => {
     // Second update: payments status -> written_off
     expect(updatedEntities[1].values).toEqual({ status: 'written_off' });
 
-    // Audit log entry
-    const auditEntry = insertedValues[0] as {
+    // Should have audit logs for each payment + plan
+    // payment audit entries (2) + plan audit entry (1) = 3
+    expect(insertedValues).toHaveLength(3);
+
+    // First two inserts: payment audit logs
+    const payAudit0 = insertedValues[0] as { entityType: string; entityId: string };
+    expect(payAudit0.entityType).toBe('payment');
+    expect(payAudit0.entityId).toBe('pay-0');
+
+    const payAudit1 = insertedValues[1] as { entityType: string; entityId: string };
+    expect(payAudit1.entityType).toBe('payment');
+    expect(payAudit1.entityId).toBe('pay-1');
+
+    // Last insert: plan audit log
+    const planAudit = insertedValues[2] as {
       entityType: string;
       entityId: string;
       action: string;
       actorType: string;
       actorId: string;
     };
-    expect(auditEntry.entityType).toBe('plan');
-    expect(auditEntry.entityId).toBe(PLAN_ID);
-    expect(auditEntry.action).toBe('status_changed');
-    expect(auditEntry.actorType).toBe('clinic');
-    expect(auditEntry.actorId).toBe(ACTOR_ID);
+    expect(planAudit.entityType).toBe('plan');
+    expect(planAudit.entityId).toBe(PLAN_ID);
+    expect(planAudit.action).toBe('status_changed');
+    expect(planAudit.actorType).toBe('clinic');
+    expect(planAudit.actorId).toBe(ACTOR_ID);
+  });
+
+  it('cancels an active plan and writes off pending payments', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'active' }]);
+
+    const pendingPayments = [
+      { id: 'pay-3', status: 'pending' },
+      { id: 'pay-4', status: 'pending' },
+      { id: 'pay-5', status: 'pending' },
+    ];
+
+    const { updatedEntities, insertedValues } = setupCancelTxMocks({ pendingPayments });
+
+    await cancelEnrollment(PLAN_ID, ACTOR_ID, 'admin');
+
+    // First update: plan status -> cancelled
+    expect(updatedEntities[0].values).toEqual({ status: 'cancelled' });
+
+    // Second update: payments status -> written_off
+    expect(updatedEntities[1].values).toEqual({ status: 'written_off' });
+
+    // 3 payment audits + 1 plan audit = 4
+    expect(insertedValues).toHaveLength(4);
+
+    // Verify each payment has individual audit entry
+    for (let i = 0; i < 3; i++) {
+      const payAudit = insertedValues[i] as {
+        entityType: string;
+        entityId: string;
+        action: string;
+        newValue: { status: string; reason: string };
+      };
+      expect(payAudit.entityType).toBe('payment');
+      expect(payAudit.entityId).toBe(pendingPayments[i].id);
+      expect(payAudit.action).toBe('status_changed');
+      expect(payAudit.newValue.status).toBe('written_off');
+      expect(payAudit.newValue.reason).toBe('plan_cancelled');
+    }
+
+    // Plan audit
+    const planAudit = insertedValues[3] as {
+      entityType: string;
+      oldValue: { status: string };
+      newValue: { status: string };
+    };
+    expect(planAudit.entityType).toBe('plan');
+    expect(planAudit.oldValue).toEqual({ status: 'active' });
+    expect(planAudit.newValue).toEqual({ status: 'cancelled' });
+  });
+
+  it('cancels a deposit_paid plan', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'deposit_paid' }]);
+
+    const pendingPayments = [{ id: 'pay-1', status: 'pending' }];
+
+    const { updatedEntities, insertedValues } = setupCancelTxMocks({ pendingPayments });
+
+    await cancelEnrollment(PLAN_ID, ACTOR_ID, 'clinic');
+
+    expect(updatedEntities[0].values).toEqual({ status: 'cancelled' });
+    expect(updatedEntities[1].values).toEqual({ status: 'written_off' });
+
+    // 1 payment audit + 1 plan audit = 2
+    expect(insertedValues).toHaveLength(2);
+  });
+
+  it('cancels associated soft collection when present', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'active' }]);
+
+    const pendingPayments = [{ id: 'pay-3', status: 'pending' }];
+    const softCollection = { id: 'sc-1', stage: 'day_1_reminder' };
+
+    const { updatedEntities, insertedValues } = setupCancelTxMocks({
+      pendingPayments,
+      softCollection,
+    });
+
+    await cancelEnrollment(PLAN_ID, ACTOR_ID, 'admin');
+
+    // First update: plan -> cancelled
+    expect(updatedEntities[0].values).toEqual({ status: 'cancelled' });
+
+    // Second update: payments -> written_off
+    expect(updatedEntities[1].values).toEqual({ status: 'written_off' });
+
+    // Third update: soft collection -> cancelled
+    expect(updatedEntities[2].values).toEqual({
+      stage: 'cancelled',
+      nextEscalationAt: null,
+      notes: 'Collection cancelled when plan was cancelled',
+    });
+
+    // 1 payment audit + 1 soft collection audit + 1 plan audit = 3
+    expect(insertedValues).toHaveLength(3);
+
+    // Verify soft collection audit entry
+    const scAudit = insertedValues[1] as {
+      entityType: string;
+      oldValue: { softCollectionStage: string };
+      newValue: { softCollectionStage: string; reason: string };
+    };
+    expect(scAudit.entityType).toBe('plan');
+    expect(scAudit.oldValue.softCollectionStage).toBe('day_1_reminder');
+    expect(scAudit.newValue.softCollectionStage).toBe('cancelled');
+  });
+
+  it('skips soft collection cancellation when already cancelled', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'active' }]);
+
+    const softCollection = { id: 'sc-1', stage: 'cancelled' };
+
+    const { updatedEntities } = setupCancelTxMocks({
+      pendingPayments: [],
+      softCollection,
+    });
+
+    await cancelEnrollment(PLAN_ID);
+
+    // Only plan update — no soft collection update (it's already cancelled)
+    expect(updatedEntities).toHaveLength(1);
+    expect(updatedEntities[0].values).toEqual({ status: 'cancelled' });
+  });
+
+  it('handles plans with no pending payments gracefully', async () => {
+    setupOuterSelectChain([{ id: PLAN_ID, status: 'active' }]);
+
+    const { updatedEntities, insertedValues } = setupCancelTxMocks({
+      pendingPayments: [],
+    });
+
+    await cancelEnrollment(PLAN_ID, ACTOR_ID, 'admin');
+
+    // Only plan update, no payment update
+    expect(updatedEntities).toHaveLength(1);
+    expect(updatedEntities[0].values).toEqual({ status: 'cancelled' });
+
+    // Only plan audit log, no payment audits
+    expect(insertedValues).toHaveLength(1);
+    const planAudit = insertedValues[0] as { entityType: string };
+    expect(planAudit.entityType).toBe('plan');
   });
 
   it('uses system as default actor type when not specified', async () => {
     setupOuterSelectChain([{ id: PLAN_ID, status: 'pending' }]);
 
-    const tx = createMockTx();
-    const insertedValues: unknown[] = [];
-
-    mockTransaction.mockImplementation(async (fn: TxCallback) => {
-      mockUpdate.mockReturnValue({
-        set: () => ({
-          where: () => Promise.resolve([]),
-        }),
-      });
-
-      mockInsert.mockImplementation(() => ({
-        values: (val: unknown) => {
-          insertedValues.push(val);
-          return Promise.resolve([]);
-        },
-      }));
-
-      return fn(tx);
-    });
+    const { insertedValues } = setupCancelTxMocks({ pendingPayments: [] });
 
     await cancelEnrollment(PLAN_ID);
 
@@ -784,32 +966,19 @@ describe('cancelEnrollment', () => {
   it('passes plain objects (not JSON.stringify) to audit log oldValue/newValue', async () => {
     setupOuterSelectChain([{ id: PLAN_ID, status: 'pending' }]);
 
-    const tx = createMockTx();
-    const insertedValues: unknown[] = [];
-
-    mockTransaction.mockImplementation(async (fn: TxCallback) => {
-      mockUpdate.mockReturnValue({
-        set: () => ({
-          where: () => Promise.resolve([]),
-        }),
-      });
-
-      mockInsert.mockImplementation(() => ({
-        values: (val: unknown) => {
-          insertedValues.push(val);
-          return Promise.resolve([]);
-        },
-      }));
-
-      return fn(tx);
+    const { insertedValues } = setupCancelTxMocks({
+      pendingPayments: [{ id: 'pay-0', status: 'pending' }],
     });
 
     await cancelEnrollment(PLAN_ID, ACTOR_ID, 'clinic');
 
-    const auditEntry = insertedValues[0] as { oldValue: unknown; newValue: unknown };
-    expect(typeof auditEntry.oldValue).toBe('object');
-    expect(typeof auditEntry.oldValue).not.toBe('string');
-    expect(typeof auditEntry.newValue).toBe('object');
-    expect(typeof auditEntry.newValue).not.toBe('string');
+    // Check all audit entries have plain object values
+    for (const entry of insertedValues) {
+      const audit = entry as { oldValue: unknown; newValue: unknown };
+      expect(typeof audit.oldValue).toBe('object');
+      expect(typeof audit.oldValue).not.toBe('string');
+      expect(typeof audit.newValue).toBe('object');
+      expect(typeof audit.newValue).not.toBe('string');
+    }
   });
 });

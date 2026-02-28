@@ -2,12 +2,13 @@
 // Orchestrates plan creation, payment schedule generation, and initial
 // payment records. All financial operations are wrapped in db.transaction().
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { MIN_BILL_CENTS, PLATFORM_RESERVE_RATE } from '@/lib/constants';
+import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
-import { clinics, owners, payments, plans, riskPool } from '@/server/db/schema';
+import { clinics, owners, payments, plans, riskPool, softCollections } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -311,8 +312,17 @@ export async function getEnrollmentSummary(planId: string): Promise<EnrollmentSu
   };
 }
 
+/** Plan statuses that are eligible for cancellation. */
+const CANCELLABLE_STATUSES = ['pending', 'deposit_paid', 'active'] as const;
+
+/** Payment statuses that should be written off when a plan is cancelled. */
+const CANCELLABLE_PAYMENT_STATUSES = ['pending', 'processing'] as const;
+
 /**
- * Cancel an enrollment — only allowed before the deposit is paid (status: 'pending').
+ * Cancel an enrollment. Allowed for plans in pending, deposit_paid, or active
+ * status. All future pending/processing payments are written off and each
+ * status change is individually audit-logged (NON-NEGOTIABLE per CLAUDE.md).
+ * Any associated soft collection is also cancelled.
  *
  * @param planId - UUID of the plan to cancel
  * @param actorId - UUID of the actor cancelling (for audit log)
@@ -333,34 +343,115 @@ export async function cancelEnrollment(
     throw new Error(`Plan ${planId} not found`);
   }
 
-  if (planRecord.status !== 'pending') {
+  const cancellable: readonly string[] = CANCELLABLE_STATUSES;
+  if (!cancellable.includes(planRecord.status)) {
     throw new Error(
-      `Cannot cancel plan ${planId}: status is '${planRecord.status}', must be 'pending'`,
+      `Cannot cancel plan ${planId}: status is '${planRecord.status}', must be one of: ${CANCELLABLE_STATUSES.join(', ')}`,
     );
   }
 
   await db.transaction(async (tx) => {
-    // Update plan status to cancelled
+    // 1. Update plan status to cancelled
     await tx.update(plans).set({ status: 'cancelled' }).where(eq(plans.id, planId));
 
-    // Cancel all pending payments
-    await tx
-      .update(payments)
-      .set({ status: 'written_off' })
-      .where(and(eq(payments.planId, planId), eq(payments.status, 'pending')));
+    // 2. Fetch all pending/processing payments to write off individually
+    const pendingPayments = await tx
+      .select({ id: payments.id, status: payments.status })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.planId, planId),
+          inArray(payments.status, [...CANCELLABLE_PAYMENT_STATUSES]),
+        ),
+      );
 
-    // Audit log
+    // 3. Bulk-update pending/processing payments to written_off
+    if (pendingPayments.length > 0) {
+      await tx
+        .update(payments)
+        .set({ status: 'written_off' })
+        .where(
+          and(
+            eq(payments.planId, planId),
+            inArray(payments.status, [...CANCELLABLE_PAYMENT_STATUSES]),
+          ),
+        );
+
+      // 4. Audit each payment status change individually (NON-NEGOTIABLE)
+      for (const payment of pendingPayments) {
+        await logAuditEvent(
+          {
+            entityType: 'payment',
+            entityId: payment.id,
+            action: 'status_changed',
+            oldValue: { status: payment.status },
+            newValue: { status: 'written_off', reason: 'plan_cancelled' },
+            actorType,
+            actorId: actorId ?? null,
+          },
+          tx,
+        );
+      }
+    }
+
+    // 5. Cancel any associated soft collection
+    const [existingCollection] = await tx
+      .select({ id: softCollections.id, stage: softCollections.stage })
+      .from(softCollections)
+      .where(eq(softCollections.planId, planId))
+      .limit(1);
+
+    if (
+      existingCollection &&
+      existingCollection.stage !== 'completed' &&
+      existingCollection.stage !== 'cancelled'
+    ) {
+      await tx
+        .update(softCollections)
+        .set({
+          stage: 'cancelled',
+          nextEscalationAt: null,
+          notes: 'Collection cancelled when plan was cancelled',
+        })
+        .where(eq(softCollections.id, existingCollection.id));
+
+      await logAuditEvent(
+        {
+          entityType: 'plan',
+          entityId: planId,
+          action: 'status_changed',
+          oldValue: { softCollectionStage: existingCollection.stage },
+          newValue: {
+            softCollectionStage: 'cancelled',
+            reason: 'Collection cancelled when plan was cancelled',
+          },
+          actorType,
+          actorId: actorId ?? null,
+        },
+        tx,
+      );
+    }
+
+    // 6. Audit the plan status change
     await logAuditEvent(
       {
         entityType: 'plan',
         entityId: planId,
         action: 'status_changed',
-        oldValue: { status: 'pending' },
+        oldValue: { status: planRecord.status },
         newValue: { status: 'cancelled' },
         actorType,
         actorId: actorId ?? null,
       },
       tx,
     );
+
+    logger.info('Plan cancelled', {
+      planId,
+      previousStatus: planRecord.status,
+      paymentsWrittenOff: pendingPayments.length,
+      actorType,
+      actorId,
+    });
   });
 }

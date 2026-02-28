@@ -12,6 +12,8 @@ mock.module('@/server/db', () => ({
 mock.module('@/server/db/schema', () => ({
   owners: { __table: 'owners' },
   clinics: { __table: 'clinics' },
+  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  petsRelations: {},
 }));
 
 const mockSignUp = mock();

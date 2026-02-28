@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
-import { clinics, owners, payments, plans } from '@/server/db/schema';
+import { clinics, owners, payments, pets, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { ownerProcedure, router } from '@/server/trpc';
 
@@ -111,6 +111,13 @@ export const ownerRouter = router({
           .string()
           .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format (e.g., +15551234567)')
           .optional(),
+        addressLine1: z.string().min(1, 'Address is required').optional(),
+        addressCity: z.string().min(1, 'City is required').optional(),
+        addressState: z.string().length(2, 'State must be a 2-letter abbreviation').optional(),
+        addressZip: z
+          .string()
+          .regex(/^\d{5}(-\d{4})?$/, 'ZIP must be 5 digits or ZIP+4 format')
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -118,6 +125,10 @@ export const ownerRouter = router({
       if (input.name !== undefined) updateData.name = input.name;
       if (input.email !== undefined) updateData.email = input.email;
       if (input.phone !== undefined) updateData.phone = input.phone;
+      if (input.addressLine1 !== undefined) updateData.addressLine1 = input.addressLine1;
+      if (input.addressCity !== undefined) updateData.addressCity = input.addressCity;
+      if (input.addressState !== undefined) updateData.addressState = input.addressState;
+      if (input.addressZip !== undefined) updateData.addressZip = input.addressZip;
 
       if (Object.keys(updateData).length === 0) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'No fields to update' });
@@ -134,6 +145,10 @@ export const ownerRouter = router({
           phone: owners.phone,
           petName: owners.petName,
           paymentMethod: owners.paymentMethod,
+          addressLine1: owners.addressLine1,
+          addressCity: owners.addressCity,
+          addressState: owners.addressState,
+          addressZip: owners.addressZip,
         });
 
       revalidateTag(`owner:${ctx.ownerId}:profile`);
@@ -593,4 +608,166 @@ export const ownerRouter = router({
       totalPlans: Number(planCounts?.totalPlans ?? 0),
     };
   }),
+
+  // ── Pet CRUD ─────────────────────────────────────────────────────────
+
+  /**
+   * Get all pets for the authenticated owner.
+   */
+  getPets: ownerProcedure.query(async ({ ctx }) => {
+    return ctx.db
+      .select({
+        id: pets.id,
+        name: pets.name,
+        species: pets.species,
+        breed: pets.breed,
+        age: pets.age,
+        createdAt: pets.createdAt,
+        updatedAt: pets.updatedAt,
+      })
+      .from(pets)
+      .where(eq(pets.ownerId, ctx.ownerId))
+      .orderBy(pets.createdAt);
+  }),
+
+  /**
+   * Add a new pet for the authenticated owner.
+   */
+  addPet: ownerProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, 'Pet name is required').max(100),
+        species: z.enum(['dog', 'cat', 'other']),
+        breed: z.string().max(100).optional(),
+        age: z.number().int().min(0).max(50).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [pet] = await ctx.db
+        .insert(pets)
+        .values({
+          ownerId: ctx.ownerId,
+          name: input.name,
+          species: input.species,
+          breed: input.breed ?? null,
+          age: input.age ?? null,
+        })
+        .returning({
+          id: pets.id,
+          name: pets.name,
+          species: pets.species,
+          breed: pets.breed,
+          age: pets.age,
+          createdAt: pets.createdAt,
+          updatedAt: pets.updatedAt,
+        });
+
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action: 'created',
+        oldValue: null,
+        newValue: { petId: pet.id, name: input.name, species: input.species },
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
+      return pet;
+    }),
+
+  /**
+   * Update an existing pet (validates ownership).
+   */
+  updatePet: ownerProcedure
+    .input(
+      z.object({
+        petId: z.string().uuid(),
+        name: z.string().min(1, 'Pet name is required').max(100).optional(),
+        species: z.enum(['dog', 'cat', 'other']).optional(),
+        breed: z.string().max(100).optional(),
+        age: z.number().int().min(0).max(50).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify ownership
+      const [existing] = await ctx.db
+        .select({ id: pets.id, ownerId: pets.ownerId })
+        .from(pets)
+        .where(eq(pets.id, input.petId))
+        .limit(1);
+
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Pet not found' });
+      }
+
+      if (existing.ownerId !== ctx.ownerId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not own this pet' });
+      }
+
+      const updateData: Record<string, string | number | null> = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.species !== undefined) updateData.species = input.species;
+      if (input.breed !== undefined) updateData.breed = input.breed;
+      if (input.age !== undefined) updateData.age = input.age;
+
+      if (Object.keys(updateData).length === 0) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'No fields to update' });
+      }
+
+      const [updated] = await ctx.db
+        .update(pets)
+        .set(updateData)
+        .where(eq(pets.id, input.petId))
+        .returning({
+          id: pets.id,
+          name: pets.name,
+          species: pets.species,
+          breed: pets.breed,
+          age: pets.age,
+          createdAt: pets.createdAt,
+          updatedAt: pets.updatedAt,
+        });
+
+      return updated;
+    }),
+
+  /**
+   * Remove a pet (validates ownership).
+   */
+  removePet: ownerProcedure
+    .input(
+      z.object({
+        petId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify ownership
+      const [existing] = await ctx.db
+        .select({ id: pets.id, ownerId: pets.ownerId, name: pets.name })
+        .from(pets)
+        .where(eq(pets.id, input.petId))
+        .limit(1);
+
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Pet not found' });
+      }
+
+      if (existing.ownerId !== ctx.ownerId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not own this pet' });
+      }
+
+      await ctx.db.delete(pets).where(eq(pets.id, input.petId));
+
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action: 'status_changed',
+        oldValue: { petId: existing.id, name: existing.name },
+        newValue: null,
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
+      return { success: true as const };
+    }),
 });

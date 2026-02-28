@@ -92,6 +92,26 @@ export const owners = pgTable(
   (table) => [index('idx_owners_plaid_item').on(table.plaidItemId)],
 );
 
+// ── Pets ─────────────────────────────────────────────────────────────
+export const pets = pgTable(
+  'pets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .references(() => owners.id)
+      .notNull(),
+    name: text('name').notNull(),
+    species: text('species').notNull(), // 'dog', 'cat', 'other'
+    breed: text('breed'),
+    age: integer('age'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_pets_owner').on(table.ownerId)],
+);
+
 // ── Payment plans (one per enrollment) ──────────────────────────────
 export const plans = pgTable(
   'plans',
@@ -235,6 +255,11 @@ export const clinicsRelations = relations(clinics, ({ many }) => ({
 
 export const ownersRelations = relations(owners, ({ many }) => ({
   plans: many(plans),
+  pets: many(pets),
+}));
+
+export const petsRelations = relations(pets, ({ one }) => ({
+  owner: one(owners, { fields: [pets.ownerId], references: [owners.id] }),
 }));
 
 export const plansRelations = relations(plans, ({ one, many }) => ({

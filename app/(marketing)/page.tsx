@@ -10,6 +10,7 @@ import {
   Stethoscope,
 } from 'lucide-react';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,32 +55,45 @@ export default function LandingPage() {
             <PawPrint className="h-20 w-20 rotate-45" />
           </div>
         </div>
-        <div className="mx-auto max-w-4xl text-center">
-          <Badge variant="secondary" className="mb-6 text-sm">
-            <Cat className="mr-1.5 h-3.5 w-3.5" />
-            No credit check required
-          </Badge>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-            Making Pet Care
-            <br />
-            <span className="text-primary italic">Affordable</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            Pay your vet bill in {NUM_INSTALLMENTS} easy biweekly installments over 12 weeks. Just a
-            flat {feePercent}% fee &mdash; no interest, no credit check, no surprises.
-          </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/login/clinic">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                Clinic Portal Login
-              </Button>
-            </Link>
-            <Link href="/login/owner">
-              <Button size="lg" className="w-full sm:w-auto">
-                Pet Owner Portal Login
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
-            </Link>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <div className="text-center lg:text-left">
+            <Badge variant="secondary" className="mb-6 text-sm">
+              <Cat className="mr-1.5 h-3.5 w-3.5" />
+              No credit check required
+            </Badge>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              Making Pet Care
+              <br />
+              <span className="text-primary italic">Affordable</span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+              Pay your vet bill in {NUM_INSTALLMENTS} easy biweekly installments over 12 weeks. Just
+              a flat {feePercent}% fee &mdash; no interest, no credit check, no surprises.
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
+              <Link href="/login/clinic">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                  Clinic Portal Login
+                </Button>
+              </Link>
+              <Link href="/login/owner">
+                <Button size="lg" className="w-full sm:w-auto">
+                  Pet Owner Portal Login
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="mx-auto hidden lg:block">
+            <Image
+              src="/phineas.webp"
+              alt="A Siamese cat looking up curiously"
+              width={480}
+              height={480}
+              priority
+              className="rounded-2xl shadow-xl"
+              sizes="(min-width: 1024px) 480px, 0px"
+            />
           </div>
         </div>
       </section>

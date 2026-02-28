@@ -3,6 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCents } from '@/lib/utils/money';
 
+export interface Enrollment {
+  id: string;
+  ownerName: string | null;
+  petName: string | null;
+  totalBillCents: number;
+  status: string;
+  createdAt: Date | null;
+}
+
 export interface DashboardStatsData {
   activePlans: number;
   completedPlans: number;
@@ -12,14 +21,7 @@ export interface DashboardStatsData {
   totalPayoutCents: number;
   pendingPayoutsCount: number;
   pendingPayoutsCents: number;
-  recentEnrollments: Array<{
-    id: string;
-    ownerName: string | null;
-    petName: string | null;
-    totalBillCents: number;
-    status: string;
-    createdAt: Date;
-  }>;
+  recentEnrollments: Enrollment[];
 }
 
 export function DashboardStats({ data }: { data: DashboardStatsData }) {

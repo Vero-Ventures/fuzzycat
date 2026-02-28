@@ -3,15 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
-
-interface Enrollment {
-  id: string;
-  ownerName: string | null;
-  petName: string | null;
-  totalBillCents: number;
-  status: string;
-  createdAt: Date;
-}
+import type { Enrollment } from './dashboard-stats';
 
 export function UpcomingPayments({ enrollments }: { enrollments: Enrollment[] }) {
   const activeEnrollments = enrollments.filter((e) => e.status === 'active');

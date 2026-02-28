@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTRPC } from '@/lib/trpc/client';
-import type { DashboardStatsData } from './dashboard-stats';
 import { DashboardStats, DashboardStatsSkeleton } from './dashboard-stats';
 import { RecentEnrollments, RecentEnrollmentsSkeleton } from './recent-enrollments';
 import { UpcomingPayments, UpcomingPaymentsSkeleton } from './upcoming-payments';
@@ -49,19 +48,19 @@ export function DashboardContent() {
     );
   }
 
-  const stats = data as DashboardStatsData;
+  if (!data) return null;
 
   return (
     <>
       <div className="mt-8">
-        <DashboardStats data={stats} />
+        <DashboardStats data={data} />
       </div>
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <RecentEnrollments enrollments={stats.recentEnrollments} />
+          <RecentEnrollments enrollments={data.recentEnrollments} />
         </div>
         <div>
-          <UpcomingPayments enrollments={stats.recentEnrollments} />
+          <UpcomingPayments enrollments={data.recentEnrollments} />
         </div>
       </div>
     </>

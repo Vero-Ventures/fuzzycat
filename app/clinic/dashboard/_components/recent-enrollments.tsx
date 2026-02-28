@@ -13,15 +13,7 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
-
-interface Enrollment {
-  id: string;
-  ownerName: string | null;
-  petName: string | null;
-  totalBillCents: number;
-  status: string;
-  createdAt: Date;
-}
+import type { Enrollment } from './dashboard-stats';
 
 export function RecentEnrollments({ enrollments }: { enrollments: Enrollment[] }) {
   return (

@@ -3,6 +3,10 @@
 /**
  * Format a date value for display.
  *
+ * Uses an explicit UTC timezone so the formatted string is identical on
+ * server (typically UTC) and client (user's local timezone), avoiding
+ * React hydration mismatches.
+ *
  * @param date - Date object, ISO string, or null
  * @returns Formatted date string (e.g., "Feb 20, 2026") or an em-dash for null
  */
@@ -12,23 +16,26 @@ export function formatDate(date: Date | string | null): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
 /**
  * Calculate the number of days from today until a target date.
- * Both dates are normalized to midnight before comparison so
- * the result is independent of the current time of day.
+ *
+ * Uses UTC day boundaries so the result is identical on server and
+ * client regardless of local timezone, preventing React hydration
+ * mismatches.
  *
  * @param date - Target date
  * @returns Number of calendar days (positive = future, negative = past)
  */
 export function daysUntil(date: Date | string): number {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const nowUtcDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const targetUtcDay = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  return Math.round((targetUtcDay - nowUtcDay) / (1000 * 60 * 60 * 24));
 }
 
 /**

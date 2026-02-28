@@ -100,7 +100,7 @@ export const plaidRouter = router({
             ownerId: ctx.ownerId,
           },
         );
-        throw new TRPCError({ code: 'BAD_REQUEST', message });
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
       }
     }),
 
@@ -122,7 +122,7 @@ export const plaidRouter = router({
           procedure: 'checkBalance',
           ownerId: ctx.ownerId,
         });
-        throw new TRPCError({ code: 'BAD_REQUEST', message });
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
       }
     }),
 });

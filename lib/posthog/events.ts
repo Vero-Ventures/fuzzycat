@@ -18,6 +18,9 @@ export const POSTHOG_EVENTS = {
   CLINIC_ACTIVATED: 'clinic_activated',
   CLINIC_PAYOUT_SENT: 'clinic_payout_sent',
 
+  // Performance
+  WEB_VITAL_CAPTURED: 'web_vital_captured',
+
   // Auth
   AUTH_SIGNED_UP: 'auth_signed_up',
   AUTH_SIGNED_IN: 'auth_signed_in',

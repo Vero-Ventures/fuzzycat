@@ -7,7 +7,7 @@
 // would be better named `amountCents`. A schema migration to rename it
 // is deferred to a future PR to avoid unnecessary risk here.
 
-import { count, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import { PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
@@ -138,7 +138,7 @@ export async function getRiskPoolHealth(): Promise<ReserveHealth> {
     db
       .select({
         outstandingCents: sql<number>`coalesce(sum(${plans.remainingCents}), 0)`,
-        activePlanCount: count(),
+        activePlanCount: sql<number>`count(*)`,
       })
       .from(plans)
       .where(eq(plans.status, 'active')),

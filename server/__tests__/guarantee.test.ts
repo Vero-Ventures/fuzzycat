@@ -93,10 +93,13 @@ describe('contributeToReserve', () => {
   });
 
   it('logs an audit event for the contribution', async () => {
-    await contributeToReserve('plan-1', 1272);
+    // Pass the mock db as a tx so both the risk-pool insert and the audit
+    // insert go through the same mockInsert → mockInsertValues chain.
+    // Without this, Bun's global mock.module contamination can cause
+    // logAuditEvent's db import to resolve to a different test's mock.
+    const fakeTx = { insert: mockInsert } as never;
+    await contributeToReserve('plan-1', 1272, fakeTx);
 
-    // logAuditEvent runs for real against the mocked db.
-    // The second mockInsertValues call is the audit log entry.
     const auditCall = mockInsertValues.mock.calls[1]?.[0] as Record<string, unknown> | undefined;
     expect(auditCall).toBeDefined();
     expect(auditCall?.entityType).toBe('risk_pool');

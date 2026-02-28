@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sum } from 'drizzle-orm';
+import { and, desc, eq, sql, sum } from 'drizzle-orm';
 import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
@@ -363,7 +363,7 @@ export async function getClinicPayoutHistory(
       .orderBy(desc(payouts.createdAt))
       .limit(limit)
       .offset(offset),
-    db.select({ total: count() }).from(payouts).where(eq(payouts.clinicId, clinicId)),
+    db.select({ total: sql<number>`count(*)` }).from(payouts).where(eq(payouts.clinicId, clinicId)),
   ]);
 
   return {
@@ -391,7 +391,7 @@ export async function getClinicEarnings(clinicId: string): Promise<ClinicEarning
       .from(payouts)
       .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'pending'))),
     db
-      .select({ completedCount: count() })
+      .select({ completedCount: sql<number>`count(*)` })
       .from(payouts)
       .where(and(eq(payouts.clinicId, clinicId), eq(payouts.status, 'succeeded'))),
   ]);

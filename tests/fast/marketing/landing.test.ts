@@ -9,15 +9,15 @@ describe('Landing page /', () => {
 
   test('hero heading and badge', async () => {
     const { $ } = await fetchPage('/');
-    expect($('h1').text()).toContain('Your pet deserves care');
-    expect($('h1').text()).toContain('You deserve a fair payment plan');
+    expect($('h1').text()).toContain('Making Pet Care');
+    expect($('h1').text()).toContain('Affordable');
     expect($('body').text()).toContain('No credit check required');
   });
 
   test('hero CTAs link to correct pages', async () => {
     const { $ } = await fetchPage('/');
-    expect($('a:contains("Start My Payment Plan")').attr('href')).toBe('/signup');
-    expect($('a:contains("See How It Works")').attr('href')).toBe('/how-it-works');
+    expect($('a:contains("Clinic Portal Login")').attr('href')).toBe('/login/clinic');
+    expect($('a:contains("Pet Owner Portal Login")').attr('href')).toBe('/login/owner');
   });
 
   test('three "how it works" steps', async () => {
@@ -31,9 +31,9 @@ describe('Landing page /', () => {
   test('transparent pricing cards', async () => {
     const { $ } = await fetchPage('/');
     const text = $('body').text();
-    expect(text).toContain('Flat 6% Fee');
+    expect(text).toContain('No Interest');
     expect(text).toContain('No Credit Check');
-    expect(text).toContain('12-Week Plan');
+    expect(text).toContain('12-Week Plans');
   });
 
   test('clinic section with 3% revenue share', async () => {
@@ -58,8 +58,8 @@ describe('Landing page /', () => {
     const hrefs = headerLinks.map((l) => l.href);
     expect(hrefs).toContain('/');
     expect(hrefs).toContain('/how-it-works');
-    expect(hrefs).toContain('/login');
-    expect(hrefs).toContain('/signup');
+    expect(hrefs).toContain('/login/clinic');
+    expect(hrefs).toContain('/login/owner');
   });
 
   test('footer sections and copyright', async () => {

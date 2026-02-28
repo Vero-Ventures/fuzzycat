@@ -10,7 +10,7 @@ describe('Signup page /signup', () => {
   test('heading and subtitle', async () => {
     const { $ } = await fetchPage('/signup');
     expect($('h1').text()).toContain('Create an account');
-    expect($('body').text()).toContain('Sign up as a pet owner or veterinary clinic');
+    expect($('body').text()).toContain('Choose your account type or sign up below');
   });
 
   test('login link', async () => {

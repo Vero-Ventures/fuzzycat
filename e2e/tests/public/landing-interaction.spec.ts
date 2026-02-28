@@ -7,45 +7,42 @@ test.describe('Landing Page — Interactions', () => {
     await page.waitForTimeout(1000);
   });
 
-  test('"Start My Payment Plan" button navigates to /signup', async ({ page }) => {
-    // Use CSS selector for the <a> to avoid <button> inside <a> click issues
-    const cta = page.locator('a[href="/signup"]', {
-      hasText: /start my payment plan/i,
+  test('"Pet Owner Portal Login" button navigates to /login/owner', async ({ page }) => {
+    const cta = page.locator('a[href="/login/owner"]', {
+      hasText: /pet owner portal login/i,
     });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/login\/owner/);
   });
 
-  test('"See How It Works" button navigates to /how-it-works', async ({ page }) => {
-    const cta = page.locator('a[href="/how-it-works"]', {
-      hasText: /see how it works/i,
+  test('"Clinic Portal Login" button navigates to /login/clinic', async ({ page }) => {
+    const cta = page.locator('a[href="/login/clinic"]', {
+      hasText: /clinic portal login/i,
     });
-    await cta.scrollIntoViewIfNeeded();
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/how-it-works/);
+    await expect(page).toHaveURL(/\/login\/clinic/);
   });
 
-  test('"Partner With FuzzyCat" button navigates to /signup', async ({ page }) => {
-    const cta = page.locator('a[href="/signup"]', {
+  test('"Partner With FuzzyCat" button navigates to /signup/clinic', async ({ page }) => {
+    const cta = page.locator('a[href="/signup/clinic"]', {
       hasText: /partner with fuzzycat/i,
     });
     await cta.scrollIntoViewIfNeeded();
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/clinic/);
   });
 
-  test('"Get Started" bottom CTA navigates to /signup', async ({ page }) => {
-    // "Get Started" appears in both header nav and bottom CTA; target the bottom one
-    const cta = page.locator('main a[href="/signup"]', {
+  test('"Get Started" bottom CTA navigates to /signup/owner', async ({ page }) => {
+    const cta = page.locator('main a[href="/signup/owner"]', {
       hasText: /get started/i,
     });
     await cta.last().scrollIntoViewIfNeeded();
     await expect(cta.last()).toBeVisible();
     await cta.last().click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/owner/);
   });
 
   test('"Learn More" bottom CTA navigates to /how-it-works', async ({ page }) => {

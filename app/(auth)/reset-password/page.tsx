@@ -64,10 +64,7 @@ export default function ResetPasswordPage() {
           <p className="text-sm text-muted-foreground">
             Your password has been reset successfully. Redirecting you to login...
           </p>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300"
-          >
+          <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
             Go to login now
           </Link>
         </div>
@@ -79,7 +76,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Cat className="mx-auto mb-4 h-10 w-10 text-amber-600 dark:text-amber-400" />
+          <Cat className="mx-auto mb-4 h-10 w-10 text-primary" />
           <h1 className="text-2xl font-semibold">Set a new password</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Enter your new password below. It must be at least 8 characters.

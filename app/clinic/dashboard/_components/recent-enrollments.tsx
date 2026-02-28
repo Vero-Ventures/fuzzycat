@@ -2,7 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
+import { AvatarInitials } from '@/components/shared/avatar-initials';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -16,24 +17,6 @@ import {
 import { useTRPC } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
-
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  deposit_paid: 'secondary',
-  completed: 'outline',
-  pending: 'secondary',
-  defaulted: 'destructive',
-  cancelled: 'destructive',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Active',
-  deposit_paid: 'Deposit Paid',
-  completed: 'Completed',
-  pending: 'Pending',
-  defaulted: 'Defaulted',
-  cancelled: 'Cancelled',
-};
 
 export function RecentEnrollments() {
   const trpc = useTRPC();
@@ -60,7 +43,7 @@ export function RecentEnrollments() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Recent Enrollments</CardTitle>
+            <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Last 10 payment plans created at your clinic.</CardDescription>
           </div>
           <Link href="/clinic/clients" className="text-sm font-medium text-primary hover:underline">
@@ -70,7 +53,7 @@ export function RecentEnrollments() {
       </CardHeader>
       <CardContent>
         {enrollments.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
+          <p className="py-4 text-center text-sm text-muted-foreground">
             No enrollments yet. Create your first payment plan to get started.
           </p>
         ) : (
@@ -87,13 +70,16 @@ export function RecentEnrollments() {
             <TableBody>
               {enrollments.map((enrollment) => (
                 <TableRow key={enrollment.id}>
-                  <TableCell className="font-medium">{enrollment.ownerName ?? 'Unknown'}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <AvatarInitials name={enrollment.ownerName ?? 'Unknown'} size="sm" />
+                      <span className="font-medium">{enrollment.ownerName ?? 'Unknown'}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{enrollment.petName ?? '--'}</TableCell>
                   <TableCell>{formatCents(enrollment.totalBillCents)}</TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[enrollment.status] ?? 'secondary'}>
-                      {STATUS_LABEL[enrollment.status] ?? enrollment.status}
-                    </Badge>
+                    <StatusBadge status={enrollment.status} size="sm" />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(enrollment.createdAt)}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { useTRPC } from '@/lib/trpc/client';
 interface ClinicProfile {
   name: string;
   phone: string;
+  email: string;
   addressLine1: string | null;
   addressCity: string | null;
   addressState: string;
@@ -131,13 +133,46 @@ export function ClinicProfileForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Clinic Information</CardTitle>
-        <CardDescription>Update your clinic name, phone, and address.</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Clinic Information</CardTitle>
+            <CardDescription>Update your clinic name, phone, and address.</CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            {saveStatus === 'saved' && (
+              <p className="text-sm text-green-600 dark:text-green-400">Saved!</p>
+            )}
+            {saveStatus === 'error' && <p className="text-sm text-destructive">Failed to save.</p>}
+            <Button
+              type="submit"
+              form="clinic-profile-form"
+              disabled={!hasChanges || saveStatus === 'saving'}
+            >
+              {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="clinic-profile-form" onSubmit={handleSubmit} className="space-y-6">
+          {/* Logo upload placeholder */}
+          <div>
+            <Label className="text-xs font-semibold uppercase tracking-wide">Clinic Logo</Label>
+            <div className="mt-1.5 flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 px-6 py-8">
+              <div className="text-center">
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Drag and drop or click to upload
+                </p>
+                <p className="text-xs text-muted-foreground">PNG, JPG up to 2MB</p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="clinic-name">Clinic Name</Label>
+            <Label htmlFor="clinic-name" className="text-xs font-semibold uppercase tracking-wide">
+              Clinic Name
+            </Label>
             <Input
               id="clinic-name"
               value={name}
@@ -147,7 +182,9 @@ export function ClinicProfileForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clinic-phone">Phone</Label>
+            <Label htmlFor="clinic-phone" className="text-xs font-semibold uppercase tracking-wide">
+              Primary Phone
+            </Label>
             <Input
               id="clinic-phone"
               type="tel"
@@ -158,7 +195,9 @@ export function ClinicProfileForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clinic-email">Email</Label>
+            <Label htmlFor="clinic-email" className="text-xs font-semibold uppercase tracking-wide">
+              Clinic Email
+            </Label>
             <Input id="clinic-email" type="email" value={profile.email} disabled />
             <p className="text-xs text-muted-foreground">
               Contact support to change your clinic email.
@@ -166,7 +205,12 @@ export function ClinicProfileForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="clinic-address">Street Address</Label>
+            <Label
+              htmlFor="clinic-address"
+              className="text-xs font-semibold uppercase tracking-wide"
+            >
+              Physical Address
+            </Label>
             <Input
               id="clinic-address"
               value={addressLine1}
@@ -177,7 +221,12 @@ export function ClinicProfileForm() {
 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="clinic-city">City</Label>
+              <Label
+                htmlFor="clinic-city"
+                className="text-xs font-semibold uppercase tracking-wide"
+              >
+                City
+              </Label>
               <Input
                 id="clinic-city"
                 value={addressCity}
@@ -186,7 +235,12 @@ export function ClinicProfileForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="clinic-state">State</Label>
+              <Label
+                htmlFor="clinic-state"
+                className="text-xs font-semibold uppercase tracking-wide"
+              >
+                State
+              </Label>
               <Input
                 id="clinic-state"
                 value={addressState}
@@ -196,7 +250,9 @@ export function ClinicProfileForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="clinic-zip">ZIP Code</Label>
+              <Label htmlFor="clinic-zip" className="text-xs font-semibold uppercase tracking-wide">
+                ZIP Code
+              </Label>
               <Input
                 id="clinic-zip"
                 value={addressZip}
@@ -204,22 +260,6 @@ export function ClinicProfileForm() {
                 placeholder="94102"
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={!hasChanges || saveStatus === 'saving'}>
-              {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-            </Button>
-            {saveStatus === 'saved' && (
-              <p className="text-sm text-green-600 dark:text-green-400">
-                Clinic information updated successfully.
-              </p>
-            )}
-            {saveStatus === 'error' && (
-              <p className="text-sm text-destructive">
-                Failed to update clinic information. Please try again.
-              </p>
-            )}
           </div>
         </form>
       </CardContent>

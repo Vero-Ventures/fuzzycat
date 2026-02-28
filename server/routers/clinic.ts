@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { publicEnv } from '@/lib/env';
@@ -436,7 +436,7 @@ export const clinicRouter = router({
             activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
             completedPlans: sql<number>`count(*) filter (where ${plans.status} = 'completed')`,
             defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
-            totalPlans: count(),
+            totalPlans: sql<number>`count(*)`,
           })
           .from(plans)
           .where(eq(plans.clinicId, clinicId)),
@@ -453,7 +453,7 @@ export const clinicRouter = router({
         // Pending payouts count and amount
         ctx.db
           .select({
-            pendingCount: count(),
+            pendingCount: sql<number>`count(*)`,
             pendingAmountCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           })
           .from(payouts)
@@ -554,7 +554,7 @@ export const clinicRouter = router({
           .limit(input.pageSize)
           .offset(offset),
         ctx.db
-          .select({ total: count() })
+          .select({ total: sql<number>`count(*)` })
           .from(plans)
           .leftJoin(owners, eq(plans.ownerId, owners.id))
           .where(whereClause),
@@ -674,7 +674,7 @@ export const clinicRouter = router({
         month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
         totalPayoutCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
         totalShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-        payoutCount: count(),
+        payoutCount: sql<number>`count(*)`,
       })
       .from(payouts)
       .where(
@@ -719,7 +719,7 @@ export const clinicRouter = router({
           month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
           revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-          payoutCount: count(),
+          payoutCount: sql<number>`count(*)`,
         })
         .from(payouts)
         .where(
@@ -737,7 +737,7 @@ export const clinicRouter = router({
       const enrollmentData = await ctx.db
         .select({
           month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
-          enrollments: count(),
+          enrollments: sql<number>`count(*)`,
         })
         .from(plans)
         .where(
@@ -797,7 +797,7 @@ export const clinicRouter = router({
       const trendData = await ctx.db
         .select({
           month: sql<string>`to_char(${plans.createdAt}, 'YYYY-MM')`,
-          enrollments: count(),
+          enrollments: sql<number>`count(*)`,
         })
         .from(plans)
         .where(
@@ -823,7 +823,7 @@ export const clinicRouter = router({
 
     const [result] = await ctx.db
       .select({
-        totalPlans: count(),
+        totalPlans: sql<number>`count(*)`,
         defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
       })
       .from(plans)
@@ -907,7 +907,7 @@ export const clinicRouter = router({
           month: sql<string>`to_char(${payouts.createdAt}, 'YYYY-MM')`,
           revenueCents: sql<number>`coalesce(sum(${payouts.amountCents}), 0)`,
           clinicShareCents: sql<number>`coalesce(sum(${payouts.clinicShareCents}), 0)`,
-          payoutCount: count(),
+          payoutCount: sql<number>`count(*)`,
         })
         .from(payouts)
         .where(

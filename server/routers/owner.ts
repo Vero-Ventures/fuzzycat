@@ -400,6 +400,52 @@ export const ownerRouter = router({
   }),
 
   /**
+   * Get a single payment plan by ID for the authenticated owner, with payment progress.
+   */
+  getPlanById: ownerProcedure
+    .input(z.object({ planId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .select({
+          id: plans.id,
+          clinicId: plans.clinicId,
+          totalBillCents: plans.totalBillCents,
+          feeCents: plans.feeCents,
+          totalWithFeeCents: plans.totalWithFeeCents,
+          depositCents: plans.depositCents,
+          remainingCents: plans.remainingCents,
+          installmentCents: plans.installmentCents,
+          numInstallments: plans.numInstallments,
+          status: plans.status,
+          nextPaymentAt: plans.nextPaymentAt,
+          depositPaidAt: plans.depositPaidAt,
+          completedAt: plans.completedAt,
+          createdAt: plans.createdAt,
+          clinicName: clinics.name,
+          succeededCount: sql<number>`count(${payments.id}) filter (where ${payments.status} = 'succeeded')`,
+          totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+          totalPayments: sql<number>`count(${payments.id})`,
+        })
+        .from(plans)
+        .leftJoin(clinics, eq(plans.clinicId, clinics.id))
+        .leftJoin(payments, eq(plans.id, payments.planId))
+        .where(and(eq(plans.id, input.planId), eq(plans.ownerId, ctx.ownerId)))
+        .groupBy(plans.id, clinics.id);
+
+      const plan = result[0];
+      if (!plan) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Plan not found' });
+      }
+
+      return {
+        ...plan,
+        succeededCount: Number(plan.succeededCount),
+        totalPaidCents: Number(plan.totalPaidCents),
+        totalPayments: Number(plan.totalPayments),
+      };
+    }),
+
+  /**
    * Get paginated payment history for a specific plan.
    * Owner must own the plan.
    */

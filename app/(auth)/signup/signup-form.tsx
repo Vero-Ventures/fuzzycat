@@ -58,9 +58,9 @@ export function SignupForm() {
   if (emailSent) {
     return (
       <div className="space-y-4 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <svg
-            className="h-6 w-6 text-amber-700 dark:text-amber-400"
+            className="h-6 w-6 text-primary"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth={1.5}

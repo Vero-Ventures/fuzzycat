@@ -90,11 +90,11 @@ export function PaymentCalculator() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/50">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/50">
+              <p className="text-sm font-medium text-teal-800 dark:text-teal-300">
                 Total you pay: {formatCents(schedule.totalWithFeeCents)}
               </p>
-              <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
+              <p className="mt-0.5 text-xs text-teal-700 dark:text-teal-400">
                 That is {formatCents(schedule.feeCents)} in fees on a{' '}
                 {formatCents(schedule.totalBillCents)} bill. No interest. No additional charges.
               </p>

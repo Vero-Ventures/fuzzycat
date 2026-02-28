@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, count, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
 import {
@@ -90,7 +90,7 @@ export const adminRouter = router({
       // Plan counts by status
       ctx.db
         .select({
-          totalEnrollments: count(),
+          totalEnrollments: sql<number>`count(*)`,
           activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
           completedPlans: sql<number>`count(*) filter (where ${plans.status} = 'completed')`,
           defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
@@ -111,13 +111,7 @@ export const adminRouter = router({
           totalFeesCents: sql<number>`coalesce(sum(${plans.feeCents}), 0)`,
         })
         .from(plans)
-        .where(
-          or(
-            eq(plans.status, 'active'),
-            eq(plans.status, 'deposit_paid'),
-            eq(plans.status, 'completed'),
-          ),
-        ),
+        .where(sql`${plans.status} in ('active', 'deposit_paid', 'completed')`),
     ]);
 
     const total = Number(planCounts[0]?.totalEnrollments ?? 0);
@@ -190,7 +184,7 @@ export const adminRouter = router({
               .orderBy(desc(clinics.createdAt))
               .limit(input.limit)
               .offset(input.offset),
-            ctx.db.select({ total: count() }).from(clinics).where(whereClause),
+            ctx.db.select({ total: sql<number>`count(*)` }).from(clinics).where(whereClause),
           ]);
 
           const totalCount = Number(countResult[0]?.total ?? 0);
@@ -334,7 +328,7 @@ export const adminRouter = router({
           .limit(input.limit)
           .offset(input.offset),
         ctx.db
-          .select({ total: count() })
+          .select({ total: sql<number>`count(*)` })
           .from(payments)
           .leftJoin(plans, eq(payments.planId, plans.id))
           .where(whereClause),
@@ -437,7 +431,7 @@ export const adminRouter = router({
           .orderBy(desc(riskPool.createdAt))
           .limit(input.limit)
           .offset(input.offset),
-        ctx.db.select({ total: count() }).from(riskPool),
+        ctx.db.select({ total: sql<number>`count(*)` }).from(riskPool),
       ]);
 
       const totalCount = Number(countResult[0]?.total ?? 0);
@@ -486,7 +480,10 @@ export const adminRouter = router({
           .orderBy(desc(plans.updatedAt))
           .limit(input.limit)
           .offset(input.offset),
-        ctx.db.select({ total: count() }).from(plans).where(eq(plans.status, 'defaulted')),
+        ctx.db
+          .select({ total: sql<number>`count(*)` })
+          .from(plans)
+          .where(eq(plans.status, 'defaulted')),
       ]);
 
       const totalCount = Number(countResult[0]?.total ?? 0);
@@ -565,7 +562,7 @@ export const adminRouter = router({
           .orderBy(desc(softCollections.createdAt))
           .limit(input.limit)
           .offset(input.offset),
-        ctx.db.select({ total: count() }).from(softCollections).where(whereClause),
+        ctx.db.select({ total: sql<number>`count(*)` }).from(softCollections).where(whereClause),
       ]);
 
       const totalCount = Number(countResult[0]?.total ?? 0);
@@ -621,7 +618,7 @@ export const adminRouter = router({
     const stageCounts = await ctx.db
       .select({
         stage: softCollections.stage,
-        count: count(),
+        count: sql<number>`count(*)`,
       })
       .from(softCollections)
       .groupBy(softCollections.stage);

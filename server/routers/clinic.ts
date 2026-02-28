@@ -426,12 +426,16 @@ export const clinicRouter = router({
 
     const [result] = await ctx.db
       .select({
-        activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
-        totalOutstandingCents: sql<number>`coalesce(sum(${plans.remainingCents}) filter (where ${plans.status} in ('active', 'deposit_paid')), 0)`,
-        totalPlans: sql<number>`count(*)`,
-        defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
+        activePlans: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+        totalOutstandingCents: sql<number>`coalesce(
+          sum(${plans.totalWithFeeCents}) filter (where ${plans.status} in ('active', 'deposit_paid'))
+          - sum(${payments.amountCents}) filter (where ${plans.status} in ('active', 'deposit_paid') and ${payments.status} = 'succeeded'),
+          0)`,
+        totalPlans: sql<number>`count(distinct ${plans.id})`,
+        defaultedPlans: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} = 'defaulted')`,
       })
       .from(plans)
+      .leftJoin(payments, eq(plans.id, payments.planId))
       .where(eq(plans.clinicId, clinicId));
 
     const total = Number(result?.totalPlans ?? 0);
@@ -440,7 +444,7 @@ export const clinicRouter = router({
 
     return {
       activePlans: Number(result?.activePlans ?? 0),
-      totalOutstandingCents: Number(result?.totalOutstandingCents ?? 0),
+      totalOutstandingCents: Math.max(0, Number(result?.totalOutstandingCents ?? 0)),
       defaultRate: Math.round(defaultRate * 100) / 100,
     };
   }),

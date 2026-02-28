@@ -75,20 +75,18 @@ async function verifySignature(secret: string, body: string, signature: string):
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign'],
+    ['verify'],
   );
-  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
-  const expected = Array.from(new Uint8Array(signed))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
 
-  // Constant-time comparison
-  if (expected.length !== signature.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < expected.length; i++) {
-    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  try {
+    // Sentry signatures are hex strings — convert to ArrayBuffer for crypto.subtle.verify
+    const hexPairs = signature.match(/../g);
+    if (!hexPairs) return false;
+    const signatureBytes = new Uint8Array(hexPairs.map((h) => parseInt(h, 16)));
+    return await crypto.subtle.verify('HMAC', key, signatureBytes, encoder.encode(body));
+  } catch {
+    return false;
   }
-  return mismatch === 0;
 }
 
 // ── Issue Handler ───────────────────────────────────────────────────

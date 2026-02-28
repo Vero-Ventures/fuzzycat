@@ -1,3 +1,4 @@
+import type { Metric } from 'web-vitals';
 import { POSTHOG_EVENTS } from './events';
 
 /**
@@ -14,14 +15,7 @@ export function reportWebVitals() {
   if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
 
   import('web-vitals').then(({ onCLS, onFCP, onINP, onLCP, onTTFB }) => {
-    const handleMetric = (metric: {
-      name: string;
-      value: number;
-      rating: string;
-      delta: number;
-      id: string;
-      navigationType: string;
-    }) => {
+    const handleMetric = (metric: Metric) => {
       import('posthog-js').then(({ default: posthog }) => {
         if (!posthog.__loaded) return;
         posthog.capture(POSTHOG_EVENTS.WEB_VITAL_CAPTURED, {

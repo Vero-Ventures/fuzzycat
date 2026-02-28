@@ -1,7 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RotateCcw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +49,6 @@ type PaymentStatusFilter =
 
 export function PaymentList() {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -67,21 +65,9 @@ export function PaymentList() {
     }),
   );
 
-  const retryMutation = useMutation(
-    trpc.admin.retryPayment.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: trpc.admin.getPayments.queryKey() });
-      },
-    }),
-  );
-
   function handleStatusChange(filter: string) {
     setStatusFilter(filter as PaymentStatusFilter);
     setOffset(0);
-  }
-
-  function handleRetry(paymentId: string) {
-    retryMutation.mutate({ paymentId });
   }
 
   const totalCount = data?.pagination.totalCount ?? 0;
@@ -150,7 +136,6 @@ export function PaymentList() {
                   <TableHead>Amount</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -176,19 +161,6 @@ export function PaymentList() {
                       </Badge>
                       {payment.failureReason && (
                         <p className="text-xs text-destructive mt-1">{payment.failureReason}</p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {payment.status === 'failed' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRetry(payment.id)}
-                          disabled={retryMutation.isPending}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          Retry
-                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

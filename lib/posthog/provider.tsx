@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
+import { reportWebVitals } from './web-vitals';
 
 /** Captures page views on client-side navigation (App Router). */
 function PostHogPageView() {
@@ -38,6 +39,10 @@ function whenIdle(callback: () => void) {
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+
+    // Register web-vitals observers eagerly — they fire asynchronously
+    // and PostHog will be loaded by the time metrics are reported.
+    reportWebVitals();
 
     whenIdle(() => {
       import('posthog-js').then(({ default: posthog }) => {

@@ -32,6 +32,9 @@ const serverSchema = z.object({
   CRON_SECRET: z.string().optional(),
   ENABLE_MFA: z.string().optional(),
   DISABLE_CAPTCHA: z.string().optional(),
+  SENTRY_WEBHOOK_SECRET: z.string().optional(),
+  GITHUB_TOKEN: z.string().optional(),
+  GITHUB_REPO: z.string().optional(),
 });
 
 /**

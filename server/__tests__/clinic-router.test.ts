@@ -268,6 +268,159 @@ describe('clinic.getClients', () => {
   });
 });
 
+// ── getClientDetails ─────────────────────────────────────────────────
+
+describe('clinic.getClientDetails', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  const OWNER_ID = '22222222-2222-4222-a222-222222222222';
+  const PLAN_ID_2 = '44444444-4444-4444-a444-444444444444';
+  const PLAN_ID_3 = '55555555-5555-4555-a555-555555555555';
+
+  it('returns all plans for a client at this clinic', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ ownerId: OWNER_ID }], // seed plan lookup
+      [
+        {
+          id: OWNER_ID,
+          name: 'Alice Johnson',
+          email: 'alice@example.com',
+          phone: '+15559999999',
+          petName: 'Buddy',
+        },
+      ], // owner lookup
+      [
+        {
+          id: PLAN_ID,
+          totalBillCents: 500000,
+          totalWithFeeCents: 530000,
+          depositCents: 132500,
+          installmentCents: 66250,
+          numInstallments: 6,
+          status: 'active',
+          createdAt: new Date('2025-12-01'),
+          petName: 'Buddy',
+          totalPaidCents: '132500',
+        },
+        {
+          id: PLAN_ID_2,
+          totalBillCents: 120000,
+          totalWithFeeCents: 127200,
+          depositCents: 31800,
+          installmentCents: 15900,
+          numInstallments: 6,
+          status: 'active',
+          createdAt: new Date('2026-01-15'),
+          petName: 'Buddy',
+          totalPaidCents: '47700',
+        },
+        {
+          id: PLAN_ID_3,
+          totalBillCents: 250000,
+          totalWithFeeCents: 265000,
+          depositCents: 66250,
+          installmentCents: 33125,
+          numInstallments: 6,
+          status: 'completed',
+          createdAt: new Date('2025-06-01'),
+          petName: 'Mittens',
+          totalPaidCents: '265000',
+        },
+      ], // all plans for this owner at this clinic
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientDetails({ planId: PLAN_ID });
+
+    // Should return owner info
+    expect(result.owner.name).toBe('Alice Johnson');
+    expect(result.owner.email).toBe('alice@example.com');
+
+    // Should return ALL 3 plans
+    expect(result.plans).toHaveLength(3);
+    expect(result.plans[0].id).toBe(PLAN_ID);
+    expect(result.plans[1].id).toBe(PLAN_ID_2);
+    expect(result.plans[2].id).toBe(PLAN_ID_3);
+
+    // Should correctly parse totalPaidCents as numbers
+    expect(result.plans[0].totalPaidCents).toBe(132500);
+    expect(result.plans[1].totalPaidCents).toBe(47700);
+    expect(result.plans[2].totalPaidCents).toBe(265000);
+  });
+
+  it('throws NOT_FOUND when plan does not exist', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [], // no plan
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    await expect(caller.getClientDetails({ planId: PLAN_ID })).rejects.toThrow('not found');
+  });
+
+  it('throws NOT_FOUND when plan has no owner', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ ownerId: null }], // plan with no owner
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    await expect(caller.getClientDetails({ planId: PLAN_ID })).rejects.toThrow('not found');
+  });
+
+  it('throws NOT_FOUND when owner record is missing', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ ownerId: OWNER_ID }], // seed plan lookup
+      [], // no owner found
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    await expect(caller.getClientDetails({ planId: PLAN_ID })).rejects.toThrow('not found');
+  });
+
+  it('returns clientSince as earliest plan date', async () => {
+    const earlyDate = new Date('2025-01-01');
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ ownerId: OWNER_ID }], // seed plan lookup
+      [
+        {
+          id: OWNER_ID,
+          name: 'Bob',
+          email: 'bob@example.com',
+          phone: '+15551111111',
+          petName: 'Rex',
+        },
+      ], // owner
+      [
+        {
+          id: PLAN_ID,
+          totalBillCents: 100000,
+          totalWithFeeCents: 106000,
+          depositCents: 26500,
+          installmentCents: 13250,
+          numInstallments: 6,
+          status: 'active',
+          createdAt: earlyDate,
+          petName: 'Rex',
+          totalPaidCents: '26500',
+        },
+      ], // single plan (earliest = itself)
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientDetails({ planId: PLAN_ID });
+    expect(result.plans).toHaveLength(1);
+    expect(result.clientSince).toEqual(earlyDate);
+  });
+});
+
 // ── getClientPlanDetails ──────────────────────────────────────────────
 
 describe('clinic.getClientPlanDetails', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { z } from 'zod';
 import { billDetailsSchema } from '@/app/owner/enroll/_components/step-bill-details';
-import { MIN_BILL_CENTS } from '@/lib/constants';
+import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 
@@ -30,6 +30,17 @@ describe('Enrollment flow data validation', () => {
     it('accepts exactly $500', () => {
       const billCents = toCents(500);
       expect(billCents).toBe(MIN_BILL_CENTS);
+      expect(() => calculatePaymentSchedule(billCents)).not.toThrow();
+    });
+
+    it('rejects amounts above $25,000', () => {
+      const billCents = toCents(25000.01);
+      expect(billCents).toBeGreaterThan(MAX_BILL_CENTS);
+    });
+
+    it('accepts exactly $25,000', () => {
+      const billCents = toCents(25000);
+      expect(billCents).toBe(MAX_BILL_CENTS);
       expect(() => calculatePaymentSchedule(billCents)).not.toThrow();
     });
 
@@ -94,6 +105,22 @@ describe('Enrollment flow data validation', () => {
         billAmountCents: 10000, // $100, below $500 minimum
       });
       expect(result.success).toBe(false);
+    });
+
+    it('rejects bill amount above maximum', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        billAmountCents: MAX_BILL_CENTS + 1, // $25,000.01, above $25,000 maximum
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts bill amount at exactly maximum', () => {
+      const result = billDetailsSchema.safeParse({
+        ...validBillDetails,
+        billAmountCents: MAX_BILL_CENTS,
+      });
+      expect(result.success).toBe(true);
     });
 
     it('rejects non-integer bill amount', () => {

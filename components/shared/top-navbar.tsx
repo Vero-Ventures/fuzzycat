@@ -3,7 +3,7 @@
 import { Cat, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -21,19 +21,12 @@ interface TopNavbarProps {
 export function TopNavbar({ brandHref, navItems, rightSlot }: TopNavbarProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const prevPathnameRef = useRef(pathname);
 
-  // Close mobile menu on route change without useEffect
-  if (prevPathnameRef.current !== pathname) {
-    prevPathnameRef.current = pathname;
-    if (menuOpen) {
-      setMenuOpen(false);
-    }
-  }
-
-  const handleNavClick = useCallback(() => {
+  // Close mobile menu on route change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run on pathname change
+  useEffect(() => {
     setMenuOpen(false);
-  }, []);
+  }, [pathname]);
 
   return (
     <div className="sticky top-0 z-50">
@@ -96,7 +89,6 @@ export function TopNavbar({ brandHref, navItems, rightSlot }: TopNavbarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={handleNavClick}
                   className={cn(
                     'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isActive

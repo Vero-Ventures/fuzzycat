@@ -610,6 +610,92 @@ export const clinicRouter = router({
     }),
 
   /**
+   * Get a holistic view of a client (owner) at this clinic.
+   * Takes a planId (from the URL), resolves the owner, then returns
+   * all plans for that owner at this clinic with payment summaries.
+   */
+  getClientDetails: clinicProcedure
+    .input(
+      z.object({
+        planId: z.string().uuid('Valid plan ID is required'),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { clinicId } = ctx;
+
+      // Step 1: Look up the plan to find the owner
+      const [seedPlan] = await ctx.db
+        .select({
+          ownerId: plans.ownerId,
+        })
+        .from(plans)
+        .where(and(eq(plans.id, input.planId), eq(plans.clinicId, clinicId)))
+        .limit(1);
+
+      if (!seedPlan || !seedPlan.ownerId) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Plan not found or does not belong to this clinic',
+        });
+      }
+
+      // Step 2: Get owner profile
+      const [owner] = await ctx.db
+        .select({
+          id: owners.id,
+          name: owners.name,
+          email: owners.email,
+          phone: owners.phone,
+          petName: owners.petName,
+        })
+        .from(owners)
+        .where(eq(owners.id, seedPlan.ownerId))
+        .limit(1);
+
+      if (!owner) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Owner not found',
+        });
+      }
+
+      // Step 3: Get ALL plans for this owner at this clinic, with payment totals
+      const clientPlans = await ctx.db
+        .select({
+          id: plans.id,
+          totalBillCents: plans.totalBillCents,
+          totalWithFeeCents: plans.totalWithFeeCents,
+          depositCents: plans.depositCents,
+          installmentCents: plans.installmentCents,
+          numInstallments: plans.numInstallments,
+          status: plans.status,
+          createdAt: plans.createdAt,
+          petName: owners.petName,
+          totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+        })
+        .from(plans)
+        .leftJoin(owners, eq(plans.ownerId, owners.id))
+        .leftJoin(payments, eq(plans.id, payments.planId))
+        .where(and(eq(plans.ownerId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
+        .groupBy(plans.id, owners.id)
+        .orderBy(desc(plans.createdAt));
+
+      return {
+        owner: {
+          name: owner.name,
+          email: owner.email,
+          phone: owner.phone,
+          petName: owner.petName,
+        },
+        plans: clientPlans.map((p) => ({
+          ...p,
+          totalPaidCents: Number(p.totalPaidCents),
+        })),
+        clientSince: clientPlans.at(-1)?.createdAt ?? null,
+      };
+    }),
+
+  /**
    * Get detailed plan + payment info for a specific plan at this clinic.
    */
   getClientPlanDetails: clinicProcedure

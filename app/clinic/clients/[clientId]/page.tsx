@@ -25,9 +25,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
   const { clientId } = use(params);
   const trpc = useTRPC();
 
-  // Use getClientPlanDetails since clientId is actually a planId in our data model
   const { data, isLoading, error } = useQuery(
-    trpc.clinic.getClientPlanDetails.queryOptions({ planId: clientId }),
+    trpc.clinic.getClientDetails.queryOptions({ planId: clientId }),
   );
 
   if (isLoading) {
@@ -50,13 +49,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
     );
   }
 
-  const { plan, payments } = data;
-  const ownerName = plan.ownerName ?? 'Unknown';
-  const succeededPayments = payments.filter((p) => p.status === 'succeeded');
-  const totalExpected = 1 + plan.numInstallments;
-  const progressPercent =
-    totalExpected > 0 ? Math.round((succeededPayments.length / totalExpected) * 100) : 0;
-  const totalPaidCents = succeededPayments.reduce((sum, p) => sum + p.amountCents, 0);
+  const { owner, plans, clientSince } = data;
+  const ownerName = owner.name ?? 'Unknown';
+
+  // Aggregate across all plans
+  const totalOutstandingCents = plans.reduce(
+    (sum, p) => sum + Math.max(0, p.totalWithFeeCents - p.totalPaidCents),
+    0,
+  );
+  const totalWithFeeCentsAll = plans.reduce((sum, p) => sum + p.totalWithFeeCents, 0);
+  const uniquePetNames = [...new Set(plans.map((p) => p.petName).filter(Boolean))];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -76,25 +78,29 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
           <div className="flex-1">
             <h1 className="text-xl font-bold">{ownerName}</h1>
             <div className="mt-1 flex flex-wrap gap-4 text-sm text-muted-foreground">
-              {plan.ownerEmail && <span>{plan.ownerEmail}</span>}
-              {plan.ownerPhone && <span>{plan.ownerPhone}</span>}
+              {owner.email && <span>{owner.email}</span>}
+              {owner.phone && <span>{owner.phone}</span>}
             </div>
           </div>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Client since {formatDate(plan.createdAt)}
-          </div>
+          {clientSince && (
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Client since {formatDate(clientSince)}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Summary cards */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">TOTAL PETS</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">TOTAL PLANS</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
-            <p className="text-xs text-muted-foreground">{plan.petName ?? 'Pet'}</p>
+            <div className="text-2xl font-bold">{plans.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {uniquePetNames.length > 0 ? uniquePetNames.join(', ') : 'No pets'}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -102,12 +108,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
             <CardTitle className="text-sm font-medium text-muted-foreground">OUTSTANDING</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCents(Math.max(0, plan.totalWithFeeCents - totalPaidCents))}
-            </div>
+            <div className="text-2xl font-bold">{formatCents(totalOutstandingCents)}</div>
             <p className="text-xs text-muted-foreground">
-              of {formatCents(plan.totalWithFeeCents)} total
+              of {formatCents(totalWithFeeCentsAll)} total
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              ACTIVE PLANS
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {plans.filter((p) => p.status === 'active' || p.status === 'deposit_paid').length}
+            </div>
+            <p className="text-xs text-muted-foreground">currently in progress</p>
           </CardContent>
         </Card>
       </div>
@@ -131,29 +148,40 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">{plan.id.slice(0, 8)}</TableCell>
-                <TableCell>{plan.petName ?? '--'}</TableCell>
-                <TableCell>
-                  <StatusBadge status={plan.status} size="sm" />
-                </TableCell>
-                <TableCell className="text-right">{formatCents(plan.totalWithFeeCents)}</TableCell>
-                <TableCell className="text-right">{formatCents(totalPaidCents)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Progress value={progressPercent} className="h-2 w-20" />
-                    <span className="text-xs text-muted-foreground">{progressPercent}%</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/clinic/clients/${clientId}/plans/${plan.id}`}
-                    className="text-sm font-medium text-primary hover:underline"
-                  >
-                    Details
-                  </Link>
-                </TableCell>
-              </TableRow>
+              {plans.map((plan) => {
+                const paidRatio =
+                  plan.totalWithFeeCents > 0
+                    ? Math.round((plan.totalPaidCents / plan.totalWithFeeCents) * 100)
+                    : 0;
+
+                return (
+                  <TableRow key={plan.id}>
+                    <TableCell className="font-medium">{plan.id.slice(0, 8)}</TableCell>
+                    <TableCell>{plan.petName ?? '--'}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={plan.status} size="sm" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCents(plan.totalWithFeeCents)}
+                    </TableCell>
+                    <TableCell className="text-right">{formatCents(plan.totalPaidCents)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={paidRatio} className="h-2 w-20" />
+                        <span className="text-xs text-muted-foreground">{paidRatio}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/clinic/clients/${clientId}/plans/${plan.id}`}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        Details
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

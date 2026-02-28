@@ -10,7 +10,12 @@ export default async function OwnerPlanDetailPage({
   const { planId } = await params;
   const { trpc, queryClient, dehydrate } = await createServerHelpers();
 
-  await queryClient.prefetchQuery(trpc.owner.getPlanById.queryOptions({ planId }));
+  await Promise.all([
+    queryClient.prefetchQuery(trpc.owner.getPlanById.queryOptions({ planId })),
+    queryClient.prefetchQuery(
+      trpc.owner.getPaymentHistory.queryOptions({ planId, page: 1, pageSize: 20 }),
+    ),
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate()}>

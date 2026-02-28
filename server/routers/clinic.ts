@@ -420,31 +420,51 @@ export const clinicRouter = router({
   /**
    * Summary stats for the clinic's client list page.
    * Returns: active plans count, total outstanding cents, default rate.
+   *
+   * Outstanding = sum of totalWithFeeCents for active plans minus their
+   * succeeded payments. We use separate queries to avoid row multiplication
+   * from the plans-payments LEFT JOIN inflating sums. (#263)
    */
   getClientStats: clinicProcedure.query(async ({ ctx }) => {
     const { clinicId } = ctx;
 
-    const [result] = await ctx.db
-      .select({
-        activePlans: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
-        totalOutstandingCents: sql<number>`coalesce(
-          sum(${plans.totalWithFeeCents}) filter (where ${plans.status} in ('active', 'deposit_paid'))
-          - sum(${payments.amountCents}) filter (where ${plans.status} in ('active', 'deposit_paid') and ${payments.status} = 'succeeded'),
-          0)`,
-        totalPlans: sql<number>`count(distinct ${plans.id})`,
-        defaultedPlans: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} = 'defaulted')`,
-      })
-      .from(plans)
-      .leftJoin(payments, eq(plans.id, payments.planId))
-      .where(eq(plans.clinicId, clinicId));
+    const [planResult, paidResult] = await Promise.all([
+      // Plan-level aggregates (no join, no duplication)
+      ctx.db
+        .select({
+          activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+          activeTotalCents: sql<number>`coalesce(sum(${plans.totalWithFeeCents}) filter (where ${plans.status} in ('active', 'deposit_paid')), 0)`,
+          totalPlans: sql<number>`count(*)`,
+          defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
+        })
+        .from(plans)
+        .where(eq(plans.clinicId, clinicId)),
 
-    const total = Number(result?.totalPlans ?? 0);
-    const defaulted = Number(result?.defaultedPlans ?? 0);
+      // Succeeded payments for active plans only (separate query avoids cross-multiply)
+      ctx.db
+        .select({
+          paidCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`,
+        })
+        .from(payments)
+        .innerJoin(plans, eq(payments.planId, plans.id))
+        .where(
+          and(
+            eq(plans.clinicId, clinicId),
+            sql`${plans.status} in ('active', 'deposit_paid')`,
+            eq(payments.status, 'succeeded'),
+          ),
+        ),
+    ]);
+
+    const activeTotalCents = Number(planResult[0]?.activeTotalCents ?? 0);
+    const paidCents = Number(paidResult[0]?.paidCents ?? 0);
+    const total = Number(planResult[0]?.totalPlans ?? 0);
+    const defaulted = Number(planResult[0]?.defaultedPlans ?? 0);
     const defaultRate = total > 0 ? (defaulted / total) * 100 : 0;
 
     return {
-      activePlans: Number(result?.activePlans ?? 0),
-      totalOutstandingCents: Math.max(0, Number(result?.totalOutstandingCents ?? 0)),
+      activePlans: Number(planResult[0]?.activePlans ?? 0),
+      totalOutstandingCents: Math.max(0, activeTotalCents - paidCents),
       defaultRate: Math.round(defaultRate * 100) / 100,
     };
   }),

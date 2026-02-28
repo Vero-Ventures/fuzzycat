@@ -164,6 +164,9 @@ export const adminRouter = router({
 
           const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+          // Join only plans for enrollment count; use a correlated subquery
+          // for revenue to avoid cross-join inflation between plans and
+          // payouts when both are LEFT JOINed on clinicId. (#263)
           const [clinicRows, countResult] = await Promise.all([
             ctx.db
               .select({
@@ -174,11 +177,15 @@ export const adminRouter = router({
                 stripeAccountId: clinics.stripeAccountId,
                 createdAt: clinics.createdAt,
                 enrollmentCount: sql<number>`count(distinct ${plans.id})`,
-                totalRevenueCents: sql<number>`coalesce(sum(case when ${payouts.status} = 'succeeded' then ${payouts.amountCents} else 0 end), 0)`,
+                totalRevenueCents: sql<number>`coalesce((
+                  select sum(${payouts.amountCents})
+                  from ${payouts}
+                  where ${payouts.clinicId} = ${clinics.id}
+                    and ${payouts.status} = 'succeeded'
+                ), 0)`,
               })
               .from(clinics)
               .leftJoin(plans, eq(clinics.id, plans.clinicId))
-              .leftJoin(payouts, eq(clinics.id, payouts.clinicId))
               .where(whereClause)
               .groupBy(clinics.id)
               .orderBy(desc(clinics.createdAt))

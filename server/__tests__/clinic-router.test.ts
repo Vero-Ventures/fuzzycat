@@ -195,6 +195,59 @@ describe('clinic.updateProfile', () => {
   });
 });
 
+// ── getClientStats (#263) ──────────────────────────────────────────────
+
+describe('clinic.getClientStats', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('returns outstanding as plan totals minus succeeded payments', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      // Plan-level aggregates (first query)
+      [{ activePlans: '3', activeTotalCents: '300000', totalPlans: '5', defaultedPlans: '1' }],
+      // Succeeded payments for active plans (second query)
+      [{ paidCents: '120000' }],
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientStats();
+    expect(result.activePlans).toBe(3);
+    // Outstanding = 300000 - 120000 = 180000
+    expect(result.totalOutstandingCents).toBe(180000);
+    expect(result.defaultRate).toBe(20); // 1/5 * 100
+  });
+
+  it('returns zero outstanding when no active plans', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ activePlans: '0', activeTotalCents: '0', totalPlans: '2', defaultedPlans: '0' }],
+      [{ paidCents: '0' }],
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientStats();
+    expect(result.activePlans).toBe(0);
+    expect(result.totalOutstandingCents).toBe(0);
+    expect(result.defaultRate).toBe(0);
+  });
+
+  it('clamps outstanding to zero when overpaid', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ activePlans: '1', activeTotalCents: '50000', totalPlans: '1', defaultedPlans: '0' }],
+      [{ paidCents: '60000' }], // somehow overpaid
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientStats();
+    expect(result.totalOutstandingCents).toBe(0);
+  });
+});
+
 // ── getDashboardStats ─────────────────────────────────────────────────
 
 describe('clinic.getDashboardStats', () => {

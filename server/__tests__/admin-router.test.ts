@@ -32,16 +32,10 @@ mock.module('@/server/db', () => ({
   db: dbMock,
 }));
 
-import { schemaMock } from './stripe/_mock-schema';
-
-const extendedSchemaMock = {
-  ...schemaMock,
-  clinics: { ...schemaMock.clinics, name: 'clinics.name', createdAt: 'clinics.created_at' },
-  plans: { ...schemaMock.plans, status: 'plans.status', feeCents: 'plans.fee_cents' },
-  payments: { ...schemaMock.payments, scheduledAt: 'payments.scheduled_at' },
-};
-
-mock.module('@/server/db/schema', () => extendedSchemaMock);
+// NOTE: We intentionally do NOT mock @/server/db/schema here. Bun's mock.module
+// for the schema contaminates drizzle-orm's internal sql.raw()/sql.join() methods,
+// breaking count(), or(), and other SQL builders. The db mock chain ignores all
+// query arguments anyway, so the real schema works fine.
 mock.module('@/lib/logger', () => ({ logger: { info: mock(), warn: mock(), error: mock() } }));
 
 const { adminRouter } = await import('@/server/routers/admin');

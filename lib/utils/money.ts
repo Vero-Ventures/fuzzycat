@@ -19,9 +19,6 @@ export function formatCents(cents: number): string {
   if (!Number.isFinite(cents) || !Number.isInteger(cents)) {
     throw new RangeError(`formatCents: invalid cents value ${cents}`);
   }
-  if (cents < 0) {
-    return `-${currencyFormatter.format(Math.abs(cents) / 100)}`;
-  }
   return currencyFormatter.format(cents / 100);
 }
 

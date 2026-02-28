@@ -11,6 +11,9 @@ import { UpcomingPayments, UpcomingPaymentsSkeleton } from './upcoming-payments'
  * Single client component that owns the getDashboardStats query.
  * Eliminates triple useQuery subscriptions that caused cascading re-renders
  * (3 components × re-render per data update = INP regression on mobile).
+ *
+ * When the parent server component prefetches via HydrationBoundary,
+ * the data is available immediately — no loading skeleton or waterfall.
  */
 export function DashboardContent() {
   const trpc = useTRPC();

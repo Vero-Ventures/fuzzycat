@@ -1,13 +1,20 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Eye, MoreHorizontal, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { AvatarInitials } from '@/components/shared/avatar-initials';
+import { NumberedPagination } from '@/components/shared/numbered-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -199,18 +206,28 @@ function ClientListContent({
                   <StatusBadge status={client.planStatus} size="sm" />
                 </TableCell>
                 <TableCell className="text-right">
-                  {formatCents(client.totalBillCents - client.totalPaidCents)}
+                  {formatCents(Math.max(0, client.totalBillCents - client.totalPaidCents))}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {client.nextPaymentAt ? formatDate(client.nextPaymentAt) : '--'}
                 </TableCell>
                 <TableCell>
-                  <Link
-                    href={`/clinic/clients/${client.planId}`}
-                    className="text-sm font-medium text-primary hover:underline"
-                  >
-                    View
-                  </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/clinic/clients/${client.planId}`}>
+                          <Eye className="h-4 w-4" />
+                          View Details
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -223,26 +240,11 @@ function ClientListContent({
           <p className="text-sm text-muted-foreground">
             Showing {startItem} to {endItem} of {data.pagination.totalCount}
           </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(page - 1)}
-              disabled={page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(page + 1)}
-              disabled={page >= data.pagination.totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <NumberedPagination
+            currentPage={page}
+            totalPages={data.pagination.totalPages}
+            onPageChange={onPageChange}
+          />
         </div>
       )}
     </>

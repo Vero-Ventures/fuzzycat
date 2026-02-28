@@ -104,7 +104,7 @@ export function PlanCard({ plan }: PlanCardProps) {
           <div>
             <p className="text-muted-foreground">Total Remaining</p>
             <p className="font-medium">
-              {formatCents(plan.totalWithFeeCents - plan.totalPaidCents)}
+              {formatCents(Math.max(0, plan.totalWithFeeCents - plan.totalPaidCents))}
             </p>
           </div>
           <div>

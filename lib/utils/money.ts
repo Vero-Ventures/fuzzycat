@@ -16,8 +16,11 @@ export function toCents(dollars: number): number {
 
 /** Format integer cents as a USD currency string (e.g. "$12.50"). */
 export function formatCents(cents: number): string {
-  if (!Number.isFinite(cents) || cents < 0 || !Number.isInteger(cents)) {
+  if (!Number.isFinite(cents) || !Number.isInteger(cents)) {
     throw new RangeError(`formatCents: invalid cents value ${cents}`);
+  }
+  if (cents < 0) {
+    return `-${currencyFormatter.format(Math.abs(cents) / 100)}`;
   }
   return currencyFormatter.format(cents / 100);
 }

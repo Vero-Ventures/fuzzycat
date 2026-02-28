@@ -103,7 +103,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ clientI
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCents(plan.totalWithFeeCents - totalPaidCents)}
+              {formatCents(Math.max(0, plan.totalWithFeeCents - totalPaidCents))}
             </div>
             <p className="text-xs text-muted-foreground">
               of {formatCents(plan.totalWithFeeCents)} total

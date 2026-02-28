@@ -2,6 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
+const TEST_SECRET = 'test-sentry-webhook-secret';
+
+const mockEnvValues: Record<string, string | undefined> = {
+  SENTRY_WEBHOOK_SECRET: TEST_SECRET,
+  GITHUB_TOKEN: 'ghp_test_token',
+  GITHUB_REPO: 'fuzzycatapp/fuzzycat',
+};
+
+mock.module('@/lib/env', () => ({
+  serverEnv: () => mockEnvValues,
+}));
+
 const mockLogger = {
   info: mock(),
   warn: mock(),
@@ -13,10 +25,6 @@ mock.module('@/lib/logger', () => ({
 }));
 
 const { POST } = await import('@/app/api/webhooks/sentry/route');
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-const TEST_SECRET = 'test-sentry-webhook-secret';
 
 /** Compute HMAC-SHA256 hex digest matching Sentry's signing. */
 async function sign(body: string, secret: string = TEST_SECRET): Promise<string> {
@@ -122,19 +130,16 @@ describe('POST /api/webhooks/sentry', () => {
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
-    process.env.SENTRY_WEBHOOK_SECRET = TEST_SECRET;
-    process.env.GITHUB_TOKEN = 'ghp_test_token';
-    process.env.GITHUB_REPO = 'fuzzycatapp/fuzzycat';
+    mockEnvValues.SENTRY_WEBHOOK_SECRET = TEST_SECRET;
+    mockEnvValues.GITHUB_TOKEN = 'ghp_test_token';
+    mockEnvValues.GITHUB_REPO = 'fuzzycatapp/fuzzycat';
     originalFetch = globalThis.fetch;
   });
 
   afterEach(() => {
-    // biome-ignore lint/performance/noDelete: must truly unset env vars (= undefined becomes string "undefined")
-    delete process.env.SENTRY_WEBHOOK_SECRET;
-    // biome-ignore lint/performance/noDelete: see above
-    delete process.env.GITHUB_TOKEN;
-    // biome-ignore lint/performance/noDelete: see above
-    delete process.env.GITHUB_REPO;
+    mockEnvValues.SENTRY_WEBHOOK_SECRET = undefined;
+    mockEnvValues.GITHUB_TOKEN = undefined;
+    mockEnvValues.GITHUB_REPO = undefined;
     globalThis.fetch = originalFetch;
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
@@ -201,8 +206,7 @@ describe('POST /api/webhooks/sentry', () => {
   });
 
   it('returns 200 when env vars not configured (graceful degradation)', async () => {
-    // biome-ignore lint/performance/noDelete: must truly unset env vars
-    delete process.env.SENTRY_WEBHOOK_SECRET;
+    mockEnvValues.SENTRY_WEBHOOK_SECRET = undefined;
 
     const body = JSON.stringify(buildIssuePayload());
     const response = await makeRequest(body, 'issue');

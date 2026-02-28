@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 /**
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const resource = request.headers.get('sentry-hook-resource');
 
   // ── Signature verification ──────────────────────────────────────
-  const secret = process.env.SENTRY_WEBHOOK_SECRET;
+  const { SENTRY_WEBHOOK_SECRET: secret, GITHUB_TOKEN, GITHUB_REPO } = serverEnv();
   if (!secret) {
     logger.warn('Sentry webhook received but SENTRY_WEBHOOK_SECRET not configured');
     return NextResponse.json({ received: true });
@@ -46,11 +47,11 @@ export async function POST(request: Request) {
         break;
 
       case 'issue':
-        await handleIssue(JSON.parse(body));
+        await handleIssue(JSON.parse(body), GITHUB_TOKEN, GITHUB_REPO);
         break;
 
       case 'event_alert':
-        await handleEventAlert(JSON.parse(body));
+        await handleEventAlert(JSON.parse(body), GITHUB_TOKEN, GITHUB_REPO);
         break;
 
       default:
@@ -111,7 +112,11 @@ interface SentryIssuePayload {
   };
 }
 
-async function handleIssue(payload: SentryIssuePayload) {
+async function handleIssue(
+  payload: SentryIssuePayload,
+  githubToken: string | undefined,
+  githubRepo: string | undefined,
+) {
   if (payload.action !== 'created') return;
 
   const { issue } = payload.data;
@@ -127,7 +132,7 @@ async function handleIssue(payload: SentryIssuePayload) {
   const labels = ['bug', 'sentry', `severity:${level}`];
   const body = formatIssueBody(issue);
 
-  await createGitHubIssue(title, body, labels);
+  await createGitHubIssue(title, body, labels, githubToken, githubRepo);
 }
 
 function formatIssueBody(issue: SentryIssuePayload['data']['issue']): string {
@@ -172,7 +177,11 @@ interface SentryEventAlertPayload {
   };
 }
 
-async function handleEventAlert(payload: SentryEventAlertPayload) {
+async function handleEventAlert(
+  payload: SentryEventAlertPayload,
+  githubToken: string | undefined,
+  githubRepo: string | undefined,
+) {
   if (payload.action !== 'triggered') return;
 
   const { event } = payload.data;
@@ -190,7 +199,7 @@ async function handleEventAlert(payload: SentryEventAlertPayload) {
   const labels = ['feedback', 'user-reported'];
   const body = formatFeedbackBody(event, feedback);
 
-  await createGitHubIssue(title, body, labels);
+  await createGitHubIssue(title, body, labels, githubToken, githubRepo);
 }
 
 function formatFeedbackBody(
@@ -214,10 +223,13 @@ function formatFeedbackBody(
 
 // ── GitHub Issue Creation ───────────────────────────────────────────
 
-async function createGitHubIssue(title: string, body: string, labels: string[]) {
-  const token = process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPO;
-
+async function createGitHubIssue(
+  title: string,
+  body: string,
+  labels: string[],
+  token: string | undefined,
+  repo: string | undefined,
+) {
   if (!token || !repo) {
     logger.warn(
       'Sentry→GitHub: GITHUB_TOKEN or GITHUB_REPO not configured, skipping issue creation',

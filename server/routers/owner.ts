@@ -514,6 +514,32 @@ export const ownerRouter = router({
     }),
 
   /**
+   * Get the 10 most recent payments across all of the owner's plans in a single query.
+   * Eliminates the N+1 waterfall of fetching plans, then fetching payments per plan.
+   */
+  getRecentPayments: ownerProcedure.query(async ({ ctx }) => {
+    const recentPayments = await ctx.db
+      .select({
+        id: payments.id,
+        type: payments.type,
+        sequenceNum: payments.sequenceNum,
+        amountCents: payments.amountCents,
+        status: payments.status,
+        scheduledAt: payments.scheduledAt,
+        processedAt: payments.processedAt,
+        clinicName: clinics.name,
+      })
+      .from(payments)
+      .innerJoin(plans, eq(payments.planId, plans.id))
+      .leftJoin(clinics, eq(plans.clinicId, clinics.id))
+      .where(eq(plans.ownerId, ctx.ownerId))
+      .orderBy(desc(payments.scheduledAt))
+      .limit(10);
+
+    return recentPayments;
+  }),
+
+  /**
    * Get a summary of active plans with next upcoming payment.
    */
   getDashboardSummary: ownerProcedure.query(async ({ ctx }) => {

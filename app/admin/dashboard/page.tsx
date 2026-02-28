@@ -1,9 +1,15 @@
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { FailedPaymentsBanner } from './_components/failed-payments-banner';
 import { PlatformGrowthPlaceholder } from './_components/platform-growth-placeholder';
 import { PlatformStats } from './_components/platform-stats';
 import { RecentActivity } from './_components/recent-activity';
 import { RecentClaims } from './_components/recent-claims';
 import { RecentClinics } from './_components/recent-clinics';
+
+function WidgetSkeleton({ className }: { className?: string }) {
+  return <Skeleton className={className ?? 'h-64 w-full'} />;
+}
 
 export default function AdminDashboardPage() {
   return (
@@ -14,18 +20,28 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="mt-8 space-y-8">
-        <FailedPaymentsBanner />
+        <Suspense fallback={null}>
+          <FailedPaymentsBanner />
+        </Suspense>
 
-        <PlatformStats />
+        <Suspense fallback={<WidgetSkeleton className="h-32 w-full" />}>
+          <PlatformStats />
+        </Suspense>
 
         <PlatformGrowthPlaceholder />
 
         <div className="grid gap-8 lg:grid-cols-2">
-          <RecentClinics />
-          <RecentClaims />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <RecentClinics />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <RecentClaims />
+          </Suspense>
         </div>
 
-        <RecentActivity />
+        <Suspense fallback={<WidgetSkeleton />}>
+          <RecentActivity />
+        </Suspense>
       </div>
     </div>
   );

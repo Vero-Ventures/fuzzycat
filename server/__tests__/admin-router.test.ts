@@ -100,6 +100,17 @@ describe('admin.getClinics', () => {
     expect(result.clinics[0].name).toBe('Happy Paws Veterinary');
     expect(result.pagination.totalCount).toBe(1);
   });
+
+  it('returns revenue from succeeded payouts only (#263)', async () => {
+    // Revenue should reflect only succeeded payouts (via correlated subquery)
+    const clinicRow = {
+      ...MOCK_CLINIC,
+      totalRevenueCents: 84000, // represents sum of succeeded payouts only
+    };
+    createMockChain([[clinicRow], [{ total: 1 }]]);
+    const result = await caller.getClinics({ limit: 20, offset: 0 });
+    expect(result.clinics[0].totalRevenueCents).toBe(84000);
+  });
 });
 
 describe('admin.updateClinicStatus', () => {

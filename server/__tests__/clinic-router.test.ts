@@ -1,106 +1,49 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { TRPCError } from '@trpc/server';
+import { _resetEnvCache } from '@/lib/env';
 
-// ── Mocks ────────────────────────────────────────────────────────────
+// ── Env setup ─────────────────────────────────────────────────────────
+_resetEnvCache();
+for (const [key, val] of Object.entries({
+  SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+  DATABASE_URL: 'postgres://test:test@localhost/test',
+  STRIPE_SECRET_KEY: 'sk_test_placeholder',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
+  RESEND_API_KEY: 're_test_placeholder',
+  PLAID_CLIENT_ID: 'test-plaid-client',
+  PLAID_SECRET: 'test-plaid-secret',
+  PLAID_ENV: 'sandbox',
+  TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_PHONE_NUMBER: '+15551234567',
+} as Record<string, string>)) {
+  if (!process.env[key]) process.env[key] = val;
+}
+// biome-ignore lint/performance/noDelete: process.env requires delete to truly unset
+delete process.env.ENABLE_MFA;
 
-const mockSelect = mock();
-const mockUpdate = mock();
-const mockInsert = mock();
-const mockInsertValues = mock();
+// ── Mocks ─────────────────────────────────────────────────────────────
 
-mock.module('@/server/db', () => ({
-  db: {
-    select: mockSelect,
-    update: mockUpdate,
-    insert: mockInsert,
-  },
+import { createMockChain, dbMock, resetDbMocks } from './db-mock';
+
+mock.module('@/server/db', () => ({ db: dbMock }));
+
+// NOTE: We intentionally do NOT mock @/server/db/schema here.
+mock.module('@/lib/logger', () => ({ logger: { info: mock(), warn: mock(), error: mock() } }));
+
+mock.module('next/cache', () => ({
+  unstable_cache: mock((fn: () => unknown) => fn),
+  revalidateTag: mock(),
 }));
 
-import { schemaMock } from './stripe/_mock-schema';
-
-// Extend schemaMock with all fields used by the clinic router
-const extendedSchemaMock = {
-  ...schemaMock,
-  clinics: {
-    ...schemaMock.clinics,
-    authId: 'clinics.auth_id',
-    name: 'clinics.name',
-    email: 'clinics.email',
-    phone: 'clinics.phone',
-    addressLine1: 'clinics.address_line1',
-    addressCity: 'clinics.address_city',
-    addressState: 'clinics.address_state',
-    addressZip: 'clinics.address_zip',
-    stripeAccountId: 'clinics.stripe_account_id',
-    status: 'clinics.status',
-    createdAt: 'clinics.created_at',
-    updatedAt: 'clinics.updated_at',
-  },
-  owners: {
-    ...schemaMock.owners,
-    authId: 'owners.auth_id',
-    name: 'owners.name',
-    email: 'owners.email',
-    phone: 'owners.phone',
-    petName: 'owners.pet_name',
-    addressLine1: 'owners.address_line1',
-    addressCity: 'owners.address_city',
-    addressState: 'owners.address_state',
-    addressZip: 'owners.address_zip',
-    createdAt: 'owners.created_at',
-    updatedAt: 'owners.updated_at',
-  },
-  plans: {
-    ...schemaMock.plans,
-    ownerId: 'plans.owner_id',
-    clinicId: 'plans.clinic_id',
-    totalBillCents: 'plans.total_bill_cents',
-    feeCents: 'plans.fee_cents',
-    totalWithFeeCents: 'plans.total_with_fee_cents',
-    depositCents: 'plans.deposit_cents',
-    remainingCents: 'plans.remaining_cents',
-    installmentCents: 'plans.installment_cents',
-    numInstallments: 'plans.num_installments',
-    status: 'plans.status',
-    nextPaymentAt: 'plans.next_payment_at',
-    depositPaidAt: 'plans.deposit_paid_at',
-    completedAt: 'plans.completed_at',
-    createdAt: 'plans.created_at',
-    updatedAt: 'plans.updated_at',
-  },
-  payments: {
-    ...schemaMock.payments,
-    planId: 'payments.plan_id',
-    type: 'payments.type',
-    sequenceNum: 'payments.sequence_num',
-    amountCents: 'payments.amount_cents',
-    status: 'payments.status',
-    scheduledAt: 'payments.scheduled_at',
-    processedAt: 'payments.processed_at',
-    failureReason: 'payments.failure_reason',
-    retryCount: 'payments.retry_count',
-    createdAt: 'payments.created_at',
-    updatedAt: 'payments.updated_at',
-  },
-  payouts: {
-    ...schemaMock.payouts,
-    clinicId: 'payouts.clinic_id',
-    planId: 'payouts.plan_id',
-    paymentId: 'payouts.payment_id',
-    amountCents: 'payouts.amount_cents',
-    clinicShareCents: 'payouts.clinic_share_cents',
-    stripeTransferId: 'payouts.stripe_transfer_id',
-    status: 'payouts.status',
-    createdAt: 'payouts.created_at',
-  },
-};
-
-mock.module('@/server/db/schema', () => extendedSchemaMock);
-
-// Mock Stripe client (underlying dependency of connect service)
-const mockStripeAccountsRetrieve = mock();
-const mockStripeAccountsCreate = mock();
-const mockStripeAccountLinksCreate = mock();
-const mockStripeTransfersCreate = mock();
+// Stripe mocks
+const mockStripeAccountsRetrieve = mock(() =>
+  Promise.resolve({ charges_enabled: true, payouts_enabled: true }),
+);
+const mockStripeAccountsCreate = mock(() => Promise.resolve({ id: 'acct_new_456' }));
+const mockStripeAccountLinksCreate = mock(() =>
+  Promise.resolve({ url: 'https://connect.stripe.com/setup/e/test' }),
+);
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
@@ -108,25 +51,21 @@ mock.module('@/lib/stripe', () => ({
       retrieve: mockStripeAccountsRetrieve,
       create: mockStripeAccountsCreate,
     },
-    accountLinks: {
-      create: mockStripeAccountLinksCreate,
-    },
-    transfers: {
-      create: mockStripeTransfersCreate,
-    },
+    accountLinks: { create: mockStripeAccountLinksCreate },
+    transfers: { create: mock(() => Promise.resolve({ id: 'tr_test' })) },
   }),
 }));
 
-// Mock logger (prevents console noise during tests)
-mock.module('@/lib/logger', () => ({
-  logger: {
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-  },
+// Email service mock
+mock.module('@/server/services/email', () => ({
+  sendClinicWelcome: mock(() => Promise.resolve()),
 }));
 
-// Mock Resend (used by email service)
+// NOTE: Do NOT mock @/lib/supabase/mfa here — it contaminates mfa.test.ts.
+// Instead, we disable MFA via process.env.ENABLE_MFA=undefined (above)
+// and provide verified TOTP factors in the test context.
+
+// Resend mock
 mock.module('@/lib/resend', () => ({
   resend: () => ({
     emails: {
@@ -135,13 +74,19 @@ mock.module('@/lib/resend', () => ({
   }),
 }));
 
-// ── Test data ────────────────────────────────────────────────────────
+// ── Router + caller setup ─────────────────────────────────────────────
 
-const CLINIC_ID = '11111111-1111-1111-1111-111111111111';
-const PLAN_ID = '33333333-3333-3333-3333-333333333333';
-const STRIPE_ACCOUNT_ID = 'acct_test123';
+const { clinicRouter } = await import('@/server/routers/clinic');
+const { createCallerFactory } = await import('@/server/trpc');
 
-// Used for onboarding tests (status: 'pending', full profile)
+const createClinicCaller = createCallerFactory(clinicRouter);
+
+// ── Test data ─────────────────────────────────────────────────────────
+
+const CLINIC_ID = '11111111-1111-4111-a111-111111111111';
+const PLAN_ID = '33333333-3333-4333-a333-333333333333';
+const USER_ID = 'user-test-clinic';
+
 const MOCK_CLINIC_FULL = {
   id: CLINIC_ID,
   name: 'Happy Paws Veterinary',
@@ -151,654 +96,333 @@ const MOCK_CLINIC_FULL = {
   addressCity: 'San Francisco',
   addressState: 'CA',
   addressZip: '94102',
-  stripeAccountId: STRIPE_ACCOUNT_ID,
+  stripeAccountId: 'acct_test123',
   status: 'pending',
 };
 
-// Used for onboarding tests (incomplete profile)
-const MOCK_CLINIC_INCOMPLETE = {
-  id: CLINIC_ID,
-  name: 'Happy Paws Veterinary',
-  email: 'info@happypaws.com',
-  phone: '+15551234567',
-  addressLine1: null,
-  addressCity: null,
-  addressState: 'CA',
-  addressZip: '94102',
-  stripeAccountId: null,
-  status: 'pending',
-};
+// biome-ignore lint/suspicious/noExplicitAny: test context
+function ctx(): any {
+  return {
+    db: dbMock,
+    session: { userId: USER_ID, role: 'clinic' },
+    supabase: {
+      auth: {
+        mfa: {
+          listFactors: () => Promise.resolve({ data: { totp: [{ status: 'verified' }] } }),
+          getAuthenticatorAssuranceLevel: () => Promise.resolve({ data: { currentLevel: 'aal2' } }),
+        },
+      },
+    },
+  };
+}
 
-const MOCK_ENROLLMENT = {
-  id: PLAN_ID,
-  ownerName: 'Jane Doe',
-  petName: 'Whiskers',
-  totalBillCents: 120000,
-  status: 'active',
-  createdAt: new Date('2026-02-15'),
-};
-
-const MOCK_PLAN_WITH_OWNER = {
-  id: PLAN_ID,
-  clinicId: CLINIC_ID,
-  totalBillCents: 120000,
-  feeCents: 7200,
-  totalWithFeeCents: 127200,
-  depositCents: 31800,
-  remainingCents: 95400,
-  installmentCents: 15900,
-  numInstallments: 6,
-  status: 'active',
-  depositPaidAt: new Date('2026-02-15'),
-  nextPaymentAt: new Date('2026-03-01'),
-  completedAt: null,
-  createdAt: new Date('2026-02-15'),
-  ownerName: 'Jane Doe',
-  ownerEmail: 'jane@example.com',
-  ownerPhone: '+15559876543',
-  petName: 'Whiskers',
-};
-
-const MOCK_PAYMENT = {
-  id: 'pay-1',
-  type: 'deposit',
-  sequenceNum: 0,
-  amountCents: 31800,
-  status: 'succeeded',
-  scheduledAt: new Date('2026-02-15'),
-  processedAt: new Date('2026-02-15'),
-  failureReason: null,
-  retryCount: 0,
-};
-
-const MOCK_PAYOUT = {
-  id: 'payout-1',
-  amountCents: 30000,
-  clinicShareCents: 954,
-  stripeTransferId: 'tr_test_123',
-  status: 'succeeded',
-  createdAt: new Date('2026-02-16'),
-};
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-function clearAllMocks() {
-  mockSelect.mockClear();
-  mockUpdate.mockClear();
-  mockInsert.mockClear();
-  mockInsertValues.mockClear();
+function clearStripeMocks() {
   mockStripeAccountsRetrieve.mockClear();
   mockStripeAccountsCreate.mockClear();
   mockStripeAccountLinksCreate.mockClear();
-  mockStripeTransfersCreate.mockClear();
 }
 
-/**
- * Sets up a chain of select queries that return results in order.
- * Each call to db.select(...).from(...) chains through various methods.
- */
-function setupSelectChainSequence(results: unknown[][]) {
-  let callIndex = 0;
+// ── healthCheck ───────────────────────────────────────────────────────
 
-  const createChain = () => {
-    const result = results[callIndex] ?? [];
-    callIndex++;
-    const chainObj: Record<string, () => Record<string, unknown>> = {};
-    const chain = () => chainObj;
-    chainObj.where = chain;
-    chainObj.limit = () => Promise.resolve(result) as unknown as Record<string, unknown>;
-    chainObj.orderBy = chain;
-    chainObj.groupBy = chain;
-    chainObj.offset = chain;
-    chainObj.innerJoin = chain;
-    chainObj.leftJoin = chain;
-    return chainObj;
-  };
+describe('clinic.healthCheck', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
-  mockSelect.mockImplementation(() => ({
-    from: createChain,
-  }));
-}
+  it('returns ok status', async () => {
+    // clinicProcedure middleware: clinic lookup
+    createMockChain([[{ id: CLINIC_ID }]]);
 
-function setupUpdateChain(result: unknown[]) {
-  mockUpdate.mockImplementation(() => ({
-    set: () => ({
-      where: () => ({
-        returning: () => Promise.resolve(result),
-      }),
-    }),
-  }));
-}
+    const caller = createClinicCaller(ctx());
+    const result = await caller.healthCheck();
+    expect(result).toEqual({ status: 'ok', router: 'clinic' });
+  });
+});
 
-// ── getProfile tests ─────────────────────────────────────────────────
+// ── getProfile ────────────────────────────────────────────────────────
 
 describe('clinic.getProfile', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
-  it('returns clinic profile when found', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
+  it('returns clinic profile', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [MOCK_CLINIC_FULL], // getClinicById query
+    ]);
 
-    const chain = mockSelect();
-    const fromChain = chain.from();
-    const whereChain = fromChain.where();
-    const result = await whereChain.limit();
-
-    expect(result).toEqual([MOCK_CLINIC_FULL]);
-    expect(result[0].name).toBe('Happy Paws Veterinary');
-    expect(result[0].email).toBe('info@happypaws.com');
-    expect(result[0].stripeAccountId).toBe(STRIPE_ACCOUNT_ID);
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getProfile();
+    expect(result.name).toBe('Happy Paws Veterinary');
+    expect(result.email).toBe('info@happypaws.com');
   });
 
-  it('returns empty when no clinic found', async () => {
-    setupSelectChainSequence([[]]);
+  it('throws NOT_FOUND when clinic missing', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [], // no clinic
+    ]);
 
-    const chain = mockSelect();
-    const fromChain = chain.from();
-    const whereChain = fromChain.where();
-    const result = await whereChain.limit();
-
-    expect(result).toEqual([]);
+    const caller = createClinicCaller(ctx());
+    await expect(caller.getProfile()).rejects.toThrow('Clinic profile not found');
   });
 });
 
-// ── updateProfile tests ──────────────────────────────────────────────
+// ── updateProfile ─────────────────────────────────────────────────────
 
 describe('clinic.updateProfile', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
-  it('updates clinic profile fields', async () => {
-    const updatedClinic = { ...MOCK_CLINIC_FULL, name: 'New Clinic Name' };
-    setupUpdateChain([updatedClinic]);
+  it('updates name and returns updated profile', async () => {
+    const updated = { ...MOCK_CLINIC_FULL, name: 'New Clinic Name' };
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [MOCK_CLINIC_FULL], // getClinicById select
+      [updated], // update returning
+    ]);
 
-    const result = await mockUpdate().set().where().returning();
-    expect(result[0].name).toBe('New Clinic Name');
+    const caller = createClinicCaller(ctx());
+    const result = await caller.updateProfile({ name: 'New Clinic Name' });
+    expect(result.name).toBe('New Clinic Name');
   });
 
-  it('updates address fields', async () => {
-    const updatedClinic = {
-      ...MOCK_CLINIC_FULL,
-      addressLine1: '456 Oak Ave',
-      addressCity: 'Los Angeles',
-    };
-    setupUpdateChain([updatedClinic]);
+  it('throws BAD_REQUEST when no fields provided', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+    ]);
 
-    const result = await mockUpdate().set().where().returning();
-    expect(result[0].addressLine1).toBe('456 Oak Ave');
-    expect(result[0].addressCity).toBe('Los Angeles');
-  });
-});
-
-// ── startStripeOnboarding tests ──────────────────────────────────────
-
-describe('clinic.startStripeOnboarding', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
-
-  it('creates a Connect account when clinic has no stripeAccountId', async () => {
-    const clinicWithoutStripe = { ...MOCK_CLINIC_FULL, stripeAccountId: null };
-    setupSelectChainSequence([[clinicWithoutStripe]]);
-
-    // Verify clinic has no stripeAccountId
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    expect(clinic.stripeAccountId).toBeNull();
-
-    // Simulate what the router does: call stripe accounts.create
-    mockStripeAccountsCreate.mockResolvedValue({ id: 'acct_new_456' });
-    const account = await mockStripeAccountsCreate({
-      type: 'standard',
-      email: clinic.email,
-      business_profile: { name: clinic.name },
-      metadata: { clinicId: clinic.id },
-    });
-    expect(account.id).toBe('acct_new_456');
-  });
-
-  it('skips account creation when clinic already has stripeAccountId', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    // Clinic already has a stripeAccountId
-    expect(clinic.stripeAccountId).toBe(STRIPE_ACCOUNT_ID);
-    expect(mockStripeAccountsCreate).not.toHaveBeenCalled();
-  });
-
-  it('generates an onboarding link with correct return URLs', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-    mockStripeAccountLinksCreate.mockResolvedValue({
-      url: 'https://connect.stripe.com/setup/e/test',
-    });
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    const accountLink = await mockStripeAccountLinksCreate({
-      account: clinic.stripeAccountId,
-      type: 'account_onboarding',
-      return_url: 'http://localhost:3000/clinic/onboarding/stripe-return',
-      refresh_url: 'http://localhost:3000/clinic/onboarding',
-    });
-
-    expect(accountLink.url).toBe('https://connect.stripe.com/setup/e/test');
+    const caller = createClinicCaller(ctx());
+    await expect(caller.updateProfile({})).rejects.toThrow(TRPCError);
   });
 });
 
-// ── getOnboardingStatus tests ────────────────────────────────────────
-
-describe('clinic.getOnboardingStatus', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
-
-  it('returns correct status when clinic has complete profile and active Stripe', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-    mockStripeAccountsRetrieve.mockResolvedValue({
-      charges_enabled: true,
-      payouts_enabled: true,
-    });
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    // Check profile completeness
-    const profileComplete = Boolean(
-      clinic.name &&
-        clinic.phone &&
-        clinic.email &&
-        clinic.addressLine1 &&
-        clinic.addressCity &&
-        clinic.addressState &&
-        clinic.addressZip,
-    );
-    expect(profileComplete).toBe(true);
-
-    // Check Stripe status
-    const account = await mockStripeAccountsRetrieve(clinic.stripeAccountId);
-    expect(account.charges_enabled).toBe(true);
-    expect(account.payouts_enabled).toBe(true);
-  });
-
-  it('returns not_started when clinic has no stripeAccountId', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_INCOMPLETE]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    expect(clinic.stripeAccountId).toBeNull();
-
-    const stripeStatus = clinic.stripeAccountId ? 'pending' : 'not_started';
-    expect(stripeStatus).toBe('not_started');
-  });
-
-  it('returns pending when Stripe charges not yet enabled', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-    mockStripeAccountsRetrieve.mockResolvedValue({
-      charges_enabled: false,
-      payouts_enabled: false,
-    });
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    const account = await mockStripeAccountsRetrieve(clinic.stripeAccountId);
-
-    let stripeStatus: string;
-    if (account.charges_enabled && account.payouts_enabled) {
-      stripeStatus = 'active';
-    } else {
-      stripeStatus = 'pending';
-    }
-
-    expect(stripeStatus).toBe('pending');
-  });
-
-  it('returns profileComplete false when address fields are missing', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_INCOMPLETE]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    const profileComplete = Boolean(
-      clinic.name &&
-        clinic.phone &&
-        clinic.email &&
-        clinic.addressLine1 &&
-        clinic.addressCity &&
-        clinic.addressState &&
-        clinic.addressZip,
-    );
-    expect(profileComplete).toBe(false);
-  });
-});
-
-// ── completeOnboarding tests ─────────────────────────────────────────
-
-describe('clinic.completeOnboarding', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
-
-  it('activates clinic when all steps are complete', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-    mockStripeAccountsRetrieve.mockResolvedValue({
-      charges_enabled: true,
-      payouts_enabled: true,
-    });
-
-    // Simulate the update chain for setting status to 'active'
-    setupUpdateChain([{ ...MOCK_CLINIC_FULL, status: 'active' }]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    // Verify all preconditions
-    const profileComplete = Boolean(
-      clinic.name &&
-        clinic.phone &&
-        clinic.email &&
-        clinic.addressLine1 &&
-        clinic.addressCity &&
-        clinic.addressState &&
-        clinic.addressZip,
-    );
-    expect(profileComplete).toBe(true);
-
-    const account = await mockStripeAccountsRetrieve(clinic.stripeAccountId);
-    expect(account.charges_enabled).toBe(true);
-    expect(account.payouts_enabled).toBe(true);
-
-    // Simulate update
-    const updateResult = await mockUpdate().set().where().returning();
-    expect(updateResult[0].status).toBe('active');
-  });
-
-  it('returns alreadyActive when clinic status is already active', async () => {
-    const activeClinic = { ...MOCK_CLINIC_FULL, status: 'active' };
-    setupSelectChainSequence([[activeClinic]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    if (clinic.status === 'active') {
-      const response = { status: 'active', alreadyActive: true };
-      expect(response.alreadyActive).toBe(true);
-    }
-  });
-
-  it('rejects onboarding when profile is incomplete', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_INCOMPLETE]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    const profileComplete = Boolean(
-      clinic.name &&
-        clinic.phone &&
-        clinic.email &&
-        clinic.addressLine1 &&
-        clinic.addressCity &&
-        clinic.addressState &&
-        clinic.addressZip,
-    );
-    expect(profileComplete).toBe(false);
-  });
-
-  it('rejects onboarding when Stripe is not connected', async () => {
-    const clinicNoStripe = { ...MOCK_CLINIC_FULL, stripeAccountId: null };
-    setupSelectChainSequence([[clinicNoStripe]]);
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    expect(clinic.stripeAccountId).toBeNull();
-  });
-
-  it('rejects onboarding when Stripe is pending verification', async () => {
-    setupSelectChainSequence([[MOCK_CLINIC_FULL]]);
-    mockStripeAccountsRetrieve.mockResolvedValue({
-      charges_enabled: false,
-      payouts_enabled: false,
-    });
-
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
-    const clinic = result[0];
-
-    const account = await mockStripeAccountsRetrieve(clinic.stripeAccountId);
-    const stripeReady = account.charges_enabled && account.payouts_enabled;
-    expect(stripeReady).toBe(false);
-  });
-
-  it('sets clinic status to active via db update', async () => {
-    setupUpdateChain([{ ...MOCK_CLINIC_FULL, status: 'active' }]);
-
-    const result = await mockUpdate().set().where().returning();
-    expect(result[0].status).toBe('active');
-  });
-});
-
-// ── getDashboardStats tests ──────────────────────────────────────────
+// ── getDashboardStats ─────────────────────────────────────────────────
 
 describe('clinic.getDashboardStats', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
-
-  it('returns dashboard statistics with plan counts and earnings', async () => {
-    const planCounts = {
-      activePlans: 5,
-      completedPlans: 3,
-      defaultedPlans: 1,
-      totalPlans: 10,
-    };
-    const earningsResult = {
-      totalRevenueCents: 15000,
-      totalPayoutCents: 500000,
-    };
-    const pendingPayoutsResult = {
-      pendingCount: 2,
-      pendingAmountCents: 30000,
-    };
-
-    // Query sequence: 4 parallel queries (clinicId now comes from middleware context)
-    setupSelectChainSequence([
-      [planCounts], // plan counts
-      [earningsResult], // earnings
-      [pendingPayoutsResult], // pending payouts
-      [MOCK_ENROLLMENT], // recent enrollments
-    ]);
-
-    // Verify plan counts
-    const plansChain = mockSelect();
-    const plansResult = await plansChain.from().where().limit();
-    expect(plansResult[0].activePlans).toBe(5);
-    expect(plansResult[0].totalPlans).toBe(10);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
   });
+  afterEach(resetDbMocks);
 
-  it('returns zeros when clinic has no data', async () => {
-    setupSelectChainSequence([
-      [{ activePlans: 0, completedPlans: 0, defaultedPlans: 0, totalPlans: 0 }],
-      [{ totalRevenueCents: 0, totalPayoutCents: 0 }],
-      [{ pendingCount: 0, pendingAmountCents: 0 }],
-      [],
+  it('returns dashboard statistics', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ activePlans: '5', completedPlans: '3', defaultedPlans: '1', totalPlans: '10' }],
+      [{ totalRevenueCents: '15000', totalPayoutCents: '500000' }],
+      [{ pendingCount: '2', pendingAmountCents: '30000' }],
+      [{ id: 'plan-1', ownerName: 'Jane', petName: 'Whiskers', totalBillCents: 120000 }],
     ]);
 
-    const plansChain = mockSelect();
-    const plansResult = await plansChain.from().where().limit();
-    expect(plansResult[0].activePlans).toBe(0);
-    expect(plansResult[0].totalPlans).toBe(0);
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getDashboardStats();
+    expect(result.activePlans).toBe(5);
+    expect(result.totalPlans).toBe(10);
+    expect(result.totalRevenueCents).toBe(15000);
   });
 });
 
-// ── getClients tests ─────────────────────────────────────────────────
+// ── getClients ────────────────────────────────────────────────────────
 
 describe('clinic.getClients', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
-  it('returns paginated client list with payment totals', async () => {
+  it('returns paginated client list', async () => {
     const clientRow = {
       planId: PLAN_ID,
       ownerName: 'Jane Doe',
       ownerEmail: 'jane@example.com',
-      ownerPhone: '+15559876543',
       petName: 'Whiskers',
       totalBillCents: 120000,
-      totalWithFeeCents: 127200,
       planStatus: 'active',
-      nextPaymentAt: new Date('2026-03-01'),
-      createdAt: new Date('2026-02-15'),
-      totalPaidCents: 47700,
+      totalPaidCents: '47700',
     };
 
-    // clinicId now comes from middleware context
-    setupSelectChainSequence([
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
       [clientRow], // clients query
       [{ total: 1 }], // count query
     ]);
 
-    // Verify client data
-    const clientsChain = mockSelect();
-    const clientsResult = await clientsChain.from().where().limit();
-    expect(clientsResult[0].ownerName).toBe('Jane Doe');
-    expect(clientsResult[0].petName).toBe('Whiskers');
-    expect(clientsResult[0].totalPaidCents).toBe(47700);
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClients({ page: 1, pageSize: 20 });
+    expect(result.clients).toHaveLength(1);
+    expect(result.clients[0].ownerName).toBe('Jane Doe');
+    expect(result.pagination.totalCount).toBe(1);
   });
 
-  it('returns empty when no clients match search', async () => {
-    setupSelectChainSequence([
-      [], // no matching clients
+  it('returns empty when no clients', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [], // no clients
       [{ total: 0 }],
     ]);
 
-    const clientsChain = mockSelect();
-    const clientsResult = await clientsChain.from().where().limit();
-    expect(clientsResult).toEqual([]);
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClients({ page: 1, pageSize: 20 });
+    expect(result.clients).toEqual([]);
+    expect(result.pagination.totalCount).toBe(0);
   });
 });
 
-// ── getClientPlanDetails tests ───────────────────────────────────────
+// ── getClientPlanDetails ──────────────────────────────────────────────
 
 describe('clinic.getClientPlanDetails', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
   it('returns plan details with payments and payouts', async () => {
-    // clinicId now comes from middleware context
-    setupSelectChainSequence([
-      [MOCK_PLAN_WITH_OWNER], // plan query
-      [MOCK_PAYMENT], // payments query
-      [MOCK_PAYOUT], // payouts query
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [
+        {
+          id: PLAN_ID,
+          totalBillCents: 120000,
+          ownerName: 'Jane Doe',
+          petName: 'Whiskers',
+          status: 'active',
+        },
+      ], // plan query
+      [{ id: 'pay-1', type: 'deposit', amountCents: 31800, status: 'succeeded' }], // payments
+      [{ id: 'payout-1', amountCents: 30000, clinicShareCents: 954, status: 'succeeded' }], // payouts
     ]);
 
-    // Verify plan data
-    const planChain = mockSelect();
-    const planResult = await planChain.from().where().limit();
-    expect(planResult[0].totalBillCents).toBe(120000);
-    expect(planResult[0].ownerName).toBe('Jane Doe');
-    expect(planResult[0].petName).toBe('Whiskers');
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getClientPlanDetails({ planId: PLAN_ID });
+    expect(result.plan.totalBillCents).toBe(120000);
+    expect(result.payments).toHaveLength(1);
+    expect(result.payouts).toHaveLength(1);
   });
 
-  it('returns empty when plan not found at clinic', async () => {
-    setupSelectChainSequence([
-      [], // plan not found
+  it('throws NOT_FOUND when plan does not exist', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [], // no plan
     ]);
 
-    const planChain = mockSelect();
-    const planResult = await planChain.from().where().limit();
-    expect(planResult).toEqual([]);
+    const caller = createClinicCaller(ctx());
+    await expect(caller.getClientPlanDetails({ planId: PLAN_ID })).rejects.toThrow('not found');
   });
 });
 
-// ── getMonthlyRevenue tests ──────────────────────────────────────────
+// ── getMonthlyRevenue ─────────────────────────────────────────────────
 
 describe('clinic.getMonthlyRevenue', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
   it('returns monthly revenue aggregations', async () => {
-    const monthlyData = [
-      {
-        month: '2026-01',
-        totalPayoutCents: 250000,
-        totalShareCents: 7500,
-        payoutCount: 10,
-      },
-      {
-        month: '2026-02',
-        totalPayoutCents: 350000,
-        totalShareCents: 10500,
-        payoutCount: 14,
-      },
-    ];
-
-    // clinicId now comes from middleware context
-    setupSelectChainSequence([
-      monthlyData, // monthly revenue data
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [
+        {
+          month: '2026-01',
+          totalPayoutCents: '250000',
+          totalShareCents: '7500',
+          payoutCount: '10',
+        },
+        {
+          month: '2026-02',
+          totalPayoutCents: '350000',
+          totalShareCents: '10500',
+          payoutCount: '14',
+        },
+      ],
     ]);
 
-    // Verify monthly data
-    const revenueChain = mockSelect();
-    const revenueResult = await revenueChain.from().where().limit();
-    expect(revenueResult).toHaveLength(2);
-    expect(revenueResult[0].month).toBe('2026-01');
-    expect(revenueResult[1].totalPayoutCents).toBe(350000);
-  });
-
-  it('returns empty when no payout history', async () => {
-    setupSelectChainSequence([[]]);
-
-    const revenueChain = mockSelect();
-    const revenueResult = await revenueChain.from().where().limit();
-    expect(revenueResult).toEqual([]);
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getMonthlyRevenue();
+    expect(result).toHaveLength(2);
+    expect(result[0].month).toBe('2026-01');
   });
 });
 
-// ── search tests ─────────────────────────────────────────────────────
+// ── getOnboardingStatus ───────────────────────────────────────────────
 
-describe('clinic.search', () => {
-  beforeEach(clearAllMocks);
-  afterEach(clearAllMocks);
+describe('clinic.getOnboardingStatus', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
 
-  it('returns matching active clinics', async () => {
-    const searchResults = [
-      {
-        id: CLINIC_ID,
-        name: 'Happy Paws Veterinary',
-        addressCity: 'San Francisco',
-        addressState: 'CA',
-      },
-    ];
-    setupSelectChainSequence([searchResults]);
+  it('returns complete status when all steps done', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [MOCK_CLINIC_FULL], // getClinicById
+    ]);
 
-    const chain = mockSelect();
-    const fromChain = chain.from();
-    const whereChain = fromChain.where();
-    const result = await whereChain.limit();
+    mockStripeAccountsRetrieve.mockResolvedValue({
+      charges_enabled: true,
+      payouts_enabled: true,
+    });
 
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Happy Paws Veterinary');
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getOnboardingStatus();
+    expect(result.profileComplete).toBe(true);
+    expect(result.stripe.status).toBe('active');
   });
 
-  it('returns empty array when no clinics match', async () => {
-    setupSelectChainSequence([[]]);
+  it('returns not_started when no Stripe account', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ ...MOCK_CLINIC_FULL, stripeAccountId: null }], // no Stripe
+    ]);
 
-    const chain = mockSelect();
-    const result = await chain.from().where().limit();
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getOnboardingStatus();
+    expect(result.stripe.status).toBe('not_started');
+  });
+});
 
-    expect(result).toEqual([]);
+// ── getDefaultRate ────────────────────────────────────────────────────
+
+describe('clinic.getDefaultRate', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('calculates default rate', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ totalPlans: '10', defaultedPlans: '2' }],
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getDefaultRate();
+    expect(result.defaultRate).toBe(20); // 2/10 * 100
+    expect(result.totalPlans).toBe(10);
+  });
+
+  it('returns zero rate when no plans', async () => {
+    createMockChain([
+      [{ id: CLINIC_ID }], // middleware
+      [{ totalPlans: '0', defaultedPlans: '0' }],
+    ]);
+
+    const caller = createClinicCaller(ctx());
+    const result = await caller.getDefaultRate();
+    expect(result.defaultRate).toBe(0);
   });
 });

@@ -140,11 +140,11 @@ export function PaymentMethodSection() {
   );
 
   const setupSessionId = searchParams.get('setup_session');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only when setupSessionId changes to avoid re-triggering on mutation state changes
   useEffect(() => {
     if (setupSessionId && !confirmCard.isPending && !confirmCard.isSuccess) {
       confirmCard.mutate({ sessionId: setupSessionId });
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only when setupSessionId changes to avoid re-triggering on mutation state changes
   }, [setupSessionId]);
 
   const createLinkToken = useMutation(trpc.plaid.createLinkToken.mutationOptions());

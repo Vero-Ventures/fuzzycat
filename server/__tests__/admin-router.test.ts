@@ -152,4 +152,246 @@ describe('admin.retryPayment', () => {
     expect(result.status).toBe('pending');
     expect(result.retryCount).toBe(2);
   });
+
+  it('throws NOT_FOUND when payment does not exist', async () => {
+    createMockChain([
+      [], // no payment found
+    ]);
+    await expect(caller.retryPayment({ paymentId: PAYMENT_ID })).rejects.toThrow(
+      'Payment not found',
+    );
+  });
+
+  it('throws BAD_REQUEST when payment is not failed', async () => {
+    createMockChain([[{ id: PAYMENT_ID, status: 'succeeded', retryCount: 0 }]]);
+    await expect(caller.retryPayment({ paymentId: PAYMENT_ID })).rejects.toThrow(
+      'Only failed payments can be retried',
+    );
+  });
+});
+
+// ── healthCheck ───────────────────────────────────────────────────────
+
+describe('admin.healthCheck', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns ok status', async () => {
+    const result = await caller.healthCheck();
+    expect(result).toEqual({ status: 'ok', router: 'admin' });
+  });
+});
+
+// ── riskPoolBalance ───────────────────────────────────────────────────
+
+describe('admin.riskPoolBalance', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns risk pool balance breakdown', async () => {
+    createMockChain([
+      [{ totalContributionsCents: 50000, totalClaimsCents: 10000, totalRecoveriesCents: 2000 }],
+    ]);
+    const result = await caller.riskPoolBalance();
+    expect(result.totalContributionsCents).toBe(50000);
+    expect(result.balanceCents).toBe(42000); // 50000 + 2000 - 10000
+  });
+});
+
+// ── riskPoolHealth ────────────────────────────────────────────────────
+
+describe('admin.riskPoolHealth', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns health metrics with coverage ratio', async () => {
+    createMockChain([
+      // getRiskPoolBalance: db.select().from(riskPool)
+      [{ totalContributionsCents: 100000, totalClaimsCents: 20000, totalRecoveriesCents: 5000 }],
+      // getRiskPoolHealth: db.select().from(plans).where(active)
+      [{ outstandingCents: 500000, activePlanCount: 10 }],
+    ]);
+    const result = await caller.riskPoolHealth();
+    expect(result.balanceCents).toBe(85000); // 100000 + 5000 - 20000
+    expect(result.outstandingGuaranteesCents).toBe(500000);
+    expect(result.activePlanCount).toBe(10);
+  });
+});
+
+// ── auditLogByEntity ──────────────────────────────────────────────────
+
+describe('admin.auditLogByEntity', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns audit log for a specific entity', async () => {
+    const entries = [
+      { id: 'al-1', entityType: 'plan', entityId: 'plan-1', action: 'created' },
+      { id: 'al-2', entityType: 'plan', entityId: 'plan-1', action: 'status_changed' },
+    ];
+    createMockChain([entries]);
+    const result = await caller.auditLogByEntity({
+      entityType: 'plan',
+      entityId: '11111111-1111-4111-a111-111111111111',
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0].action).toBe('created');
+  });
+});
+
+// ── auditLogByType ────────────────────────────────────────────────────
+
+describe('admin.auditLogByType', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns paginated audit log by type', async () => {
+    const entries = [{ id: 'al-1', entityType: 'payment', action: 'retried' }];
+    createMockChain([entries]);
+    const result = await caller.auditLogByType({ entityType: 'payment', limit: 10, offset: 0 });
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('retried');
+  });
+});
+
+// ── updateClinicStatus error branch ───────────────────────────────────
+
+describe('admin.updateClinicStatus — errors', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('throws NOT_FOUND when clinic does not exist', async () => {
+    createMockChain([
+      [], // no clinic found
+    ]);
+    await expect(
+      caller.updateClinicStatus({ clinicId: CLINIC_ID, status: 'active' }),
+    ).rejects.toThrow('Clinic not found');
+  });
+});
+
+// ── getRiskPoolDetails ────────────────────────────────────────────────
+
+describe('admin.getRiskPoolDetails', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns paginated risk pool entries', async () => {
+    const entries = [
+      { id: 'rp-1', planId: 'plan-1', contributionCents: 1272, type: 'contribution' },
+    ];
+    createMockChain([entries, [{ total: 1 }]]);
+    const result = await caller.getRiskPoolDetails({ limit: 20, offset: 0 });
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].contributionCents).toBe(1272);
+    expect(result.pagination.totalCount).toBe(1);
+  });
+});
+
+// ── getDefaultedPlans ─────────────────────────────────────────────────
+
+describe('admin.getDefaultedPlans', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns defaulted plans with owner info', async () => {
+    const plans = [
+      {
+        id: 'plan-1',
+        totalBillCents: 120000,
+        remainingCents: 47700,
+        ownerName: 'Jane Doe',
+        clinicName: 'Happy Paws',
+      },
+    ];
+    createMockChain([plans, [{ total: 1 }]]);
+    const result = await caller.getDefaultedPlans({ limit: 20, offset: 0 });
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].ownerName).toBe('Jane Doe');
+    expect(result.pagination.totalCount).toBe(1);
+  });
+});
+
+// ── getRecentAuditLog ─────────────────────────────────────────────────
+
+describe('admin.getRecentAuditLog', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns recent audit entries', async () => {
+    const entries = [{ id: 'al-1', action: 'created', entityType: 'plan' }];
+    createMockChain([entries]);
+    const result = await caller.getRecentAuditLog({ limit: 10 });
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe('created');
+  });
+});
+
+// ── getSoftCollections ────────────────────────────────────────────────
+
+describe('admin.getSoftCollections', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns paginated soft collections', async () => {
+    const rows = [
+      {
+        id: 'sc-1',
+        planId: 'plan-1',
+        stage: 'day_1_reminder',
+        ownerName: 'Jane',
+        clinicName: 'Vet',
+      },
+    ];
+    createMockChain([rows, [{ total: 1 }]]);
+    const result = await caller.getSoftCollections({ limit: 20, offset: 0 });
+    expect(result.collections).toHaveLength(1);
+    expect(result.collections[0].stage).toBe('day_1_reminder');
+    expect(result.pagination.totalCount).toBe(1);
+  });
+});
+
+// ── cancelSoftCollection ──────────────────────────────────────────────
+
+describe('admin.cancelSoftCollection', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('cancels a collection and returns result', async () => {
+    createMockChain([
+      // cancelSoftCollection service: select current
+      [{ id: 'sc-1', planId: 'plan-1', stage: 'day_1_reminder' }],
+      // cancelSoftCollection service: update returning
+      [{ id: 'sc-1', planId: 'plan-1', stage: 'cancelled', notes: 'Owner called' }],
+    ]);
+    const result = await caller.cancelSoftCollection({
+      collectionId: '11111111-1111-4111-a111-111111111111',
+      reason: 'Owner called',
+    });
+    expect(result.stage).toBe('cancelled');
+  });
+});
+
+// ── getSoftCollectionStats ────────────────────────────────────────────
+
+describe('admin.getSoftCollectionStats', () => {
+  beforeEach(resetDbMocks);
+  afterEach(resetDbMocks);
+
+  it('returns stage counts and recovery rate', async () => {
+    createMockChain([
+      [
+        { stage: 'day_1_reminder', count: 5 },
+        { stage: 'day_7_followup', count: 3 },
+        { stage: 'completed', count: 10 },
+        { stage: 'cancelled', count: 2 },
+      ],
+    ]);
+    const result = await caller.getSoftCollectionStats();
+    expect(result.totalCollections).toBe(20);
+    expect(result.byStage.day_1_reminder).toBe(5);
+    expect(result.byStage.completed).toBe(10);
+    // recoveryRate = cancelled / (completed + cancelled) * 100 = 2/12 * 100 = 16.67
+    expect(result.recoveryRate).toBeCloseTo(16.67, 1);
+  });
 });

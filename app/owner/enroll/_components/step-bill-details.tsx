@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertCircle, Calendar } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -59,13 +59,29 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
   const isBelowMinimum = billAmountCents > 0 && billAmountCents < MIN_BILL_CENTS;
   const isValidAmount = billAmountCents >= MIN_BILL_CENTS;
 
-  const schedule = useMemo(() => {
-    if (!isValidAmount) return null;
-    try {
-      return calculatePaymentSchedule(billAmountCents);
-    } catch {
-      return null;
+  // Debounce schedule calculation to avoid blocking the main thread on every keystroke.
+  // The schedule involves date arithmetic that is expensive on mobile CPUs.
+  const [schedule, setSchedule] = useState<ReturnType<typeof calculatePaymentSchedule> | null>(
+    null,
+  );
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isValidAmount) {
+      setSchedule(null);
+      return;
     }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        setSchedule(calculatePaymentSchedule(billAmountCents));
+      } catch {
+        setSchedule(null);
+      }
+    }, 150);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [billAmountCents, isValidAmount]);
 
   const isFormValid =

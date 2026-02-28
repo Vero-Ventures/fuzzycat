@@ -1,34 +1,34 @@
-import { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { HydrationBoundary } from '@tanstack/react-query';
+import { createServerHelpers } from '@/lib/trpc/server';
 import { DashboardSummary } from './_components/dashboard-summary';
 import { PlanList } from './_components/plan-list';
 import { QuickLinks } from './_components/quick-links';
 import { RecentPayments } from './_components/recent-payments';
 
-function WidgetSkeleton({ className }: { className?: string }) {
-  return <Skeleton className={className ?? 'h-64 w-full'} />;
-}
+export default async function OwnerPaymentsPage() {
+  const { trpc, queryClient, dehydrate } = await createServerHelpers();
 
-export default function OwnerPaymentsPage() {
+  await Promise.all([
+    queryClient.prefetchQuery(trpc.owner.getDashboardSummary.queryOptions()),
+    queryClient.prefetchQuery(trpc.owner.getPlans.queryOptions()),
+    queryClient.prefetchQuery(trpc.owner.getRecentPayments.queryOptions()),
+  ]);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <Suspense fallback={<WidgetSkeleton className="h-32 w-full" />}>
+    <HydrationBoundary state={dehydrate()}>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <DashboardSummary />
-      </Suspense>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-8">
-          <Suspense fallback={<WidgetSkeleton />}>
+        <div className="mt-8 grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-8">
             <PlanList />
-          </Suspense>
-          <Suspense fallback={<WidgetSkeleton />}>
             <RecentPayments />
-          </Suspense>
-        </div>
-        <div>
-          <QuickLinks />
+          </div>
+          <div>
+            <QuickLinks />
+          </div>
         </div>
       </div>
-    </div>
+    </HydrationBoundary>
   );
 }

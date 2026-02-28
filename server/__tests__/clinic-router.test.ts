@@ -56,23 +56,13 @@ mock.module('@/lib/stripe', () => ({
   }),
 }));
 
-// Email service mock
-mock.module('@/server/services/email', () => ({
-  sendClinicWelcome: mock(() => Promise.resolve()),
-}));
+// NOTE: Do NOT mock @/server/services/email or @/lib/resend here —
+// it contaminates email.test.ts and soft-collection.test.ts.
+// Our tested procedures don't send emails, so no mock is needed.
 
 // NOTE: Do NOT mock @/lib/supabase/mfa here — it contaminates mfa.test.ts.
 // Instead, we disable MFA via process.env.ENABLE_MFA=undefined (above)
 // and provide verified TOTP factors in the test context.
-
-// Resend mock
-mock.module('@/lib/resend', () => ({
-  resend: () => ({
-    emails: {
-      send: mock(() => Promise.resolve({ data: { id: 'email-test-123' }, error: null })),
-    },
-  }),
-}));
 
 // ── Router + caller setup ─────────────────────────────────────────────
 

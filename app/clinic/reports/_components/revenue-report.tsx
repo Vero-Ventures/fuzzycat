@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,12 @@ export function RevenueReport() {
               className="w-40"
             />
           </div>
+        </div>
+
+        {/* Chart placeholder */}
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
+          <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Chart coming soon</p>
         </div>
 
         {isLoading ? (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -25,7 +26,13 @@ export function EnrollmentTrends() {
         <CardTitle>Enrollment Trends</CardTitle>
         <CardDescription>Monthly enrollment counts over the last 12 months.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Chart placeholder */}
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-center">
+          <TrendingUp className="mb-3 h-10 w-10 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Chart coming soon</p>
+        </div>
+
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (

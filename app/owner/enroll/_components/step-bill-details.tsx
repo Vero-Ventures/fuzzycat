@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { MIN_BILL_CENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
+import { MAX_BILL_CENTS, MIN_BILL_CENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import type { EnrollmentData } from './types';
@@ -17,7 +17,8 @@ export const billDetailsSchema = z.object({
   billAmountCents: z
     .number()
     .int()
-    .min(MIN_BILL_CENTS, `Minimum bill is $${MIN_BILL_CENTS / 100}`),
+    .min(MIN_BILL_CENTS, `Minimum bill is $${MIN_BILL_CENTS / 100}`)
+    .max(MAX_BILL_CENTS, `Maximum bill is $${MAX_BILL_CENTS / 100}`),
   ownerName: z.string().trim().min(1, 'Name is required'),
   ownerEmail: z.string().email('Valid email is required'),
   ownerPhone: z.string().trim().min(1, 'Phone is required'),
@@ -57,7 +58,8 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
   }, [billDollars]);
 
   const isBelowMinimum = billAmountCents > 0 && billAmountCents < MIN_BILL_CENTS;
-  const isValidAmount = billAmountCents >= MIN_BILL_CENTS;
+  const isAboveMaximum = billAmountCents > MAX_BILL_CENTS;
+  const isValidAmount = billAmountCents >= MIN_BILL_CENTS && billAmountCents <= MAX_BILL_CENTS;
 
   // Debounce schedule calculation to avoid blocking the main thread on every keystroke.
   // The schedule involves date arithmetic that is expensive on mobile CPUs.
@@ -159,6 +161,15 @@ export function StepBillDetails({ data, updateData, onNext, onBack }: StepBillDe
               Minimum bill amount is {formatCents(MIN_BILL_CENTS)}. FuzzyCat is designed for
               significant veterinary expenses such as emergencies, surgeries, and multi-visit
               treatment plans.
+            </AlertDescription>
+          </Alert>
+        )}
+        {isAboveMaximum && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Maximum bill amount is {formatCents(MAX_BILL_CENTS)}. For bills exceeding this amount,
+              please contact our support team to discuss alternative arrangements.
             </AlertDescription>
           </Alert>
         )}

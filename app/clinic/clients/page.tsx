@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ClientList } from './_components/client-list';
 import { ClientStats } from './_components/client-stats';
+
+export const metadata: Metadata = {
+  title: 'Clients | FuzzyCat',
+};
 
 export default function ClinicClientsPage() {
   return (

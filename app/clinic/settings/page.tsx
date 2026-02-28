@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { ClinicProfileForm } from './_components/clinic-profile-form';
 import { MfaSettingsSection } from './_components/mfa-settings-section';
 import { StripeConnectSection } from './_components/stripe-connect-section';
+
+export const metadata: Metadata = {
+  title: 'Clinic Settings | FuzzyCat',
+};
 
 export default function ClinicSettingsPage() {
   return (

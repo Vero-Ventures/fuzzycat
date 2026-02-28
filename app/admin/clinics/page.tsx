@@ -1,4 +1,9 @@
+import type { Metadata } from 'next';
 import { ClinicList } from './_components/clinic-list';
+
+export const metadata: Metadata = {
+  title: 'Clinics | FuzzyCat Admin',
+};
 
 export default function AdminClinicsPage() {
   return (

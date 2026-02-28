@@ -1,6 +1,11 @@
 import { Cat } from 'lucide-react';
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { OwnerLoginForm } from './_components/owner-login-form';
+
+export const metadata: Metadata = {
+  title: 'Pet Owner Login | FuzzyCat',
+};
 
 export default function OwnerLoginPage() {
   return (

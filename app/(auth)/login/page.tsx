@@ -1,7 +1,12 @@
 import { Building2, User } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { LoginForm } from './login-form';
+
+export const metadata: Metadata = {
+  title: 'Log In | FuzzyCat',
+};
 
 export default async function LoginPage({
   searchParams,

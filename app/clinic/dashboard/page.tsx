@@ -1,8 +1,13 @@
 import { HydrationBoundary } from '@tanstack/react-query';
+import type { Metadata } from 'next';
 import { createServerHelpers } from '@/lib/trpc/server';
 import { DashboardContent } from './_components/dashboard-content';
 import { InitiateEnrollmentButton } from './_components/initiate-enrollment-button';
 import { RevenueTable } from './_components/revenue-table';
+
+export const metadata: Metadata = {
+  title: 'Clinic Dashboard | FuzzyCat',
+};
 
 export default async function ClinicDashboardPage() {
   const { trpc, queryClient, dehydrate } = await createServerHelpers();

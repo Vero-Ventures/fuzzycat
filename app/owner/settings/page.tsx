@@ -1,6 +1,11 @@
+import type { Metadata } from 'next';
 import { ActivePlansSection } from './_components/active-plans-section';
 import { PaymentMethodSection } from './_components/payment-method-section';
 import { ProfileForm } from './_components/profile-form';
+
+export const metadata: Metadata = {
+  title: 'Settings | FuzzyCat',
+};
 
 export default function OwnerSettingsPage() {
   return (

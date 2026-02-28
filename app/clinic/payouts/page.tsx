@@ -1,5 +1,10 @@
+import type { Metadata } from 'next';
 import { PayoutEarnings } from './_components/payout-earnings';
 import { PayoutHistory } from './_components/payout-history';
+
+export const metadata: Metadata = {
+  title: 'Payouts | FuzzyCat',
+};
 
 export default function ClinicPayoutsPage() {
   return (

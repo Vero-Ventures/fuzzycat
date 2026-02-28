@@ -1,6 +1,11 @@
 import { HydrationBoundary } from '@tanstack/react-query';
+import type { Metadata } from 'next';
 import { createServerHelpers } from '@/lib/trpc/server';
 import { PlanDetailContent } from './_components/plan-detail-content';
+
+export const metadata: Metadata = {
+  title: 'Plan Details | FuzzyCat',
+};
 
 export default async function OwnerPlanDetailPage({
   params,

@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import { DefaultRateCard } from './_components/default-rate-card';
 import { EnrollmentTrends } from './_components/enrollment-trends';
 import { ExportButtons } from './_components/export-buttons';
 import { RevenueReport } from './_components/revenue-report';
+
+export const metadata: Metadata = {
+  title: 'Reports | FuzzyCat',
+};
 
 export default function ClinicReportsPage() {
   return (

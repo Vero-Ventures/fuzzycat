@@ -1,6 +1,11 @@
 import { Cat } from 'lucide-react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ClinicLoginForm } from './_components/clinic-login-form';
+
+export const metadata: Metadata = {
+  title: 'Clinic Login | FuzzyCat',
+};
 
 export default function ClinicLoginPage() {
   return (

@@ -14,6 +14,10 @@ const AUTH_PAGES = ['/login', '/signup'];
 const STATIC_ROUTES = new Set([
   '/',
   '/how-it-works',
+  '/privacy',
+  '/terms',
+  '/support',
+  '/api-docs',
   '/signup',
   '/signup/owner',
   '/signup/clinic',

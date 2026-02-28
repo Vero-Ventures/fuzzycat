@@ -3,12 +3,24 @@
 // creation, public token exchange, and balance checking.
 
 import { TRPCError } from '@trpc/server';
-import { isAxiosError } from 'axios';
 import { z } from 'zod';
 import { revalidateTag } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 import { checkBalance, createLinkToken, exchangePublicToken } from '@/server/services/plaid';
 import { ownerProcedure, router } from '@/server/trpc';
+
+/** Type guard for Plaid's AxiosError shape (avoids direct axios dependency). */
+function isPlaidApiError(
+  error: unknown,
+): error is { response: { status: number; data: Record<string, unknown> } } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response: unknown }).response === 'object' &&
+    (error as { response: { data?: unknown } }).response?.data != null
+  );
+}
 
 /**
  * Extract a user-safe message and log structured details from Plaid API errors.
@@ -20,8 +32,8 @@ function handlePlaidError(
   fallbackMessage: string,
   context: Record<string, string>,
 ) {
-  if (isAxiosError(error) && error.response?.data) {
-    const data = error.response.data as Record<string, unknown>;
+  if (isPlaidApiError(error)) {
+    const data = error.response.data;
     logger.error('Plaid API error', {
       ...context,
       errorType: data.error_type,

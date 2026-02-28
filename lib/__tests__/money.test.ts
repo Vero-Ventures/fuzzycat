@@ -55,8 +55,10 @@ describe('formatCents', () => {
     expect(formatCents(1_000_000)).toBe('$10,000.00');
   });
 
-  it('throws for negative cents', () => {
-    expect(() => formatCents(-1)).toThrow(RangeError);
+  it('formats negative cents with leading minus sign', () => {
+    expect(formatCents(-1)).toBe('-$0.01');
+    expect(formatCents(-1500)).toBe('-$15.00');
+    expect(formatCents(-120_000)).toBe('-$1,200.00');
   });
 
   it('throws for NaN', () => {

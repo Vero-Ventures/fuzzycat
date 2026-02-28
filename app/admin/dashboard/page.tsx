@@ -1,5 +1,9 @@
+import { FailedPaymentsBanner } from './_components/failed-payments-banner';
+import { PlatformGrowthPlaceholder } from './_components/platform-growth-placeholder';
 import { PlatformStats } from './_components/platform-stats';
 import { RecentActivity } from './_components/recent-activity';
+import { RecentClaims } from './_components/recent-claims';
+import { RecentClinics } from './_components/recent-clinics';
 
 export default function AdminDashboardPage() {
   return (
@@ -9,11 +13,18 @@ export default function AdminDashboardPage() {
         <p className="mt-1 text-muted-foreground">Platform-wide metrics and recent activity.</p>
       </div>
 
-      <div className="mt-8">
-        <PlatformStats />
-      </div>
+      <div className="mt-8 space-y-8">
+        <FailedPaymentsBanner />
 
-      <div className="mt-8">
+        <PlatformStats />
+
+        <PlatformGrowthPlaceholder />
+
+        <div className="grid gap-8 lg:grid-cols-2">
+          <RecentClinics />
+          <RecentClaims />
+        </div>
+
         <RecentActivity />
       </div>
     </div>

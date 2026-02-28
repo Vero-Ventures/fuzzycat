@@ -137,7 +137,9 @@ export default function ClinicPlanDetailPage({
               <Progress value={progressPercent} className="h-2" />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Paid: {formatCents(totalPaidCents)}</span>
-                <span>Remaining: {formatCents(plan.totalWithFeeCents - totalPaidCents)}</span>
+                <span>
+                  Remaining: {formatCents(Math.max(0, plan.totalWithFeeCents - totalPaidCents))}
+                </span>
               </div>
             </div>
           </CardContent>

@@ -53,7 +53,7 @@ export default function OwnerPlansPage() {
     (p) => p.status === 'active' || p.status === 'deposit_paid' || p.status === 'pending',
   );
   const totalOutstanding = allPlans.reduce(
-    (sum, p) => sum + (p.totalWithFeeCents - p.totalPaidCents),
+    (sum, p) => sum + Math.max(0, p.totalWithFeeCents - p.totalPaidCents),
     0,
   );
   const nextPaymentPlan = activePlans.find((p) => p.nextPaymentAt);
@@ -146,7 +146,7 @@ export default function OwnerPlansPage() {
                         <div>
                           <p className="text-muted-foreground">Remaining</p>
                           <p className="font-medium">
-                            {formatCents(plan.totalWithFeeCents - plan.totalPaidCents)}
+                            {formatCents(Math.max(0, plan.totalWithFeeCents - plan.totalPaidCents))}
                           </p>
                         </div>
                       </div>

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ClientList } from './_components/client-list';
+import { ClientStats } from './_components/client-stats';
 
 export default function ClinicClientsPage() {
   return (
@@ -19,6 +20,10 @@ export default function ClinicClientsPage() {
 
       <div className="mt-8">
         <ClientList />
+      </div>
+
+      <div className="mt-8">
+        <ClientStats />
       </div>
     </div>
   );

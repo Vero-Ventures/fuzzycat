@@ -54,7 +54,7 @@ export default function OwnerPlanDetailPage({ params }: { params: Promise<{ plan
   const totalExpected = 1 + plan.numInstallments;
   const progressPercent =
     totalExpected > 0 ? Math.round((plan.succeededCount / totalExpected) * 100) : 0;
-  const remainingCents = plan.totalWithFeeCents - plan.totalPaidCents;
+  const remainingCents = Math.max(0, plan.totalWithFeeCents - plan.totalPaidCents);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

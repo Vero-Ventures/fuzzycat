@@ -417,6 +417,34 @@ export const clinicRouter = router({
     return { status: 'active' as const, alreadyActive: false };
   }),
 
+  /**
+   * Summary stats for the clinic's client list page.
+   * Returns: active plans count, total outstanding cents, default rate.
+   */
+  getClientStats: clinicProcedure.query(async ({ ctx }) => {
+    const { clinicId } = ctx;
+
+    const [result] = await ctx.db
+      .select({
+        activePlans: sql<number>`count(*) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+        totalOutstandingCents: sql<number>`coalesce(sum(${plans.remainingCents}) filter (where ${plans.status} in ('active', 'deposit_paid')), 0)`,
+        totalPlans: sql<number>`count(*)`,
+        defaultedPlans: sql<number>`count(*) filter (where ${plans.status} = 'defaulted')`,
+      })
+      .from(plans)
+      .where(eq(plans.clinicId, clinicId));
+
+    const total = Number(result?.totalPlans ?? 0);
+    const defaulted = Number(result?.defaultedPlans ?? 0);
+    const defaultRate = total > 0 ? (defaulted / total) * 100 : 0;
+
+    return {
+      activePlans: Number(result?.activePlans ?? 0),
+      totalOutstandingCents: Number(result?.totalOutstandingCents ?? 0),
+      defaultRate: Math.round(defaultRate * 100) / 100,
+    };
+  }),
+
   // ── Dashboard procedures (Issue #27) ─────────────────────────────
 
   /**

@@ -20,7 +20,7 @@ export function RecentPayments() {
   const trpc = useTRPC();
   const { data: plans, isLoading: plansLoading } = useQuery(trpc.owner.getPlans.queryOptions());
 
-  const activePlanIds = (plans ?? []).slice(0, 5).map((p) => p.id);
+  const activePlanIds = (plans ?? []).map((p) => p.id);
 
   const paymentQueries = useQueries({
     queries: activePlanIds.map((planId) =>

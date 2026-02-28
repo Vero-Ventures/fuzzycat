@@ -14,7 +14,6 @@ export default function ClinicLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -93,16 +92,7 @@ export default function ClinicLoginPage() {
               className="mt-1.5"
             />
           </div>
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={keepLoggedIn}
-                onChange={(e) => setKeepLoggedIn(e.target.checked)}
-                className="rounded border-input"
-              />
-              Keep me logged in
-            </label>
+          <div className="flex items-center justify-end">
             <Link
               href="/forgot-password"
               className="text-sm font-medium text-primary hover:text-primary/80"

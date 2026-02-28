@@ -25,7 +25,11 @@ export default function OwnerPlanDetailPage({ params }: { params: Promise<{ plan
   const { planId } = use(params);
   const trpc = useTRPC();
 
-  const { data: plans, isLoading, error } = useQuery(trpc.owner.getPlans.queryOptions());
+  const {
+    data: plan,
+    isLoading,
+    error,
+  } = useQuery(trpc.owner.getPlanById.queryOptions({ planId }));
 
   if (isLoading) {
     return (
@@ -39,19 +43,10 @@ export default function OwnerPlanDetailPage({ params }: { params: Promise<{ plan
     );
   }
 
-  if (error || !plans) {
+  if (error || !plan) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <p className="text-sm text-muted-foreground">Unable to load plan details.</p>
-      </div>
-    );
-  }
-
-  const plan = plans.find((p) => p.id === planId);
-  if (!plan) {
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <p className="text-sm text-muted-foreground">Plan not found.</p>
       </div>
     );
   }

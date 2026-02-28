@@ -56,6 +56,8 @@ mock.module('@/server/db/schema', () => ({
     plaidItemId: 'plaidItemId',
     plaidAccessToken: 'plaidAccessToken',
   },
+  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  petsRelations: {},
 }));
 
 const { POST } = await import('@/app/api/webhooks/plaid/route');

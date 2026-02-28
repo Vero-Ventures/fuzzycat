@@ -63,6 +63,8 @@ mock.module('@/server/db/schema', () => ({
     phone: 'owners.phone',
     petName: 'owners.pet_name',
   },
+  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  petsRelations: {},
   softCollectionStageEnum: mock(),
 }));
 

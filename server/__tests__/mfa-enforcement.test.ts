@@ -31,6 +31,8 @@ mock.module('@/server/db', () => ({
 mock.module('@/server/db/schema', () => ({
   clinics: { id: 'clinics.id', authId: 'clinics.auth_id' },
   owners: { id: 'owners.id', authId: 'owners.auth_id' },
+  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  petsRelations: {},
 }));
 
 const {

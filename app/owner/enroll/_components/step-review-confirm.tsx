@@ -51,8 +51,11 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
     updateData({ captchaToken: null });
   }, [updateData]);
 
+  const needsAchAuth = data.paymentMethod === 'bank_account';
+
   const canContinue =
     data.disclaimersAccepted &&
+    (!needsAchAuth || data.achAuthorizationAccepted) &&
     data.captchaVerified &&
     (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? !!data.captchaToken : true);
 
@@ -206,6 +209,23 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
             </ul>
           </Label>
         </div>
+
+        {needsAchAuth && (
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="ach-authorization"
+              checked={data.achAuthorizationAccepted}
+              onCheckedChange={(checked) => {
+                updateData({ achAuthorizationAccepted: checked === true });
+              }}
+            />
+            <Label htmlFor="ach-authorization" className="text-sm leading-relaxed font-normal">
+              I authorize FuzzyCat to initiate ACH Direct Debit entries from my bank account for the
+              installment payments described above. I understand that this authorization will remain
+              in effect until all installment payments are completed or I cancel my payment plan.
+            </Label>
+          </div>
+        )}
       </div>
 
       {/* CAPTCHA */}

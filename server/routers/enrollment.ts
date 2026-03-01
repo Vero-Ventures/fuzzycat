@@ -47,6 +47,14 @@ export const enrollmentRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      // Reject enrollments from New York state (pending DFS BNPL Act regulations)
+      if (input.ownerData.addressState?.toUpperCase() === 'NY') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Payment plans are not currently available in New York state.',
+        });
+      }
+
       // Admin users bypass clinic ownership check
       if (ctx.session.role !== 'admin') {
         await assertClinicOwnership(ctx.session.userId, input.clinicId);

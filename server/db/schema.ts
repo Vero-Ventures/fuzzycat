@@ -167,6 +167,7 @@ export const payments = pgTable(
     index('idx_payments_scheduled').on(table.scheduledAt),
     index('idx_payments_status').on(table.status),
     index('idx_payments_stripe_pi').on(table.stripePaymentIntentId),
+    index('idx_payments_due').on(table.scheduledAt, table.status, table.type),
     unique('uq_payments_plan_sequence').on(table.planId, table.sequenceNum),
     check('ck_payments_amount_positive', sql`${table.amountCents} > 0`),
   ],
@@ -188,6 +189,7 @@ export const payouts = pgTable(
   },
   (table) => [
     index('idx_payouts_clinic').on(table.clinicId),
+    index('idx_payouts_plan').on(table.planId),
     index('idx_payouts_payment').on(table.paymentId),
     check('ck_payouts_amount_positive', sql`${table.amountCents} > 0`),
   ],
@@ -243,7 +245,10 @@ export const auditLog = pgTable(
     ipAddress: inet('ip_address'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
-  (table) => [index('idx_audit_entity').on(table.entityType, table.entityId)],
+  (table) => [
+    index('idx_audit_entity').on(table.entityType, table.entityId),
+    index('idx_audit_actor').on(table.actorId),
+  ],
 );
 
 // ── Relations (for db.query API — no SQL impact) ────────────────────

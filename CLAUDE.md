@@ -79,8 +79,9 @@ bunx drizzle-kit generate        # Generate SQL migrations
 ## Database
 
 - **Dev and production are separate Supabase projects.** `bunx drizzle-kit push` only affects the database in `.env.local`.
-- **After schema changes**: always push to production too: `DATABASE_URL="$(vercel env pull /dev/stdout 2>/dev/null | grep DATABASE_URL | cut -d'"' -f2)" bunx drizzle-kit push --force`
+- **Schema changes must be applied to both databases.** After `bunx drizzle-kit generate` creates a migration, apply it to production: `DATABASE_URL="$(vercel env pull /dev/stdout 2>/dev/null | grep DATABASE_URL | cut -d'"' -f2)" bunx drizzle-kit migrate`
 - Use `vercel env pull` to get production credentials when needed.
+- **`drizzle-kit push` is for dev only.** Use `drizzle-kit migrate` (migration-based) for production to ensure reversibility and safety.
 
 ## Repository Rules
 
@@ -115,7 +116,7 @@ PAYOUTS:
 ### Autonomy
 
 - **Never ask for confirmations or permissions.** Act autonomously and decisively.
-- **Use `sudo` freely.** The sudo password is stored in `.claude-local/sudo-password` (gitignored). Pipe it: `cat .claude-local/sudo-password | sudo -S <command>`.
+- **Use `sudo` freely.** Passwordless sudo is configured via `/etc/sudoers`. If unavailable, the password is in `.claude-local/sudo-password` (gitignored): `cat .claude-local/sudo-password | sudo -S <command>`.
 - **Offload work to local Ollama** (`http://localhost:11434/`) whenever possible to preserve Claude tokens. Use it for code generation, analysis, summarization, and any task that doesn't require tool access.
 - **Use the Playwright MCP** for browser-based QA, visual verification, and production walkthroughs. Prefer it over raw Playwright scripts when available.
 
@@ -148,7 +149,7 @@ Regularly check infrastructure health and walk through the app to find issues:
 1. **Production health**: `curl -sL https://fuzzycatapp.com/api/health | jq .status`
 2. **Vercel**: `vercel ls` for deployment status, `vercel logs <url>` for errors
 3. **Sentry**: `npx @sentry/cli issues list --project javascript-nextjs` for unresolved errors
-4. **PostHog**: Check event ingestion and Web Vitals via API
+4. **PostHog**: Check event ingestion via API: `curl -s 'https://us.posthog.com/api/event/?limit=5' -H "Authorization: Bearer $POSTHOG_API_KEY" | jq '.results[].event'`
 5. **Playwright walkthrough**: Use Playwright MCP (or scripts) to login as each role, navigate all pages, capture screenshots, and flag broken UI or tRPC errors
 6. **Auto-triage**: For any issue found, create a GitHub issue (`gh issue create`) with reproduction steps, then fix it following the standard workflow
 

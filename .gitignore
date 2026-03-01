@@ -56,8 +56,9 @@ playwright-report/
 e2e/auth-state/*.json
 e2e/screenshots/
 
-# claude code local config (secrets)
+# claude code local config (secrets, machine-specific permissions)
 .claude-local/
+.claude/settings.local.json
 
 # playwright MCP logs
 .playwright-mcp/

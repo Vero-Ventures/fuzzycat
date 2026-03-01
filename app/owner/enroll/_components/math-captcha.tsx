@@ -88,7 +88,11 @@ export function MathCaptcha({ onVerified }: MathCaptchaProps) {
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
-      {error && <p className="text-xs text-destructive">Incorrect answer. Please try again.</p>}
+      {error && (
+        <p role="alert" aria-live="polite" className="text-xs text-destructive">
+          Incorrect answer. Please try again.
+        </p>
+      )}
     </div>
   );
 }

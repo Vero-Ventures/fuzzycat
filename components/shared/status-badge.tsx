@@ -48,7 +48,12 @@ export function StatusBadge({ status, size = 'md', className }: StatusBadgeProps
   const sizeClass = sizeStyles[size];
 
   return (
-    <Badge variant="outline" className={cn(colorClass, sizeClass, className)}>
+    <Badge
+      variant="outline"
+      role="status"
+      aria-label={formatStatus(status)}
+      className={cn(colorClass, sizeClass, className)}
+    >
       {formatStatus(status)}
     </Badge>
   );

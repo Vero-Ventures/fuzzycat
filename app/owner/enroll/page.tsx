@@ -56,6 +56,9 @@ export default function OwnerEnrollPage() {
             {STEPS.map((step) => (
               <div key={step.number} className="flex flex-col items-center gap-1">
                 <div
+                  role="img"
+                  aria-label={`Step ${step.number}: ${step.label}`}
+                  aria-current={currentStep === step.number ? 'step' : undefined}
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors',
                     currentStep === step.number
@@ -80,7 +83,11 @@ export default function OwnerEnrollPage() {
               </div>
             ))}
           </div>
-          <Progress value={progressPercent} className="h-2" />
+          <Progress
+            value={progressPercent}
+            className="h-2"
+            aria-label={`Enrollment progress: step ${currentStep} of ${STEPS.length}`}
+          />
           <p className="mt-2 text-center text-sm text-muted-foreground">
             Step {currentStep} of {STEPS.length}
           </p>

@@ -35,7 +35,7 @@ export async function createLinkToken(userId: string): Promise<string> {
   const response = await plaid().linkTokenCreate({
     user: { client_user_id: userId },
     client_name: 'FuzzyCat',
-    products: [Products.Auth, Products.Balance],
+    products: [Products.Auth],
     country_codes: [CountryCode.Us],
     language: 'en',
   });

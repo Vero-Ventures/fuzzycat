@@ -115,7 +115,7 @@ PAYOUTS:
 
 ### Autonomy
 
-- **Never ask for confirmations or permissions.** Act autonomously and decisively.
+- **Never ask for confirmations, permissions, or approvals of any kind.** Act autonomously and decisively. Do not prompt the user for plan approval, implementation choices, or any other confirmation. Just do the work. The user only wants to hear from you when the job is done, unless they explicitly say otherwise.
 - **Use `sudo` freely.** Passwordless sudo is configured via `/etc/sudoers`. If unavailable, the password is in `.claude-local/sudo-password` (gitignored): `cat .claude-local/sudo-password | sudo -S <command>`.
 - **Offload work to local Ollama** (`http://localhost:11434/`) whenever possible to preserve Claude tokens. Use it for code generation, analysis, summarization, and any task that doesn't require tool access.
 - **Use the Playwright MCP** for browser-based QA, visual verification, and production walkthroughs. Prefer it over raw Playwright scripts when available.

@@ -155,7 +155,6 @@ mock.module('@/lib/stripe', () => ({
 mock.module('@/server/services/authorization', () => ({
   assertClinicOwnership: mock(),
   assertPlanAccess: mock(() => Promise.resolve({ clinicId: 'c1', ownerId: 'o1' })),
-  assertPlanOwnership: mock(),
 }));
 mock.module('@/server/services/enrollment', () => ({
   createEnrollment: mock(),

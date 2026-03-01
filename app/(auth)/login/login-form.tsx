@@ -46,8 +46,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       const destination = isSafeRedirect ? redirectTo : ROLE_HOME[role];
       router.push(destination);
       router.refresh();
-    } catch (error) {
-      console.error('Login form submission error:', error);
+    } catch {
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);

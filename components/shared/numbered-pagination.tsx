@@ -69,6 +69,7 @@ export function NumberedPagination({
         className="h-8 w-8"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
+        aria-label="Previous page"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -84,6 +85,8 @@ export function NumberedPagination({
             size="icon"
             className="h-8 w-8"
             onClick={() => onPageChange(item.page)}
+            aria-label={`Page ${item.page}`}
+            aria-current={item.page === currentPage ? 'page' : undefined}
           >
             {item.page}
           </Button>
@@ -95,6 +98,7 @@ export function NumberedPagination({
         className="h-8 w-8"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
+        aria-label="Next page"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

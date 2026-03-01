@@ -70,7 +70,7 @@ bun install
 ### Environment Setup
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 Fill in your credentials — see `.env.example` for all required and optional variables. Key services:

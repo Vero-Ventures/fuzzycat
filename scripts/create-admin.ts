@@ -1,3 +1,7 @@
+/**
+ * Create a Supabase Auth user with the admin role.
+ * Usage: bun run db:create-admin <email> <password>
+ */
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const email = process.argv[2];

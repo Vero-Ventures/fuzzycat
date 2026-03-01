@@ -1,3 +1,7 @@
+/**
+ * Seed the dev database with sample clinics, owners, plans, payments, and payouts.
+ * Usage: bun run db:seed
+ */
 import {
   CLINIC_SHARE_RATE,
   DEPOSIT_RATE,

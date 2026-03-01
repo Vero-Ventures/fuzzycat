@@ -18,10 +18,10 @@ const ownerDataSchema = z.object({
   phone: z.string().min(1, 'Phone number is required'),
   petName: z.string().min(1, 'Pet name is required'),
   paymentMethod: z.enum(['debit_card', 'bank_account']),
-  addressLine1: z.string().optional(),
-  addressCity: z.string().optional(),
-  addressState: z.string().optional(),
-  addressZip: z.string().optional(),
+  addressLine1: z.string().max(200).optional(),
+  addressCity: z.string().max(100).optional(),
+  addressState: z.string().max(2).optional(),
+  addressZip: z.string().max(10).optional(),
 });
 
 export const enrollmentRouter = router({

@@ -1,3 +1,4 @@
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { publicEnv } from '@/lib/env';
 import {
@@ -37,7 +38,10 @@ export const paymentRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (!isAppUrl(input.successUrl) || !isAppUrl(input.cancelUrl)) {
-        throw new Error('Redirect URLs must belong to the application domain');
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Redirect URLs must belong to the application domain',
+        });
       }
 
       const result = await processDeposit({

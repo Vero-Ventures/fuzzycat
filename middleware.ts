@@ -117,7 +117,10 @@ export async function middleware(request: NextRequest) {
     passThrough.headers.set('Content-Security-Policy', buildCspHeader());
     passThrough.headers.set('X-Content-Type-Options', 'nosniff');
     passThrough.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    passThrough.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    passThrough.headers.set(
+      'Permissions-Policy',
+      'camera=(), geolocation=(), microphone=(), payment=()',
+    );
     return passThrough;
   }
 
@@ -212,7 +215,10 @@ export async function middleware(request: NextRequest) {
   supabaseResponse.headers.set('Server-Timing', `middleware;dur=${duration.toFixed(1)}`);
   supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff');
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  supabaseResponse.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  supabaseResponse.headers.set(
+    'Permissions-Policy',
+    'camera=(), geolocation=(), microphone=(), payment=()',
+  );
 
   return supabaseResponse;
 }

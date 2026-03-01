@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getUserRole, ROLE_HOME } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
+import { checkLoginRateLimit } from '../../actions';
 
 export function OwnerLoginForm() {
   const router = useRouter();
@@ -22,6 +23,12 @@ export function OwnerLoginForm() {
     setLoading(true);
 
     try {
+      const { error: rateLimitError } = await checkLoginRateLimit();
+      if (rateLimitError) {
+        setError(rateLimitError);
+        return;
+      }
+
       const supabase = createClient();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,

@@ -7,6 +7,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   experimental: {
     clientTraceMetadata: ['sentry-trace', 'baggage'],
     optimizePackageImports: [

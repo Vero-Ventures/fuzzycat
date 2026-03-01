@@ -111,8 +111,8 @@ export const ownerRouter = router({
           .string()
           .regex(/^\+[1-9]\d{1,14}$/, 'Phone must be in E.164 format (e.g., +15551234567)')
           .optional(),
-        addressLine1: z.string().min(1, 'Address is required').optional(),
-        addressCity: z.string().min(1, 'City is required').optional(),
+        addressLine1: z.string().min(1, 'Address is required').max(200).optional(),
+        addressCity: z.string().min(1, 'City is required').max(100).optional(),
         addressState: z.string().length(2, 'State must be a 2-letter abbreviation').optional(),
         addressZip: z
           .string()

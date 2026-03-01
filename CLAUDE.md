@@ -63,7 +63,7 @@ bunx drizzle-kit generate        # Generate SQL migrations
 ## Security
 
 - **PCI SAQ A**: Servers never touch card data. Use Stripe Checkout and Plaid Link (both hosted). Never store PAN, CVV, bank account numbers, or routing numbers.
-- **Authorization**: All tRPC procedures guarded by `assertClinicOwnership()`, `assertPlanAccess()`, or `assertPlanOwnership()`.
+- **Authorization**: All tRPC procedures guarded by `assertClinicOwnership()` or `assertPlanAccess()`.
 - **CSP**: `'self' 'unsafe-inline' https:` for scripts via middleware. Nonce-based `strict-dynamic` was removed because Next.js SPA navigation injects inline scripts without nonces.
 - **Webhook verification**: Plaid via JWT validation, Stripe via signature verification. Stripe webhooks return 200 even on handler errors (prevents retry storms).
 - **MFA**: Feature-flagged via `ENABLE_MFA`. Enforced at middleware for clinic/admin routes.

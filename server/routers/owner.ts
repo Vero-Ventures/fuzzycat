@@ -1,8 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { logger } from '@/lib/logger';
+import { plaid } from '@/lib/plaid';
 import { stripe } from '@/lib/stripe';
 import { clinics, owners, payments, pets, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
@@ -56,6 +57,78 @@ async function fetchBankAccountDetails(
     });
   }
   return null;
+}
+
+/** Detach a card or bank source from Stripe. Logs errors but does not throw. */
+async function detachStripeInstrument(
+  method: 'debit_card' | 'bank_account',
+  owner: {
+    stripeCustomerId: string | null;
+    stripeCardPaymentMethodId: string | null;
+    stripeAchPaymentMethodId: string | null;
+    plaidAccessToken: string | null;
+  },
+  ownerId: string,
+): Promise<void> {
+  if (method === 'debit_card' && owner.stripeCardPaymentMethodId) {
+    try {
+      await stripe().paymentMethods.detach(owner.stripeCardPaymentMethodId);
+    } catch (err) {
+      logger.error('Failed to detach card payment method from Stripe', {
+        ownerId,
+        paymentMethodId: owner.stripeCardPaymentMethodId,
+        error: err,
+      });
+    }
+    return;
+  }
+
+  if (method === 'bank_account' && owner.stripeAchPaymentMethodId && owner.stripeCustomerId) {
+    try {
+      await stripe().customers.deleteSource(owner.stripeCustomerId, owner.stripeAchPaymentMethodId);
+    } catch (err) {
+      logger.error('Failed to delete ACH source from Stripe', {
+        ownerId,
+        sourceId: owner.stripeAchPaymentMethodId,
+        error: err,
+      });
+    }
+
+    if (owner.plaidAccessToken) {
+      try {
+        await plaid().itemRemove({ access_token: owner.plaidAccessToken });
+      } catch (err) {
+        logger.error('Failed to remove Plaid item', { ownerId, error: err });
+      }
+    }
+  }
+}
+
+/** Build the DB update fields for removing a payment method. */
+function buildRemoveFields(
+  method: 'debit_card' | 'bank_account',
+  currentMethod: string,
+  otherMethodExists: boolean,
+): { updateFields: Record<string, unknown>; switchedTo: string | null } {
+  const updateFields: Record<string, unknown> = {};
+  let switchedTo: string | null = null;
+
+  if (method === 'debit_card') {
+    updateFields.stripeCardPaymentMethodId = null;
+  } else {
+    updateFields.stripeAchPaymentMethodId = null;
+    updateFields.plaidAccessToken = null;
+    updateFields.plaidItemId = null;
+    updateFields.plaidAccountId = null;
+  }
+
+  if (currentMethod === method && otherMethodExists) {
+    const newMethod = method === 'debit_card' ? 'bank_account' : 'debit_card';
+    updateFields.paymentMethod = newMethod;
+    switchedTo = newMethod;
+  }
+
+  return { updateFields, switchedTo };
 }
 
 export const ownerRouter = router({
@@ -219,6 +292,109 @@ export const ownerRouter = router({
     }),
 
   /**
+   * Remove a saved payment method (debit card or bank account).
+   * Detaches the instrument from Stripe, clears DB fields, and auto-switches
+   * the preference if the other method is available.
+   * Blocks removal if it's the owner's only method and they have active plans.
+   */
+  removePaymentMethod: ownerProcedure
+    .input(
+      z.object({
+        method: z.enum(['debit_card', 'bank_account']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [owner] = await ctx.db
+        .select({
+          stripeCustomerId: owners.stripeCustomerId,
+          stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
+          stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+          plaidAccessToken: owners.plaidAccessToken,
+          paymentMethod: owners.paymentMethod,
+        })
+        .from(owners)
+        .where(eq(owners.id, ctx.ownerId))
+        .limit(1);
+
+      if (!owner) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner not found.' });
+      }
+
+      // Validate the requested method has a saved instrument
+      if (input.method === 'debit_card' && !owner.stripeCardPaymentMethodId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No debit card on file to remove.',
+        });
+      }
+
+      if (input.method === 'bank_account' && !owner.stripeAchPaymentMethodId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'No bank account on file to remove.',
+        });
+      }
+
+      // Check if the other method has a saved instrument
+      const otherMethodHasInstrument =
+        input.method === 'debit_card'
+          ? !!owner.stripeAchPaymentMethodId
+          : !!owner.stripeCardPaymentMethodId;
+
+      // Block removal if this is the only method and owner has active plans
+      if (!otherMethodHasInstrument) {
+        const activePlans = await ctx.db
+          .select({ id: plans.id })
+          .from(plans)
+          .where(
+            and(eq(plans.ownerId, ctx.ownerId), inArray(plans.status, ['active', 'deposit_paid'])),
+          )
+          .limit(1);
+
+        if (activePlans.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message:
+              'Cannot remove your only payment method while you have active plans. Add an alternative payment method first.',
+          });
+        }
+      }
+
+      // Detach from Stripe (logs errors but does not throw)
+      await detachStripeInstrument(input.method, owner, ctx.ownerId);
+
+      // Clear DB fields and auto-switch if needed
+      const { updateFields, switchedTo } = buildRemoveFields(
+        input.method,
+        owner.paymentMethod,
+        otherMethodHasInstrument,
+      );
+
+      await ctx.db.update(owners).set(updateFields).where(eq(owners.id, ctx.ownerId));
+
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action: 'payment_method_removed',
+        oldValue: {
+          method: input.method,
+          paymentMethod: owner.paymentMethod,
+        },
+        newValue: {
+          method: input.method,
+          removed: true,
+          switchedTo,
+        },
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
+      revalidateTag(`owner:${ctx.ownerId}:profile`);
+
+      return { success: true as const, switchedTo };
+    }),
+
+  /**
    * Create a Stripe Checkout Session in setup mode for collecting a debit card.
    * Redirects the user to Stripe's hosted page (avoids needing @stripe/react-stripe-js).
    */
@@ -311,6 +487,28 @@ export const ownerRouter = router({
         });
       }
 
+      // Fetch existing card PM to detach if replacing
+      const [existingOwner] = await ctx.db
+        .select({ stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId })
+        .from(owners)
+        .where(eq(owners.id, ctx.ownerId))
+        .limit(1);
+
+      const oldCardPmId = existingOwner?.stripeCardPaymentMethodId;
+
+      // Detach old card from Stripe if replacing with a different one
+      if (oldCardPmId && oldCardPmId !== paymentMethodId) {
+        try {
+          await stripe().paymentMethods.detach(oldCardPmId);
+        } catch (err) {
+          logger.error('Failed to detach old card payment method from Stripe', {
+            ownerId: ctx.ownerId,
+            oldPaymentMethodId: oldCardPmId,
+            error: err,
+          });
+        }
+      }
+
       await ctx.db
         .update(owners)
         .set({
@@ -322,8 +520,11 @@ export const ownerRouter = router({
       await logAuditEvent({
         entityType: 'owner',
         entityId: ctx.ownerId,
-        action: 'status_changed',
-        oldValue: null,
+        action:
+          oldCardPmId && oldCardPmId !== paymentMethodId
+            ? 'payment_method_replaced'
+            : 'status_changed',
+        oldValue: oldCardPmId ? { stripeCardPaymentMethodId: oldCardPmId } : null,
         newValue: { stripeCardPaymentMethodId: paymentMethodId, paymentMethod: 'debit_card' },
         actorType: 'owner',
         actorId: ctx.ownerId,

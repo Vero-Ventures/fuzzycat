@@ -61,6 +61,46 @@ export async function createLinkToken(userId: string): Promise<string> {
  * @param ownerId - UUID of the pet owner
  * @param accountId - Plaid account ID selected by the user
  */
+
+/** Detach old bank account from Stripe and Plaid if replacing. Returns old ACH ID if replaced. */
+async function detachOldBankAccount(
+  ownerId: string,
+  stripeCustomerId: string,
+  newAchId: string,
+): Promise<string | null> {
+  const [existing] = await db
+    .select({
+      stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+      plaidAccessToken: owners.plaidAccessToken,
+    })
+    .from(owners)
+    .where(eq(owners.id, ownerId))
+    .limit(1);
+
+  const oldAchId = existing?.stripeAchPaymentMethodId;
+  if (!oldAchId || oldAchId === newAchId) return null;
+
+  try {
+    await stripe().customers.deleteSource(stripeCustomerId, oldAchId);
+  } catch (err) {
+    logger.error('Failed to delete old ACH source from Stripe', {
+      ownerId,
+      oldSourceId: oldAchId,
+      error: err,
+    });
+  }
+
+  if (existing?.plaidAccessToken) {
+    try {
+      await plaid().itemRemove({ access_token: existing.plaidAccessToken });
+    } catch (err) {
+      logger.error('Failed to remove old Plaid item', { ownerId, error: err });
+    }
+  }
+
+  return oldAchId;
+}
+
 export async function exchangePublicToken(
   publicToken: string,
   ownerId: string,
@@ -122,6 +162,14 @@ export async function exchangePublicToken(
     throw err;
   }
 
+  // Detach old bank account if replacing with a different one
+  const oldAchId = await detachOldBankAccount(
+    ownerId,
+    owner.stripeCustomerId,
+    stripeAchPaymentMethodId,
+  );
+  const isReplacing = !!oldAchId;
+
   // Store access token, item ID, account ID, and Stripe ACH payment method on owner record
   await db
     .update(owners)
@@ -136,8 +184,8 @@ export async function exchangePublicToken(
   await logAuditEvent({
     entityType: 'owner',
     entityId: ownerId,
-    action: 'status_changed',
-    oldValue: null,
+    action: isReplacing ? 'payment_method_replaced' : 'status_changed',
+    oldValue: isReplacing ? { stripeAchPaymentMethodId: oldAchId } : null,
     newValue: { plaidItemId: itemId, stripeAchPaymentMethodId, bankConnected: true },
     actorType: 'owner',
     actorId: ownerId,

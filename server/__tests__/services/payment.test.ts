@@ -22,12 +22,20 @@ const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_transfer_789' }
 
 const mockCustomersUpdate = mock(() => Promise.resolve({}));
 
+const mockPaymentMethodsRetrieve = mock((_id: string) =>
+  Promise.resolve({ id: _id, customer: 'cus_test' }),
+);
+const mockCustomersRetrieveSource = mock((_cust: string, _src: string) =>
+  Promise.resolve({ id: _src, status: 'verified' }),
+);
+
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     checkout: { sessions: { create: mockCheckoutSessionsCreate } },
     paymentIntents: { create: mockPaymentIntentsCreate },
     transfers: { create: mockTransfersCreate },
-    customers: { update: mockCustomersUpdate },
+    customers: { update: mockCustomersUpdate, retrieveSource: mockCustomersRetrieveSource },
+    paymentMethods: { retrieve: mockPaymentMethodsRetrieve },
   }),
 }));
 
@@ -233,6 +241,8 @@ function clearAllMocks() {
     mockPaymentIntentsCreate,
     mockTransfersCreate,
     mockCustomersUpdate,
+    mockPaymentMethodsRetrieve,
+    mockCustomersRetrieveSource,
   ]) {
     m.mockClear();
   }
@@ -1273,5 +1283,86 @@ describe('processInstallment — no payment method preference', () => {
 
     expect(result.paymentIntentId).toBe('pi_ach_789');
     expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Payment method validation in processInstallment ──────────────────
+
+describe('processInstallment — payment method validation', () => {
+  beforeEach(() => {
+    clearAllMocks();
+    setupSelectChain();
+    setupUpdateChain();
+    setupInsertChain();
+  });
+
+  afterEach(clearAllMocks);
+
+  it('proceeds normally when payment method is valid', async () => {
+    mockPaymentMethodsRetrieve.mockImplementation((_id: string) =>
+      Promise.resolve({ id: _id, customer: 'cus_456' }),
+    );
+
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-valid-pm',
+          planId: 'plan-valid',
+          amountCents: 10000,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'debit_card',
+          stripeCardPaymentMethodId: 'pm_card_valid',
+          stripeAchPaymentMethodId: null,
+        },
+      ]);
+
+    const result = await processInstallment({ paymentId: 'pay-valid-pm' });
+    expect(result.paymentIntentId).toBe('pi_ach_789');
+    expect(mockPaymentMethodsRetrieve).toHaveBeenCalledWith('pm_card_valid');
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails payment immediately when payment method is invalid', async () => {
+    mockPaymentMethodsRetrieve.mockImplementation(() =>
+      Promise.reject(new Error('No such PaymentMethod')),
+    );
+
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-invalid-pm',
+          planId: 'plan-invalid',
+          amountCents: 10000,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'debit_card',
+          stripeCardPaymentMethodId: 'pm_card_deleted',
+          stripeAchPaymentMethodId: null,
+        },
+      ]);
+
+    // handlePaymentFailure will use a transaction — mock it
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-invalid-pm', status: 'pending', retryCount: 0, planId: 'plan-invalid' },
+    ]);
+
+    await expect(processInstallment({ paymentId: 'pay-invalid-pm' })).rejects.toThrow(
+      'no longer valid',
+    );
+    // PaymentIntent should NOT have been created
+    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
   });
 });

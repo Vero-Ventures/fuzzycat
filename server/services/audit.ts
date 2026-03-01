@@ -34,6 +34,8 @@ export const AUDIT_ACTIONS = [
   'payout_initiated',
   'claim_created',
   'payments_written_off',
+  'payment_method_removed',
+  'payment_method_replaced',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

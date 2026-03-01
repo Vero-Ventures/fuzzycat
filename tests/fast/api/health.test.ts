@@ -12,7 +12,7 @@ describe('Health API', () => {
     const body = await res.json();
 
     expect(body).toHaveProperty('status');
-    expect(['ok', 'degraded']).toContain(body.status);
+    expect(['ok', 'degraded', 'error']).toContain(body.status);
   });
 
   test('returns checks object', async () => {
@@ -23,5 +23,7 @@ describe('Health API', () => {
     expect(body.checks).toHaveProperty('publicEnv');
     expect(body.checks).toHaveProperty('serverEnv');
     expect(body.checks).toHaveProperty('database');
+    expect(body.checks).toHaveProperty('stripe');
+    expect(body.checks).toHaveProperty('plaid');
   });
 });

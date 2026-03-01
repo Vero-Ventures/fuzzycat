@@ -57,7 +57,7 @@ export const clinics = pgTable(
     addressCity: text('address_city'),
     addressState: text('address_state').notNull(),
     addressZip: text('address_zip').notNull(),
-    stripeAccountId: text('stripe_account_id'),
+    stripeAccountId: text('stripe_account_id').unique(),
     status: clinicStatusEnum('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

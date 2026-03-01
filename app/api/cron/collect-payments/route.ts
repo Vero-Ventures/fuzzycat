@@ -20,50 +20,64 @@ interface CollectionResults {
   planEscalations: number;
 }
 
+const BATCH_SIZE = 5;
+
 async function processDuePayments(results: CollectionResults) {
   const duePayments = await identifyDuePayments();
   results.duePayments = duePayments.length;
 
-  for (const payment of duePayments) {
-    try {
-      await processInstallment({ paymentId: payment.id });
-      results.processed++;
-    } catch (err) {
-      results.failed++;
-      logger.error('Failed to process installment', {
-        paymentId: payment.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  for (let i = 0; i < duePayments.length; i += BATCH_SIZE) {
+    const batch = duePayments.slice(i, i + BATCH_SIZE);
+    const settled = await Promise.allSettled(
+      batch.map((payment) => processInstallment({ paymentId: payment.id })),
+    );
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        results.processed++;
+      } else {
+        results.failed++;
+        logger.error('Failed to process installment', {
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+      }
     }
   }
 }
 
 async function processSoftCollections(results: CollectionResults) {
   const pendingEscalations = await identifyPendingEscalations();
-  for (const collection of pendingEscalations) {
-    try {
-      await escalateSoftCollection(collection.id);
-      results.softCollectionEscalations++;
-    } catch (err) {
-      logger.error('Failed to escalate soft collection', {
-        collectionId: collection.id,
-        error: err instanceof Error ? err.message : String(err),
-      });
+
+  for (let i = 0; i < pendingEscalations.length; i += BATCH_SIZE) {
+    const batch = pendingEscalations.slice(i, i + BATCH_SIZE);
+    const settled = await Promise.allSettled(
+      batch.map((collection) => escalateSoftCollection(collection.id)),
+    );
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        results.softCollectionEscalations++;
+      } else {
+        logger.error('Failed to escalate soft collection', {
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+      }
     }
   }
 }
 
 async function processPlanEscalations(results: CollectionResults) {
   const plansForEscalation = await identifyPlansForEscalation();
-  for (const planId of plansForEscalation) {
-    try {
-      await escalateDefault(planId);
-      results.planEscalations++;
-    } catch (err) {
-      logger.error('Failed to escalate plan to default', {
-        planId,
-        error: err instanceof Error ? err.message : String(err),
-      });
+
+  for (let i = 0; i < plansForEscalation.length; i += BATCH_SIZE) {
+    const batch = plansForEscalation.slice(i, i + BATCH_SIZE);
+    const settled = await Promise.allSettled(batch.map((planId) => escalateDefault(planId)));
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        results.planEscalations++;
+      } else {
+        logger.error('Failed to escalate plan to default', {
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        });
+      }
     }
   }
 }

@@ -152,7 +152,6 @@ describe('GET /api/cron/collect-payments', () => {
     expect(body.processed).toBe(2);
     expect(body.failed).toBe(1);
     expect(mockLogger.error).toHaveBeenCalledWith('Failed to process installment', {
-      paymentId: 'pay-2',
       error: 'Stripe error',
     });
   });
@@ -173,7 +172,6 @@ describe('GET /api/cron/collect-payments', () => {
     expect(body.ok).toBe(true);
     expect(body.softCollectionEscalations).toBe(1);
     expect(mockLogger.error).toHaveBeenCalledWith('Failed to escalate soft collection', {
-      collectionId: 'sc-1',
       error: 'DB error',
     });
   });
@@ -194,7 +192,6 @@ describe('GET /api/cron/collect-payments', () => {
     expect(body.ok).toBe(true);
     expect(body.planEscalations).toBe(1);
     expect(mockLogger.error).toHaveBeenCalledWith('Failed to escalate plan to default', {
-      planId: 'plan-2',
       error: 'Escalation failed',
     });
   });

@@ -699,5 +699,32 @@ describe('Stripe webhook handler', () => {
       // Should NOT call handlePaymentSuccess (idempotent skip)
       expect(mockTransaction).not.toHaveBeenCalled();
     });
+
+    it('returns 200 for empty event data object', async () => {
+      const event = { type: 'checkout.session.completed', data: { object: {} } };
+      mockConstructEvent.mockReturnValue(event);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // No payment_intent means no processing
+      expect(mockSelectLimit).not.toHaveBeenCalled();
+    });
+
+    it('returns 200 for payment_intent.succeeded with no matching payment in DB', async () => {
+      const event = stripeEvent('payment_intent.succeeded', {
+        id: 'pi_totally_unknown',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // No payment found in DB
+      mockSelectLimit.mockResolvedValueOnce([]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should not attempt handlePaymentSuccess since no payment found
+      expect(mockTransaction).not.toHaveBeenCalled();
+    });
   });
 });

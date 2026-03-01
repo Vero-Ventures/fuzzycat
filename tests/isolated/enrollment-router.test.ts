@@ -216,6 +216,34 @@ describe('enrollment.create', () => {
     expect(mockCreateEnrollment).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects New York state enrollments', async () => {
+    createMockChain([[{ id: CLINIC_ID }]]);
+    const caller = createCaller(clinicCtx());
+
+    await expect(
+      caller.create({
+        clinicId: CLINIC_ID,
+        ownerData: { ...VALID_OWNER_DATA, addressState: 'NY' },
+        billAmountCents: 120_000,
+      }),
+    ).rejects.toThrow('not currently available in New York');
+    expect(mockCreateEnrollment).not.toHaveBeenCalled();
+  });
+
+  it('rejects New York state case-insensitively', async () => {
+    createMockChain([[{ id: CLINIC_ID }]]);
+    const caller = createCaller(clinicCtx());
+
+    await expect(
+      caller.create({
+        clinicId: CLINIC_ID,
+        ownerData: { ...VALID_OWNER_DATA, addressState: 'ny' },
+        billAmountCents: 120_000,
+      }),
+    ).rejects.toThrow('not currently available in New York');
+    expect(mockCreateEnrollment).not.toHaveBeenCalled();
+  });
+
   it('wraps service error as BAD_REQUEST', async () => {
     createMockChain([[{ id: CLINIC_ID }]]);
     mockCreateEnrollment.mockRejectedValueOnce(new Error('Clinic is not active'));
@@ -229,6 +257,20 @@ describe('enrollment.create', () => {
         billAmountCents: 120_000,
       }),
     ).rejects.toThrow('Clinic is not active');
+  });
+
+  it('unauthenticated user gets UNAUTHORIZED', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test context
+    const caller = createCaller({ db: dbMock, session: null, supabase: {} } as any);
+
+    await expect(
+      caller.create({
+        clinicId: CLINIC_ID,
+        ownerData: VALID_OWNER_DATA,
+        billAmountCents: 120_000,
+      }),
+    ).rejects.toThrow('Not authenticated');
+    expect(mockCreateEnrollment).not.toHaveBeenCalled();
   });
 });
 

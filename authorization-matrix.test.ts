@@ -165,7 +165,6 @@ mock.module('@/server/services/payment', () => ({
   processDeposit: mock(),
   processInstallment: mock(),
   handlePaymentSuccess: mock(),
-  triggerPayout: mock(),
   handlePaymentFailure: mock(),
   findPaymentByStripeId: mock(),
 }));

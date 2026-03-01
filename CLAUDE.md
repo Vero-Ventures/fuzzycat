@@ -139,14 +139,14 @@ Use **git worktrees** for concurrent work on multiple issues. Each sub-agent fol
 1. Verify no open PRs remain
 2. Pull latest main, clean up worktrees
 3. Run full test suite (`bun run test`)
-4. Verify production deployment: `curl -sL https://fuzzycatapp.com/api/health | jq .status`
+4. Verify production deployment: `curl -sL https://www.fuzzycatapp.com/api/health | jq .status`
 5. Update CLAUDE.md if needed (via PR)
 
 ### Periodic QA & Monitoring
 
 Regularly check infrastructure health and walk through the app to find issues:
 
-1. **Production health**: `curl -sL https://fuzzycatapp.com/api/health | jq .status`
+1. **Production health**: `curl -sL https://www.fuzzycatapp.com/api/health | jq .status`
 2. **Vercel**: `vercel ls` for deployment status, `vercel logs <url>` for errors
 3. **Sentry**: `npx @sentry/cli issues list --project javascript-nextjs` for unresolved errors
 4. **PostHog**: Check event ingestion via API: `curl -s 'https://us.posthog.com/api/event/?limit=5' -H "Authorization: Bearer $POSTHOG_API_KEY" | jq '.results[].event'`

@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import { owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
@@ -517,78 +517,6 @@ export async function handlePaymentSuccess(
       paymentId: payment.id,
       amountCents: payment.amountCents,
     });
-  });
-}
-
-/**
- * Trigger the actual Stripe Connect payout to a clinic for a succeeded payment.
- * This is separated from handlePaymentSuccess to avoid holding a DB transaction
- * open during external Stripe API calls.
- *
- * @deprecated Use the automated payout worker (processPendingPayouts) instead.
- * handlePaymentSuccess now creates pending payout records that the worker processes.
- */
-export async function triggerPayout(paymentId: string): Promise<void> {
-  const { transferToClinic } = await import('@/server/services/stripe/connect');
-
-  const [payment] = await db
-    .select({
-      id: payments.id,
-      planId: payments.planId,
-      amountCents: payments.amountCents,
-      status: payments.status,
-    })
-    .from(payments)
-    .where(eq(payments.id, paymentId))
-    .limit(1);
-
-  if (!payment || payment.status !== 'succeeded') {
-    logger.warn('Cannot trigger payout for non-succeeded payment', { paymentId });
-    return;
-  }
-
-  if (!payment.planId) return;
-
-  const [plan] = await db
-    .select({ clinicId: plans.clinicId })
-    .from(plans)
-    .where(eq(plans.id, payment.planId))
-    .limit(1);
-
-  if (!plan?.clinicId) return;
-
-  const [clinic] = await db
-    .select({ stripeAccountId: clinics.stripeAccountId })
-    .from(clinics)
-    .where(eq(clinics.id, plan.clinicId))
-    .limit(1);
-
-  if (!clinic?.stripeAccountId) {
-    logger.warn('Clinic has no Stripe Connect account for payout', {
-      clinicId: plan.clinicId,
-      paymentId,
-    });
-    return;
-  }
-
-  const riskContributionCents = percentOfCents(payment.amountCents, PLATFORM_RESERVE_RATE);
-  const platformRetainedCents = percentOfCents(payment.amountCents, PLATFORM_FEE_RATE / 2);
-  const transferAmountCents = payment.amountCents - platformRetainedCents - riskContributionCents;
-
-  if (transferAmountCents <= 0) {
-    logger.warn('Transfer amount is zero or negative, skipping payout', {
-      paymentId,
-      transferAmountCents,
-    });
-    return;
-  }
-
-  await transferToClinic({
-    paymentId,
-    planId: payment.planId,
-    clinicId: plan.clinicId,
-    clinicStripeAccountId: clinic.stripeAccountId,
-    transferAmountCents,
   });
 }
 

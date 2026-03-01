@@ -5,6 +5,17 @@ import { AlertCircle, CheckCircle2, CreditCard, Landmark, Loader2 } from 'lucide
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,31 +52,107 @@ function SavedMethodDetails({
   isLoading,
   card,
   bankAccount,
+  disabled,
+  onReplaceCard,
+  onReplaceBank,
+  onRemoveCard,
+  onRemoveBank,
 }: {
   isLoading: boolean;
   card: { brand: string; last4: string } | null | undefined;
   bankAccount: { bankName: string; last4: string } | null | undefined;
+  disabled: boolean;
+  onReplaceCard: () => void;
+  onReplaceBank: () => void;
+  onRemoveCard: () => void;
+  onRemoveBank: () => void;
 }) {
   if (isLoading) return <Skeleton className="h-5 w-48" />;
 
   if (card || bankAccount) {
     return (
-      <div className="text-sm text-muted-foreground">
+      <div className="space-y-2 text-sm text-muted-foreground">
         {card && (
-          <p>
-            {card.brand.charAt(0).toUpperCase() + card.brand.slice(1)} ending in {card.last4}
-          </p>
+          <div className="flex items-center justify-between">
+            <p>
+              {card.brand.charAt(0).toUpperCase() + card.brand.slice(1)} ending in {card.last4}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" disabled={disabled} onClick={onReplaceCard}>
+                Replace
+              </Button>
+              <RemoveConfirmDialog
+                methodLabel="debit card"
+                disabled={disabled}
+                onConfirm={onRemoveCard}
+              />
+            </div>
+          </div>
         )}
         {bankAccount && (
-          <p>
-            {bankAccount.bankName} ****{bankAccount.last4}
-          </p>
+          <div className="flex items-center justify-between">
+            <p>
+              {bankAccount.bankName} ****{bankAccount.last4}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" disabled={disabled} onClick={onReplaceBank}>
+                Replace
+              </Button>
+              <RemoveConfirmDialog
+                methodLabel="bank account"
+                disabled={disabled}
+                onConfirm={onRemoveBank}
+              />
+            </div>
+          </div>
         )}
       </div>
     );
   }
 
   return <p className="text-sm text-muted-foreground">No payment method on file</p>;
+}
+
+function RemoveConfirmDialog({
+  methodLabel,
+  disabled,
+  onConfirm,
+}: {
+  methodLabel: string;
+  disabled: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          className="text-destructive hover:text-destructive"
+        >
+          Remove
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove payment method?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently remove your {methodLabel}. You cannot undo this action.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 function StatusMessage({
@@ -185,6 +272,17 @@ export function PaymentMethodSection() {
     }),
   );
 
+  const removeMutation = useMutation(
+    trpc.owner.removePaymentMethod.mutationOptions({
+      onSuccess: () => {
+        setSaveStatus('saved');
+        invalidateQueries();
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      },
+      onError: (error) => handleMutationError(error, 'Failed to remove payment method.'),
+    }),
+  );
+
   function handleSelectDebitCard() {
     if (profile?.paymentMethod === 'debit_card') return;
     setErrorMessage(null);
@@ -209,6 +307,31 @@ export function PaymentMethodSection() {
     }
   }
 
+  function handleReplaceCard() {
+    setErrorMessage(null);
+    setSaveStatus('saving');
+    const baseUrl = `${window.location.origin}${pathname}`;
+    setupCard.mutate({ successUrl: baseUrl, cancelUrl: baseUrl });
+  }
+
+  function handleReplaceBank() {
+    setErrorMessage(null);
+    setShowPlaidLink(true);
+    createLinkToken.mutate();
+  }
+
+  function handleRemoveCard() {
+    setErrorMessage(null);
+    setSaveStatus('saving');
+    removeMutation.mutate({ method: 'debit_card' });
+  }
+
+  function handleRemoveBank() {
+    setErrorMessage(null);
+    setSaveStatus('saving');
+    removeMutation.mutate({ method: 'bank_account' });
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -229,7 +352,8 @@ export function PaymentMethodSection() {
     setupCard.isPending ||
     confirmCard.isPending ||
     createLinkToken.isPending ||
-    exchangeToken.isPending;
+    exchangeToken.isPending ||
+    removeMutation.isPending;
 
   return (
     <Card>
@@ -273,6 +397,11 @@ export function PaymentMethodSection() {
           isLoading={isLoadingDetails}
           card={paymentDetails?.card}
           bankAccount={paymentDetails?.bankAccount}
+          disabled={isBusy}
+          onReplaceCard={handleReplaceCard}
+          onReplaceBank={handleReplaceBank}
+          onRemoveCard={handleRemoveCard}
+          onRemoveBank={handleRemoveBank}
         />
 
         {isBusy && (

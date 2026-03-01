@@ -67,15 +67,32 @@ const mockSetupIntentsRetrieve = mock((_id: string) =>
     payment_method: 'pm_card_new_456' as string | null,
   }),
 );
+const mockPaymentMethodsDetach = mock((_id: string) => Promise.resolve({ id: _id }));
+const mockCustomersDeleteSource = mock((_cust: string, _src: string) =>
+  Promise.resolve({ id: _src, deleted: true }),
+);
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
-    paymentMethods: { retrieve: mockPaymentMethodsRetrieve },
-    customers: { retrieveSource: mockCustomersRetrieveSource },
+    paymentMethods: { retrieve: mockPaymentMethodsRetrieve, detach: mockPaymentMethodsDetach },
+    customers: {
+      retrieveSource: mockCustomersRetrieveSource,
+      deleteSource: mockCustomersDeleteSource,
+    },
     checkout: {
       sessions: { create: mockCheckoutSessionsCreate, retrieve: mockCheckoutSessionsRetrieve },
     },
     setupIntents: { retrieve: mockSetupIntentsRetrieve },
+  }),
+}));
+
+// ── Plaid mocks ──────────────────────────────────────────────────────
+
+const mockPlaidItemRemove = mock((_params: unknown) => Promise.resolve({ data: {} }));
+
+mock.module('@/lib/plaid', () => ({
+  plaid: () => ({
+    itemRemove: mockPlaidItemRemove,
   }),
 }));
 
@@ -115,6 +132,9 @@ function clearStripeMocks() {
   mockCheckoutSessionsCreate.mockClear();
   mockCheckoutSessionsRetrieve.mockClear();
   mockSetupIntentsRetrieve.mockClear();
+  mockPaymentMethodsDetach.mockClear();
+  mockCustomersDeleteSource.mockClear();
+  mockPlaidItemRemove.mockClear();
 }
 
 // ── healthCheck ───────────────────────────────────────────────────────
@@ -702,5 +722,229 @@ describe('owner.getDashboardSummary', () => {
     expect(result.nextPayment).toBeNull();
     expect(result.totalPaidCents).toBe(127200);
     expect(result.activePlans).toBe(0);
+  });
+});
+
+// ── removePaymentMethod ──────────────────────────────────────────────
+
+describe('owner.removePaymentMethod', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('removes debit card successfully — detaches from Stripe and clears DB', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: 'pm_card_123',
+          stripeAchPaymentMethodId: null,
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch
+      [], // no active plans
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.removePaymentMethod({ method: 'debit_card' });
+    expect(result.success).toBe(true);
+    expect(mockPaymentMethodsDetach).toHaveBeenCalledWith('pm_card_123');
+  });
+
+  it('removes bank account — deletes Stripe source and Plaid item', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'ba_ach_123',
+          plaidAccessToken: 'access-sandbox-123',
+          paymentMethod: 'bank_account',
+        },
+      ], // owner fetch
+      [], // no active plans
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.removePaymentMethod({ method: 'bank_account' });
+    expect(result.success).toBe(true);
+    expect(mockCustomersDeleteSource).toHaveBeenCalledWith('cus_test', 'ba_ach_123');
+    expect(mockPlaidItemRemove).toHaveBeenCalledWith({ access_token: 'access-sandbox-123' });
+  });
+
+  it('auto-switches to other method when removing active preference', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: 'pm_card_123',
+          stripeAchPaymentMethodId: 'ba_ach_456',
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch (card is active, bank also exists)
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.removePaymentMethod({ method: 'debit_card' });
+    expect(result.success).toBe(true);
+    expect(result.switchedTo).toBe('bank_account');
+  });
+
+  it('blocks removal when only method and active plans exist', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: 'pm_card_123',
+          stripeAchPaymentMethodId: null,
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch (only card, no bank)
+      [{ id: PLAN_ID }], // has active plans
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    await expect(caller.removePaymentMethod({ method: 'debit_card' })).rejects.toThrow(TRPCError);
+  });
+
+  it('allows removal of non-active method with active plans', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: 'pm_card_123',
+          stripeAchPaymentMethodId: 'ba_ach_456',
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch (both methods exist)
+      [{ id: OWNER_ID }], // DB update (no active plan check needed — other method exists)
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    // Removing bank_account while debit_card is active and has instrument
+    const result = await caller.removePaymentMethod({ method: 'bank_account' });
+    expect(result.success).toBe(true);
+  });
+
+  it('throws when nothing to remove', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: null,
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch (no card on file)
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    await expect(caller.removePaymentMethod({ method: 'debit_card' })).rejects.toThrow(TRPCError);
+  });
+
+  it('handles Stripe detach error gracefully — still clears DB', async () => {
+    mockPaymentMethodsDetach.mockImplementationOnce(() =>
+      Promise.reject(new Error('Stripe error')),
+    );
+
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [
+        {
+          stripeCustomerId: 'cus_test',
+          stripeCardPaymentMethodId: 'pm_card_123',
+          stripeAchPaymentMethodId: null,
+          plaidAccessToken: null,
+          paymentMethod: 'debit_card',
+        },
+      ], // owner fetch
+      [], // no active plans
+      [{ id: OWNER_ID }], // DB update (still proceeds)
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.removePaymentMethod({ method: 'debit_card' });
+    expect(result.success).toBe(true);
+    expect(mockPaymentMethodsDetach).toHaveBeenCalled();
+  });
+});
+
+// ── confirmCardPaymentMethod — card replacement ──────────────────────
+
+describe('owner.confirmCardPaymentMethod — replacement', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('detaches old card when confirming a new one', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCardPaymentMethodId: 'pm_old_123' }], // existing owner card
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
+    expect(result.success).toBe(true);
+    expect(mockPaymentMethodsDetach).toHaveBeenCalledWith('pm_old_123');
+  });
+
+  it('does not detach when first card setup', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCardPaymentMethodId: null }], // no existing card
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
+    expect(mockPaymentMethodsDetach).not.toHaveBeenCalled();
+  });
+
+  it('does not detach when same card re-confirmed', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCardPaymentMethodId: 'pm_card_new_456' }], // same as setupIntent returns
+      [{ id: OWNER_ID }], // DB update
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
+    expect(mockPaymentMethodsDetach).not.toHaveBeenCalled();
+  });
+
+  it('detach error does not block new card confirmation', async () => {
+    mockPaymentMethodsDetach.mockImplementationOnce(() =>
+      Promise.reject(new Error('Stripe detach failed')),
+    );
+
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCardPaymentMethodId: 'pm_old_123' }], // existing card
+      [{ id: OWNER_ID }], // DB update (still proceeds)
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
+    expect(result.success).toBe(true);
+    expect(result.paymentMethodId).toBe('pm_card_new_456');
   });
 });

@@ -97,6 +97,34 @@ export async function processDeposit(params: {
 }
 
 /**
+ * Validate that a Stripe payment method still exists and is usable.
+ * For card PMs uses paymentMethods.retrieve; for ACH sources uses customers.retrieveSource.
+ * Returns true if valid, false if the PM has been deleted or is invalid.
+ */
+async function validatePaymentMethod(params: {
+  paymentMethodId: string;
+  paymentMethodType: 'card' | 'us_bank_account';
+  stripeCustomerId: string;
+}): Promise<boolean> {
+  try {
+    if (params.paymentMethodType === 'card') {
+      const pm = await stripe().paymentMethods.retrieve(params.paymentMethodId);
+      return pm.customer !== null;
+    }
+    // ACH: retrieve the source (legacy Source/BankAccount)
+    await stripe().customers.retrieveSource(params.stripeCustomerId, params.paymentMethodId);
+    return true;
+  } catch (err) {
+    logger.error('Payment method validation failed', {
+      paymentMethodId: params.paymentMethodId,
+      paymentMethodType: params.paymentMethodType,
+      error: err,
+    });
+    return false;
+  }
+}
+
+/**
  * Resolve which Stripe payment method and type to use for an installment charge.
  * An explicit override takes priority; otherwise the owner's saved preference is used.
  */
@@ -217,6 +245,25 @@ export async function processInstallment(params: {
 
   // Resolve the payment method: explicit override takes priority, then owner preference
   const resolved = resolvePaymentMethod(params.paymentId, params.paymentMethodId, owner);
+
+  // Validate the payment method still exists in Stripe before charging
+  if (resolved.paymentMethodId && resolved.paymentMethodType) {
+    const isValid = await validatePaymentMethod({
+      paymentMethodId: resolved.paymentMethodId,
+      paymentMethodType: resolved.paymentMethodType,
+      stripeCustomerId: owner.stripeCustomerId,
+    });
+
+    if (!isValid) {
+      await handlePaymentFailure(
+        params.paymentId,
+        'Payment method is no longer valid. Please update your payment method.',
+      );
+      throw new Error(
+        `Payment method ${resolved.paymentMethodId} is no longer valid for payment ${params.paymentId}`,
+      );
+    }
+  }
 
   return createInstallmentPaymentIntent({
     paymentId: params.paymentId,

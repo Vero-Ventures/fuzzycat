@@ -1112,6 +1112,44 @@ describe('handlePaymentSuccess — deposit card save', () => {
     expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
   });
 
+  it('does not activate plan when deposit succeeds but plan already active', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-act',
+          planId: 'plan-1',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
+
+    await handlePaymentSuccess('pay-dep-act', 'pi_dep_already_active');
+
+    // Payment status should be updated to succeeded
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+
+    // Plan should NOT have been activated (no depositPaidAt update)
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const planActivation = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return arg.status === 'active' && 'depositPaidAt' in arg;
+    });
+    expect(planActivation).toBeUndefined();
+  });
+
   it('skips card save when stripePaymentMethodId is not provided', async () => {
     mockTxSelectLimit
       .mockResolvedValueOnce([
@@ -1148,5 +1186,92 @@ describe('handlePaymentSuccess — deposit card save', () => {
       return 'stripeCardPaymentMethodId' in arg;
     });
     expect(pmUpdate).toBeUndefined();
+  });
+});
+
+// ── Tests: handlePaymentFailure — edge cases ─────────────────────────
+
+describe('handlePaymentFailure — edge cases', () => {
+  afterEach(clearAllMocks);
+
+  it('treats null retryCount as zero when checking max retries', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-null-rc', status: 'processing', retryCount: null, planId: 'plan-1' },
+    ]);
+
+    await handlePaymentFailure('pay-null-rc', 'Connection timeout');
+
+    // With null retryCount (treated as 0), should be 'failed' not 'written_off'
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        failureReason: 'Connection timeout',
+      }),
+    );
+  });
+
+  it('marks as written_off when retryCount equals MAX_RETRIES exactly', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-max', status: 'processing', retryCount: 3, planId: 'plan-1' },
+    ]);
+
+    await handlePaymentFailure('pay-max', 'Final failure');
+
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'written_off',
+        failureReason: 'Final failure',
+      }),
+    );
+  });
+
+  it('includes retryCount in audit log newValue', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-audit-rc', status: 'processing', retryCount: 2, planId: 'plan-1' },
+    ]);
+
+    await handlePaymentFailure('pay-audit-rc', 'Declined');
+
+    const auditCall = mockTxInsertValues.mock.calls[0][0] as Record<string, unknown>;
+    const newValue = auditCall.newValue as { retryCount: number };
+    expect(newValue.retryCount).toBe(2);
+  });
+});
+
+// ── Tests: processInstallment — no payment method set ────────────────
+
+describe('processInstallment — no payment method preference', () => {
+  beforeEach(() => {
+    setupSelectChain();
+    setupUpdateChain();
+    setupInsertChain();
+  });
+  afterEach(clearAllMocks);
+
+  it('proceeds without specifying payment method when owner has no preference', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-nopref',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: null,
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: null,
+        },
+      ]);
+
+    const result = await processInstallment({ paymentId: 'pay-nopref' });
+
+    expect(result.paymentIntentId).toBe('pi_ach_789');
+    expect(mockPaymentIntentsCreate).toHaveBeenCalledTimes(1);
   });
 });

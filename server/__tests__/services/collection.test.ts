@@ -685,4 +685,44 @@ describe('retryFailedPayment — edge cases', () => {
       }),
     );
   });
+
+  it('resets failureReason to null on retry', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: 1, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    await retryFailedPayment('pay-1');
+
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failureReason: null,
+      }),
+    );
+  });
+});
+
+// ── Tests: escalateDefault — completed plan guard ────────────────────
+
+describe('escalateDefault — additional guards', () => {
+  afterEach(clearAllMocks);
+
+  it('throws for completed plan', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'plan-1', status: 'completed', remainingCents: 0, clinicId: 'clinic-1' },
+    ]);
+
+    await expect(escalateDefault('plan-1')).rejects.toThrow(
+      'Cannot default plan in status: completed',
+    );
+  });
+
+  it('throws for cancelled plan', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'plan-1', status: 'cancelled', remainingCents: 60_000, clinicId: 'clinic-1' },
+    ]);
+
+    await expect(escalateDefault('plan-1')).rejects.toThrow(
+      'Cannot default plan in status: cancelled',
+    );
+  });
 });

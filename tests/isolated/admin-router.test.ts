@@ -26,7 +26,7 @@ delete process.env.ENABLE_MFA;
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
-import { createMockChain, dbMock, resetDbMocks } from './db-mock';
+import { createMockChain, dbMock, resetDbMocks } from '@/server/__tests__/db-mock';
 
 mock.module('@/server/db', () => ({
   db: dbMock,

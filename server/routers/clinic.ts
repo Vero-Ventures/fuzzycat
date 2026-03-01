@@ -8,6 +8,7 @@ import { stripe } from '@/lib/stripe';
 import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
+import { escapeIlike } from '@/lib/utils/sql';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
@@ -15,11 +16,6 @@ import { createConnectAccount, createOnboardingLink } from '@/server/services/st
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
 // ── Helpers ──────────────────────────────────────────────────────────
-
-/** Escape ILIKE special characters (% and _) in user input */
-function escapeIlike(input: string): string {
-  return input.replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
 
 function getAppUrl(): string {
   const url = publicEnv().NEXT_PUBLIC_APP_URL;

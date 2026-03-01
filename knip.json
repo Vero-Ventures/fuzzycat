@@ -11,7 +11,7 @@
     "*.test.ts"
   ],
   "project": ["**/*.{ts,tsx}"],
-  "ignore": ["drizzle/**", "drizzle.config.ts", "components/ui/**"],
+  "ignore": ["drizzle.config.ts"],
   "ignoreBinaries": ["gitleaks", "semgrep"],
   "drizzle": false,
   "ignoreDependencies": [

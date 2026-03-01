@@ -22,7 +22,7 @@ for (const [key, val] of Object.entries(REQUIRED_ENV_DEFAULTS)) {
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
-import { createMockChain, dbMock, resetDbMocks } from './db-mock';
+import { createMockChain, dbMock, resetDbMocks } from '@/server/__tests__/db-mock';
 
 mock.module('@/server/db', () => ({
   db: dbMock,

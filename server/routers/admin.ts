@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
+import { escapeIlike } from '@/lib/utils/sql';
 import {
   auditLog,
   clinics,
@@ -21,11 +22,6 @@ import {
 import { getRiskPoolBalance, getRiskPoolHealth } from '@/server/services/guarantee';
 import { cancelSoftCollection } from '@/server/services/soft-collection';
 import { adminProcedure, router } from '@/server/trpc';
-
-/** Escape ILIKE special characters (% and _) in user input */
-function escapeIlike(input: string): string {
-  return input.replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
 
 export const adminRouter = router({
   healthCheck: adminProcedure.query(() => {

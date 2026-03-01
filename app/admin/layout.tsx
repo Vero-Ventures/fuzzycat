@@ -23,7 +23,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top header bar */}
         <header className="flex h-14 items-center justify-between border-b bg-card px-6">
-          {/* TODO: implement global admin search (see #265) */}
           <div />
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-green-500" />

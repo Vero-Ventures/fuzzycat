@@ -7,27 +7,6 @@ const PROTECTED_PREFIXES = ['/clinic', '/owner', '/admin'];
 const AUTH_PAGES = ['/login', '/signup'];
 
 /**
- * Routes that are statically generated at build time.
- * These cannot use per-request CSP nonces (the HTML is fixed at build time),
- * so they use a relaxed CSP with 'unsafe-inline' instead of 'strict-dynamic'.
- */
-const STATIC_ROUTES = new Set([
-  '/',
-  '/how-it-works',
-  '/privacy',
-  '/terms',
-  '/support',
-  '/api-docs',
-  '/signup',
-  '/signup/owner',
-  '/signup/clinic',
-  '/login/owner',
-  '/login/clinic',
-  '/forgot-password',
-  '/reset-password',
-]);
-
-/**
  * Parse a Sentry DSN to build the CSP report-uri endpoint.
  * DSN format: https://<key>@<host>/<projectId>
  * Report URI: https://<host>/api/<projectId>/security/?sentry_key=<key>
@@ -68,21 +47,17 @@ function buildCspDirectives(scriptSrc: string, sentryDsn?: string): string {
 }
 
 /**
- * Build CSP header appropriate for the route type.
+ * Build CSP header for the response.
  *
- * Dynamic routes use 'strict-dynamic' + per-request nonce for maximum script
- * security. Static/pre-rendered routes cannot embed nonces in their HTML at
- * build time, so they fall back to 'unsafe-inline' for scripts like the
- * next-themes theme-detection snippet.
+ * Uses 'self' 'unsafe-inline' https: for script-src on all routes.
+ * Nonce-based 'strict-dynamic' was removed because Next.js App Router
+ * injects inline scripts during SPA (client-side) navigation that lack
+ * nonces, causing ~20+ CSP violations per navigation and blocking
+ * framework scripts. The 'unsafe-inline' approach is the standard
+ * recommendation for Next.js production apps.
  */
-function buildCspHeader(pathname: string, nonce: string, sentryDsn?: string): string {
-  if (STATIC_ROUTES.has(pathname)) {
-    return buildCspDirectives("script-src 'self' 'unsafe-inline' https:", sentryDsn);
-  }
-  return buildCspDirectives(
-    `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
-    sentryDsn,
-  );
+function buildCspHeader(sentryDsn?: string): string {
+  return buildCspDirectives("script-src 'self' 'unsafe-inline' https:", sentryDsn);
 }
 
 function buildAuthRedirect(request: NextRequest, pathname: string): NextResponse | null {
@@ -136,11 +111,11 @@ export async function middleware(request: NextRequest) {
     const passThrough = NextResponse.next({
       request: { headers: requestHeaders },
     });
-    passThrough.headers.set('Content-Security-Policy', buildCspHeader(pathname, nonce));
+    passThrough.headers.set('Content-Security-Policy', buildCspHeader());
     return passThrough;
   }
 
-  const cspHeader = buildCspHeader(pathname, nonce, env.NEXT_PUBLIC_SENTRY_DSN);
+  const cspHeader = buildCspHeader(env.NEXT_PUBLIC_SENTRY_DSN);
 
   let supabaseResponse = NextResponse.next({
     request: { headers: requestHeaders },

@@ -32,15 +32,20 @@ export interface BalanceCheckResult {
  * @param userId - Unique identifier for the user (used as Plaid client_user_id)
  */
 export async function createLinkToken(userId: string): Promise<string> {
-  const response = await plaid().linkTokenCreate({
-    user: { client_user_id: userId },
-    client_name: 'FuzzyCat',
-    products: [Products.Auth],
-    country_codes: [CountryCode.Us],
-    language: 'en',
-  });
+  try {
+    const response = await plaid().linkTokenCreate({
+      user: { client_user_id: userId },
+      client_name: 'FuzzyCat',
+      products: [Products.Auth],
+      country_codes: [CountryCode.Us],
+      language: 'en',
+    });
 
-  return response.data.link_token;
+    return response.data.link_token;
+  } catch (err) {
+    logger.error('Plaid linkTokenCreate failed', { userId, error: err });
+    throw err;
+  }
 }
 
 /**
@@ -61,20 +66,35 @@ export async function exchangePublicToken(
   ownerId: string,
   accountId: string,
 ): Promise<{ accessToken: string; itemId: string; stripeAchPaymentMethodId: string }> {
-  const response = await plaid().itemPublicTokenExchange({
-    public_token: publicToken,
-  });
+  let accessToken: string;
+  let itemId: string;
 
-  const accessToken = response.data.access_token;
-  const itemId = response.data.item_id;
+  try {
+    const response = await plaid().itemPublicTokenExchange({
+      public_token: publicToken,
+    });
+    accessToken = response.data.access_token;
+    itemId = response.data.item_id;
+  } catch (err) {
+    logger.error('Plaid itemPublicTokenExchange failed', { ownerId, error: err });
+    throw err;
+  }
 
-  // Create a Stripe bank account token via Plaid processor
-  const processorResponse = await plaid().processorStripeBankAccountTokenCreate({
-    access_token: accessToken,
-    account_id: accountId,
-  });
-
-  const stripeBankAccountToken = processorResponse.data.stripe_bank_account_token;
+  let stripeBankAccountToken: string;
+  try {
+    const processorResponse = await plaid().processorStripeBankAccountTokenCreate({
+      access_token: accessToken,
+      account_id: accountId,
+    });
+    stripeBankAccountToken = processorResponse.data.stripe_bank_account_token;
+  } catch (err) {
+    logger.error('Plaid processorStripeBankAccountTokenCreate failed', {
+      ownerId,
+      itemId,
+      error: err,
+    });
+    throw err;
+  }
 
   // Look up the owner's Stripe customer ID
   const [owner] = await db
@@ -87,12 +107,20 @@ export async function exchangePublicToken(
     throw new Error(`Owner ${ownerId} does not have a Stripe customer ID`);
   }
 
-  // Create a bank account source on the Stripe customer
-  const source = await stripe().customers.createSource(owner.stripeCustomerId, {
-    source: stripeBankAccountToken,
-  });
-
-  const stripeAchPaymentMethodId = source.id;
+  let stripeAchPaymentMethodId: string;
+  try {
+    const source = await stripe().customers.createSource(owner.stripeCustomerId, {
+      source: stripeBankAccountToken,
+    });
+    stripeAchPaymentMethodId = source.id;
+  } catch (err) {
+    logger.error('Stripe createSource failed for ACH payment method', {
+      ownerId,
+      stripeCustomerId: owner.stripeCustomerId,
+      error: err,
+    });
+    throw err;
+  }
 
   // Store access token, item ID, account ID, and Stripe ACH payment method on owner record
   await db
@@ -153,11 +181,18 @@ export async function checkBalance(
     throw new Error(`Owner ${ownerId} does not have a connected bank account`);
   }
 
-  const response = await plaid().accountsBalanceGet({
-    access_token: owner.plaidAccessToken,
-  });
-
-  const accounts = response.data.accounts;
+  let accounts: Awaited<
+    ReturnType<ReturnType<typeof plaid>['accountsBalanceGet']>
+  >['data']['accounts'];
+  try {
+    const response = await plaid().accountsBalanceGet({
+      access_token: owner.plaidAccessToken,
+    });
+    accounts = response.data.accounts;
+  } catch (err) {
+    logger.error('Plaid accountsBalanceGet failed', { ownerId, error: err });
+    throw err;
+  }
 
   if (accounts.length === 0) {
     return {

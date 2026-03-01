@@ -12,7 +12,7 @@ import { adminProcedure, ownerProcedure, router } from '@/server/trpc';
 /** Validate that a URL belongs to the app domain. */
 function isAppUrl(url: string): boolean {
   const appUrl = publicEnv().NEXT_PUBLIC_APP_URL;
-  if (!appUrl) return true; // Skip validation if app URL not configured
+  if (!appUrl) return false;
   try {
     const parsed = new URL(url);
     const appParsed = new URL(appUrl);

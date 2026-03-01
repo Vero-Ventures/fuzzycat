@@ -28,15 +28,11 @@ export default function ForgotPasswordPage() {
       }
 
       const supabase = createClient();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (resetError) {
-        setError(resetError.message);
-        return;
-      }
-
+      // Always show success to prevent user enumeration
       setSubmitted(true);
     } finally {
       setLoading(false);

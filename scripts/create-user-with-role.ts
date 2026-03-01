@@ -1,3 +1,7 @@
+/**
+ * Create a Supabase Auth user with a specific role (owner, clinic, admin).
+ * Usage: CREATE_USER_PASSWORD=<pw> bun run scripts/create-user-with-role.ts <email> <role>
+ */
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const email = process.argv[2];

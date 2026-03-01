@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { getUserRole, ROLE_HOME, SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
+import { checkLoginRateLimit } from './actions';
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
@@ -18,6 +19,12 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     setLoading(true);
 
     try {
+      const { error: rateLimitError } = await checkLoginRateLimit();
+      if (rateLimitError) {
+        setError(rateLimitError);
+        return;
+      }
+
       const supabase = createClient();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,

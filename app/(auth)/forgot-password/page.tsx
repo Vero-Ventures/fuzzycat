@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
+import { checkResetRateLimit } from './actions';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,12 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
+      const { error: rateLimitError } = await checkResetRateLimit();
+      if (rateLimitError) {
+        setError(rateLimitError);
+        return;
+      }
+
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,

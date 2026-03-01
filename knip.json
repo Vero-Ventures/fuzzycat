@@ -17,6 +17,7 @@
   "ignoreDependencies": [
     "@commitlint/cli",
     "@next/env",
+    "playwright",
     "postcss",
     "radix-ui",
     "shadcn",

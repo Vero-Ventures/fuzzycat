@@ -135,10 +135,13 @@ jobs:
         run: bun test middleware.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage-middleware
       - name: Run authorization matrix tests (isolated — mock.module leaks)
         run: bun test authorization-matrix.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage-authz
+      - name: Run router tests (isolated — mock.module leaks)
+        run: |
+          TURNSTILE_SECRET_KEY='1x0000000000000000000000000000000AA' NEXT_PUBLIC_TURNSTILE_SITE_KEY='1x00000000000000000000AA' bun test tests/isolated --coverage --coverage-reporter=lcov --coverage-dir=coverage-routers
       - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         if: hashFiles('coverage/lcov.info') != ''
         with:
-          files: coverage/lcov.info,coverage-middleware/lcov.info,coverage-authz/lcov.info
+          files: coverage/lcov.info,coverage-middleware/lcov.info,coverage-authz/lcov.info,coverage-routers/lcov.info
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

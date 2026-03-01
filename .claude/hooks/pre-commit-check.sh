@@ -14,7 +14,7 @@ fi
 
 echo "🔍 Claude Code pre-commit: running quality checks..."
 
-cd /Users/yaniv/CODE/fuzzycat
+cd "$(git rev-parse --show-toplevel)"
 
 # 1. Biome check
 echo "→ Running biome check..."

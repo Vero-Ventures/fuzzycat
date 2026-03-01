@@ -48,6 +48,11 @@
       "schedule": "0 7 * * *"
     }
   ],
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
   "github": {
     "silent": true
   }

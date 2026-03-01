@@ -8,50 +8,61 @@ interface CheckResult {
   error?: string;
 }
 
+const isProduction = () => process.env.NODE_ENV === 'production';
+
+function maskError(error: unknown, fallback: string): string {
+  return isProduction() ? fallback : (error as Error).message;
+}
+
+async function runCheck(fn: () => Promise<void> | void, errorLabel: string): Promise<CheckResult> {
+  try {
+    await fn();
+    return { status: 'ok' };
+  } catch (error) {
+    return { status: 'fail', error: maskError(error, errorLabel) };
+  }
+}
+
+function deriveOverallStatus(checks: Record<string, CheckResult>): 'ok' | 'degraded' | 'error' {
+  const dbOk = checks.database?.status === 'ok';
+  const allHealthy = Object.values(checks).every((c) => c.status === 'ok');
+
+  if (!dbOk) return 'error';
+  if (!allHealthy) return 'degraded';
+  return 'ok';
+}
+
 export async function GET() {
-  const isProduction = process.env.NODE_ENV === 'production';
   const checks: Record<string, CheckResult> = {};
 
-  // 1. Public env vars
-  try {
+  checks.publicEnv = await runCheck(() => {
     publicEnv();
-    checks.publicEnv = { status: 'ok' };
-  } catch (error) {
-    checks.publicEnv = {
-      status: 'fail',
-      error: isProduction ? 'validation failed' : (error as Error).message,
-    };
-  }
-
-  // 2. Server env vars
-  try {
+  }, 'validation failed');
+  checks.serverEnv = await runCheck(() => {
     serverEnv();
-    checks.serverEnv = { status: 'ok' };
-  } catch (error) {
-    checks.serverEnv = {
-      status: 'fail',
-      error: isProduction ? 'validation failed' : (error as Error).message,
-    };
-  }
+  }, 'validation failed');
 
-  // 3. Database connectivity
-  try {
+  checks.database = await runCheck(async () => {
     await db.execute(sql`SELECT 1`);
-    checks.database = { status: 'ok' };
-  } catch (error) {
-    checks.database = {
-      status: 'fail',
-      error: isProduction ? 'unreachable' : (error as Error).message,
-    };
-  }
+  }, 'unreachable');
 
-  const allHealthy = Object.values(checks).every((c) => c.status === 'ok');
-  const status = allHealthy ? 200 : 503;
+  checks.stripe = await runCheck(async () => {
+    const { stripe } = await import('@/lib/stripe');
+    await stripe().balance.retrieve();
+  }, 'unreachable');
+
+  checks.plaid = await runCheck(async () => {
+    const { plaid } = await import('@/lib/plaid');
+    plaid();
+  }, 'misconfigured');
+
+  const overallStatus = deriveOverallStatus(checks);
+  const httpStatus = overallStatus === 'ok' ? 200 : 503;
 
   return NextResponse.json(
-    { status: allHealthy ? 'ok' : 'degraded', checks },
+    { status: overallStatus, checks },
     {
-      status,
+      status: httpStatus,
       headers: { 'Cache-Control': 'no-store' },
     },
   );

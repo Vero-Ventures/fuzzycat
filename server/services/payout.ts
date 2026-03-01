@@ -231,21 +231,33 @@ async function executeSinglePayout(payout: PendingPayoutRow): Promise<ProcessedP
     { idempotencyKey: `payout_${payout.id}` },
   );
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(payouts)
-      .set({ stripeTransferId: transfer.id, status: 'succeeded' })
-      .where(eq(payouts.id, payout.id));
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(payouts)
+        .set({ stripeTransferId: transfer.id, status: 'succeeded' })
+        .where(eq(payouts.id, payout.id));
 
-    await tx.insert(auditLog).values({
-      entityType: 'payout',
-      entityId: payout.id,
-      action: 'status_changed',
-      oldValue: JSON.stringify({ status: 'pending' }),
-      newValue: JSON.stringify({ status: 'succeeded', stripeTransferId: transfer.id }),
-      actorType: 'system',
+      await tx.insert(auditLog).values({
+        entityType: 'payout',
+        entityId: payout.id,
+        action: 'status_changed',
+        oldValue: JSON.stringify({ status: 'pending' }),
+        newValue: JSON.stringify({ status: 'succeeded', stripeTransferId: transfer.id }),
+        actorType: 'system',
+      });
     });
-  });
+  } catch (dbErr) {
+    logger.error(
+      'CRITICAL: Stripe transfer succeeded but DB update failed — manual reconciliation required',
+      {
+        payoutId: payout.id,
+        stripeTransferId: transfer.id,
+        error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+      },
+    );
+    throw dbErr;
+  }
 
   return { payoutId: payout.id, status: 'succeeded', stripeTransferId: transfer.id };
 }

@@ -282,6 +282,7 @@ describe('processClinicPayout', () => {
           clinicId: 'clinic-1',
         }),
       }),
+      { idempotencyKey: 'transfer_pay-1' },
     );
   });
 

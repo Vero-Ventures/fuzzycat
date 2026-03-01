@@ -180,6 +180,7 @@ describe('transferToClinic', () => {
         currency: 'usd',
         destination: 'acct_clinic_123',
       }),
+      { idempotencyKey: `transfer_${defaultParams.paymentId}` },
     );
   });
 

@@ -84,16 +84,19 @@ export async function transferToClinic(params: {
   clinicStripeAccountId: string;
   transferAmountCents: number;
 }): Promise<{ transferId: string; payoutRecord: { id: string } }> {
-  const transfer = await stripe().transfers.create({
-    amount: params.transferAmountCents,
-    currency: 'usd',
-    destination: params.clinicStripeAccountId,
-    metadata: {
-      paymentId: params.paymentId,
-      planId: params.planId,
-      clinicId: params.clinicId,
+  const transfer = await stripe().transfers.create(
+    {
+      amount: params.transferAmountCents,
+      currency: 'usd',
+      destination: params.clinicStripeAccountId,
+      metadata: {
+        paymentId: params.paymentId,
+        planId: params.planId,
+        clinicId: params.clinicId,
+      },
     },
-  });
+    { idempotencyKey: `transfer_${params.paymentId}` },
+  );
 
   const clinicShareCents = percentOfCents(params.transferAmountCents, CLINIC_SHARE_RATE);
 

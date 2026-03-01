@@ -57,7 +57,10 @@ function buildCspDirectives(scriptSrc: string, sentryDsn?: string): string {
  * recommendation for Next.js production apps.
  */
 function buildCspHeader(sentryDsn?: string): string {
-  return buildCspDirectives("script-src 'self' 'unsafe-inline' https:", sentryDsn);
+  return buildCspDirectives(
+    "script-src 'self' 'unsafe-inline' https://js.stripe.com https://cdn.plaid.com https://challenges.cloudflare.com https://*.sentry-cdn.com https://*.posthog.com https://va.vercel-scripts.com",
+    sentryDsn,
+  );
 }
 
 function buildAuthRedirect(request: NextRequest, pathname: string): NextResponse | null {

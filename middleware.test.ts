@@ -136,6 +136,10 @@ describe('middleware', () => {
     expect(dynamicCsp).toContain("'unsafe-inline'");
     expect(dynamicCsp).toContain("object-src 'none'");
     expect(dynamicCsp).toContain('upgrade-insecure-requests');
+    // Whitelisted external script domains instead of broad https:
+    expect(dynamicCsp).toContain('https://js.stripe.com');
+    expect(dynamicCsp).toContain('https://cdn.plaid.com');
+    expect(dynamicCsp).toContain('https://*.sentry-cdn.com');
     // No nonce or strict-dynamic — Next.js SPA navigation injects inline
     // scripts without nonces, so strict-dynamic blocks framework scripts.
     expect(dynamicCsp).not.toContain("'strict-dynamic'");

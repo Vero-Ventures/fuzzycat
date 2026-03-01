@@ -10,6 +10,7 @@ export interface EnrollmentData {
   plaidPublicToken: string | null;
   plaidAccountId: string | null;
   disclaimersAccepted: boolean;
+  achAuthorizationAccepted: boolean;
   captchaVerified: boolean;
   captchaToken: string | null;
   planId: string | null;
@@ -27,6 +28,7 @@ export const INITIAL_ENROLLMENT_DATA: EnrollmentData = {
   plaidPublicToken: null,
   plaidAccountId: null,
   disclaimersAccepted: false,
+  achAuthorizationAccepted: false,
   captchaVerified: false,
   captchaToken: null,
   planId: null,

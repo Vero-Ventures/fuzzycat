@@ -137,7 +137,7 @@ mock.module('drizzle-orm', () => ({
   desc: (col: string) => ({ col, type: 'desc' }),
 }));
 
-import { createAuditMock } from './audit-mock';
+import { createAuditMock } from '@/server/__tests__/audit-mock';
 
 mock.module('@/server/services/audit', () => createAuditMock(mockInsert));
 

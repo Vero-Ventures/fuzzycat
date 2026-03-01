@@ -617,3 +617,72 @@ describe('getRetrySuccessRate', () => {
     expect(result.rate).toBe(0);
   });
 });
+
+// ── Tests: escalateDefault — edge cases ─────────────────────────────
+
+describe('escalateDefault — edge cases', () => {
+  afterEach(clearAllMocks);
+
+  it('handles plan with zero remaining unpaid cents', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'plan-1', status: 'active', remainingCents: 0, clinicId: 'clinic-1' },
+    ]);
+
+    mockTxSelectWhere
+      .mockReturnValueOnce({ limit: mockTxSelectLimit })
+      .mockReturnValueOnce([{ totalUnpaidCents: 0 }]);
+
+    await escalateDefault('plan-1');
+
+    // Should still mark plan as defaulted even with zero remaining
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'defaulted' }));
+
+    // Audit log should record unpaidCents as 0
+    const auditCalls = mockTxInsertValues.mock.calls;
+    const planAudit = auditCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      const newValue = arg.newValue as { unpaidCents?: number } | undefined;
+      return (
+        arg.entityType === 'plan' && arg.action === 'status_changed' && newValue?.unpaidCents === 0
+      );
+    });
+    expect(planAudit).toBeDefined();
+  });
+
+  it('handles null totalUnpaidCents from SQL coalesce', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'plan-1', status: 'active', remainingCents: 60_000, clinicId: 'clinic-1' },
+    ]);
+
+    // Simulate empty results from unpaid sum query (no matching rows)
+    mockTxSelectWhere.mockReturnValueOnce({ limit: mockTxSelectLimit }).mockReturnValueOnce([]);
+
+    await escalateDefault('plan-1');
+
+    // Should still mark plan as defaulted
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'defaulted' }));
+  });
+});
+
+// ── Tests: retryFailedPayment — edge cases ──────────────────────────
+
+describe('retryFailedPayment — edge cases', () => {
+  afterEach(clearAllMocks);
+
+  it('handles null retryCount as zero', async () => {
+    mockTxSelectLimit.mockResolvedValueOnce([
+      { id: 'pay-1', status: 'failed', retryCount: null, planId: 'plan-1', amountCents: 15_900 },
+    ]);
+
+    const result = await retryFailedPayment('pay-1');
+
+    expect(result).toBe(true);
+    // Should set retryCount to 1 (null treated as 0, then incremented)
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        retryCount: 1,
+        status: 'retried',
+      }),
+    );
+  });
+});

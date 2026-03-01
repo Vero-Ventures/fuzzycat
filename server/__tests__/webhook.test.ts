@@ -565,4 +565,139 @@ describe('Stripe webhook handler', () => {
       expect(mockUpdateSet).not.toHaveBeenCalled();
     });
   });
+
+  // ── Error resilience ──────────────────────────────────────────────────
+
+  describe('error resilience', () => {
+    it('returns 200 when handler throws (prevents retry storms)', async () => {
+      const event = stripeEvent('checkout.session.completed', {
+        payment_intent: 'pi_crash_test',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // findPaymentByStripeId succeeds
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-crash', status: 'processing' }]);
+
+      // PaymentIntent retrieve throws
+      mockPaymentIntentRetrieve.mockRejectedValueOnce(new Error('Stripe API unreachable'));
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      // Should return 200 with error logged, not 500
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.received).toBe(true);
+      expect(body.error).toBe('Handler error logged');
+    });
+
+    it('handles checkout.session.completed with null payment_intent', async () => {
+      const event = stripeEvent('checkout.session.completed', {
+        payment_intent: null,
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should not attempt DB lookup
+      expect(mockSelectLimit).not.toHaveBeenCalled();
+    });
+
+    it('handles payment_intent.payment_failed with missing last_payment_error', async () => {
+      const event = stripeEvent('payment_intent.payment_failed', {
+        id: 'pi_no_error_detail',
+        // No last_payment_error field
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      mockSelectLimit.mockResolvedValueOnce([
+        { id: 'pay-no-err', status: 'processing', retryCount: 0, planId: 'plan-1' },
+      ]);
+
+      mockTxSelectLimit.mockResolvedValueOnce([
+        { id: 'pay-no-err', status: 'processing', retryCount: 0, planId: 'plan-1' },
+      ]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should use 'Unknown failure' as default
+      expect(mockTxUpdateSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          failureReason: 'Unknown failure',
+        }),
+      );
+    });
+
+    it('handles account.updated with missing charges_enabled/payouts_enabled', async () => {
+      const event = stripeEvent('account.updated', {
+        id: 'acct_partial',
+        // No charges_enabled or payouts_enabled fields
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'clinic-1', status: 'pending' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should NOT update because isFullyOnboarded is falsy
+      expect(mockUpdateSet).not.toHaveBeenCalled();
+    });
+
+    it('handles payment_intent.succeeded for non-processing status', async () => {
+      const event = stripeEvent('payment_intent.succeeded', {
+        id: 'pi_already_failed',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // Payment exists but is in 'failed' status (not 'succeeded' and not 'processing')
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-failed', status: 'failed' }]);
+
+      // handlePaymentSuccess transaction mock
+      mockTxSelectLimit
+        .mockResolvedValueOnce([
+          {
+            id: 'pay-failed',
+            planId: 'plan-1',
+            amountCents: 13_250,
+            status: 'failed',
+            type: 'installment',
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: 'plan-1',
+            ownerId: 'owner-1',
+            clinicId: 'clinic-1',
+            status: 'active',
+            totalBillCents: 106_000,
+          },
+        ])
+        .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
+        .mockResolvedValueOnce([]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      // Should process (not skip) — idempotency only skips 'succeeded' status
+      expect(response.status).toBe(200);
+      expect(mockTransaction).toHaveBeenCalled();
+    });
+
+    it('handles duplicate events gracefully (same PI processed twice)', async () => {
+      const event = stripeEvent('payment_intent.succeeded', {
+        id: 'pi_dup_test',
+      });
+      mockConstructEvent.mockReturnValue(event);
+
+      // First call: payment exists and is succeeded (already processed by first event)
+      mockSelectLimit.mockResolvedValueOnce([{ id: 'pay-dup', status: 'succeeded' }]);
+
+      const response = await POST(makeRequest(JSON.stringify(event)));
+
+      expect(response.status).toBe(200);
+      // Should NOT call handlePaymentSuccess (idempotent skip)
+      expect(mockTransaction).not.toHaveBeenCalled();
+    });
+  });
 });

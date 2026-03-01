@@ -987,3 +987,166 @@ describe('findPaymentByStripeId', () => {
     expect(result).toBeNull();
   });
 });
+
+// ── Tests: handlePaymentSuccess — payout idempotency ─────────────────
+
+describe('handlePaymentSuccess — payout idempotency', () => {
+  afterEach(clearAllMocks);
+
+  it('skips payout creation when duplicate payout exists', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dup-1',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'processing',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'active',
+          totalBillCents: 120_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // completePlanIfAllPaid — not all succeeded
+      .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])
+      // payout duplicate check — payout already exists!
+      .mockResolvedValueOnce([{ id: 'payout-existing' }]);
+
+    await handlePaymentSuccess('pay-dup-1', 'pi_dup_payout');
+
+    // Payment status should still be updated
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+
+    // Payout insert should NOT be called (insert calls should only be audit + risk pool)
+    const insertCalls = mockTxInsertValues.mock.calls;
+    const payoutInsert = insertCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return 'clinicId' in arg && 'transferAmountCents' in arg;
+    });
+    expect(payoutInsert).toBeUndefined();
+  });
+});
+
+// ── Tests: handlePaymentSuccess — saves card PM for deposits ─────────
+
+describe('handlePaymentSuccess — deposit card save', () => {
+  afterEach(clearAllMocks);
+
+  it('saves card payment method on owner when deposit has a stripePaymentMethodId', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-pm',
+          planId: 'plan-1',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'pending',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
+
+    await handlePaymentSuccess('pay-dep-pm', 'pi_deposit_card', 'pm_card_new_456');
+
+    // Verify owner's card payment method was updated
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const pmUpdate = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return 'stripeCardPaymentMethodId' in arg;
+    });
+    expect(pmUpdate).toBeDefined();
+
+    // Verify Stripe customer default payment method was updated
+    expect(mockCustomersUpdate).toHaveBeenCalledWith('cus_owner_1', {
+      invoice_settings: { default_payment_method: 'pm_card_new_456' },
+    });
+  });
+
+  it('does not crash when Stripe customer update fails for card save', async () => {
+    mockCustomersUpdate.mockRejectedValueOnce(new Error('Stripe API error'));
+
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-fail',
+          planId: 'plan-1',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'pending',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
+
+    // Should not throw — the function catches Stripe errors for card save
+    await handlePaymentSuccess('pay-dep-fail', 'pi_deposit_err', 'pm_card_err');
+
+    // Payment should still succeed
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'succeeded' }));
+  });
+
+  it('skips card save when stripePaymentMethodId is not provided', async () => {
+    mockTxSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-dep-nopm',
+          planId: 'plan-1',
+          amountCents: 26_500,
+          status: 'processing',
+          type: 'deposit',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          status: 'pending',
+          totalBillCents: 106_000,
+          stripeCustomerId: 'cus_owner_1',
+        },
+      ])
+      // payout duplicate check
+      .mockResolvedValueOnce([]);
+
+    await handlePaymentSuccess('pay-dep-nopm', 'pi_deposit_nopm');
+
+    // Should NOT update Stripe customer
+    expect(mockCustomersUpdate).not.toHaveBeenCalled();
+
+    // Should NOT update owner's card PM (no update call with stripeCardPaymentMethodId)
+    const updateCalls = mockTxUpdateSet.mock.calls;
+    const pmUpdate = updateCalls.find((call: unknown[]) => {
+      const arg = call[0] as Record<string, unknown>;
+      return 'stripeCardPaymentMethodId' in arg;
+    });
+    expect(pmUpdate).toBeUndefined();
+  });
+});

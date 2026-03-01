@@ -26,7 +26,27 @@ export const metadata: Metadata = {
     siteName: 'FuzzyCat',
     type: 'website',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FuzzyCat — Split Your Vet Bills Into Easy Payments',
+    description:
+      'Pay your vet bills over 12 weeks with no credit check and no interest. 25% deposit, then 6 biweekly installments.',
+  },
 };
+
+const jsonLdData = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'FuzzyCat',
+  url: 'https://www.fuzzycatapp.com',
+  description:
+    'Payment plan platform for veterinary clinics. Split vet bills into easy biweekly installments.',
+});
+
+function JsonLd() {
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD structured data requires innerHTML; content is a static schema with no user input
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdData }} />;
+}
 
 export default async function RootLayout({
   children,
@@ -38,6 +58,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <JsonLd />
         <ThemeProvider nonce={nonce}>
           <Providers>{children}</Providers>
         </ThemeProvider>

@@ -47,6 +47,7 @@ export const authMiddleware: MiddlewareHandler<{ Variables: ApiVariables }> = as
   }
 
   c.set('clinicId', result.clinicId);
+  c.set('apiKeyId', result.id);
   c.set('permissions', result.permissions);
 
   await next();

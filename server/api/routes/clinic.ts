@@ -57,20 +57,17 @@ const recentEnrollmentSchema = z.object({
   createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
 });
 
-/** Dashboard stats — has Date fields in recentEnrollments, needs .passthrough() */
-const dashboardStatsSchema = z
-  .object({
-    activePlans: z.number().openapi({ example: 12 }),
-    completedPlans: z.number().openapi({ example: 45 }),
-    defaultedPlans: z.number().openapi({ example: 2 }),
-    totalPlans: z.number().openapi({ example: 59 }),
-    totalRevenueCents: z.number().openapi({ example: 850000 }),
-    totalPayoutCents: z.number().openapi({ example: 7500000 }),
-    pendingPayoutsCount: z.number().openapi({ example: 3 }),
-    pendingPayoutsCents: z.number().openapi({ example: 450000 }),
-    recentEnrollments: z.array(recentEnrollmentSchema),
-  })
-  .passthrough();
+const dashboardStatsSchema = z.object({
+  activePlans: z.number().openapi({ example: 12 }),
+  completedPlans: z.number().openapi({ example: 45 }),
+  defaultedPlans: z.number().openapi({ example: 2 }),
+  totalPlans: z.number().openapi({ example: 59 }),
+  totalRevenueCents: z.number().openapi({ example: 850000 }),
+  totalPayoutCents: z.number().openapi({ example: 7500000 }),
+  pendingPayoutsCount: z.number().openapi({ example: 3 }),
+  pendingPayoutsCents: z.number().openapi({ example: 450000 }),
+  recentEnrollments: z.array(recentEnrollmentSchema),
+});
 
 const clientStatsSchema = z.object({
   activePlans: z.number().openapi({ example: 5 }),
@@ -103,18 +100,15 @@ const clientRowSchema = z.object({
   totalPaidCents: z.number().openapi({ example: 39750 }),
 });
 
-/** Clients list — has Date fields (nextPaymentAt, createdAt), needs .passthrough() */
-const clientsResponseSchema = z
-  .object({
-    clients: z.array(clientRowSchema),
-    pagination: z.object({
-      page: z.number().openapi({ example: 1 }),
-      pageSize: z.number().openapi({ example: 20 }),
-      totalCount: z.number().openapi({ example: 42 }),
-      totalPages: z.number().openapi({ example: 3 }),
-    }),
-  })
-  .passthrough();
+const clientsResponseSchema = z.object({
+  clients: z.array(clientRowSchema),
+  pagination: z.object({
+    page: z.number().openapi({ example: 1 }),
+    pageSize: z.number().openapi({ example: 20 }),
+    totalCount: z.number().openapi({ example: 42 }),
+    totalPages: z.number().openapi({ example: 3 }),
+  }),
+});
 
 const clientPlanSchema = z.object({
   id: z.string().uuid(),
@@ -129,19 +123,16 @@ const clientPlanSchema = z.object({
   totalPaidCents: z.number(),
 });
 
-/** Client details — has Date fields (plans[].createdAt, clientSince), needs .passthrough() */
-const clientDetailsSchema = z
-  .object({
-    owner: z.object({
-      name: z.string().nullable(),
-      email: z.string().nullable(),
-      phone: z.string().nullable(),
-      petName: z.string().nullable(),
-    }),
-    plans: z.array(clientPlanSchema),
-    clientSince: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
-  })
-  .passthrough();
+const clientDetailsSchema = z.object({
+  owner: z.object({
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    petName: z.string().nullable(),
+  }),
+  plans: z.array(clientPlanSchema),
+  clientSince: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+});
 
 const planDetailSchema = z.object({
   id: z.string().uuid(),
@@ -185,14 +176,11 @@ const payoutDetailSchema = z.object({
   createdAt: z.string().nullable().openapi({ example: '2026-02-01T12:30:00.000Z' }),
 });
 
-/** Plan details — has many Date fields, needs .passthrough() */
-const planDetailsResponseSchema = z
-  .object({
-    plan: planDetailSchema,
-    payments: z.array(paymentDetailSchema),
-    payouts: z.array(payoutDetailSchema),
-  })
-  .passthrough();
+const planDetailsResponseSchema = z.object({
+  plan: planDetailSchema,
+  payments: z.array(paymentDetailSchema),
+  payouts: z.array(payoutDetailSchema),
+});
 
 const monthlyRevenueSchema = z.object({
   month: z.string().openapi({ example: '2026-01' }),
@@ -543,7 +531,13 @@ clinicRoutes.openapi(updateProfileRoute, async (c) => {
 clinicRoutes.use('/stats', requirePermission('clinic:read'));
 clinicRoutes.openapi(getStatsRoute, async (c) => {
   const stats = await getDashboardStats(c.get('clinicId'));
-  return c.json(stats);
+  return c.json({
+    ...stats,
+    recentEnrollments: stats.recentEnrollments.map((e) => ({
+      ...e,
+      createdAt: e.createdAt?.toISOString() ?? null,
+    })),
+  });
 });
 
 // GET /clinic/stats/clients
@@ -578,7 +572,14 @@ clinicRoutes.openapi(getClientsRoute, async (c) => {
     page: query.page,
     pageSize: query.pageSize,
   });
-  return c.json(result);
+  return c.json({
+    ...result,
+    clients: result.clients.map((cl) => ({
+      ...cl,
+      nextPaymentAt: cl.nextPaymentAt?.toISOString() ?? null,
+      createdAt: cl.createdAt?.toISOString() ?? null,
+    })),
+  });
 });
 
 // GET /clinic/clients/:planId
@@ -589,7 +590,17 @@ clinicRoutes.openapi(getClientDetailsRoute, async (c) => {
   if (!details) {
     throw new ApiError(404, ErrorCodes.NOT_FOUND, 'Client not found');
   }
-  return c.json(details, 200);
+  return c.json(
+    {
+      ...details,
+      clientSince: details.clientSince?.toISOString() ?? null,
+      plans: details.plans.map((p) => ({
+        ...p,
+        createdAt: p.createdAt?.toISOString() ?? null,
+      })),
+    },
+    200,
+  );
 });
 
 // GET /clinic/plans/:planId
@@ -600,7 +611,27 @@ clinicRoutes.openapi(getPlanDetailsRoute, async (c) => {
   if (!details) {
     throw new ApiError(404, ErrorCodes.NOT_FOUND, 'Plan not found');
   }
-  return c.json(details, 200);
+  return c.json(
+    {
+      plan: {
+        ...details.plan,
+        depositPaidAt: details.plan.depositPaidAt?.toISOString() ?? null,
+        nextPaymentAt: details.plan.nextPaymentAt?.toISOString() ?? null,
+        completedAt: details.plan.completedAt?.toISOString() ?? null,
+        createdAt: details.plan.createdAt?.toISOString() ?? null,
+      },
+      payments: details.payments.map((p) => ({
+        ...p,
+        scheduledAt: p.scheduledAt.toISOString(),
+        processedAt: p.processedAt?.toISOString() ?? null,
+      })),
+      payouts: details.payouts.map((p) => ({
+        ...p,
+        createdAt: p.createdAt?.toISOString() ?? null,
+      })),
+    },
+    200,
+  );
 });
 
 // GET /clinic/revenue

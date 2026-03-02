@@ -6,8 +6,8 @@
  * 1 = at least one check failed.
  *
  * Usage:
- *   bun run scripts/api-audit.ts            # Run all checks
- *   bun run scripts/api-audit.ts --quick    # Spec + lint only (no k6)
+ *   bun run scripts/api-audit.ts            # Run all checks (requires running server for k6)
+ *   bun run scripts/api-audit.ts --quick    # Spec + lint only (no k6, no server needed)
  *
  * Checks:
  *   1. OpenAPI spec extraction (from Hono app)
@@ -99,20 +99,20 @@ run('Spectral OpenAPI Lint', `bunx spectral lint ${SPEC_PATH}`);
 // ── Check 3: k6 security tests (if k6 installed) ───────────────────
 const hasK6 = checkBinary('k6', 'k6');
 
-if (hasK6) {
+if (isQuick) {
+  console.log('\nSkipping k6 tests (--quick mode, requires running server)');
+} else if (hasK6) {
   run(
     'k6 Security Tests',
     'k6 run scripts/k6/api-security-test.js --env BASE_URL=http://localhost:3000/api/v1 --quiet',
     { allowFail: true },
   );
 
-  if (!isQuick) {
-    run(
-      'k6 Load Tests',
-      'k6 run scripts/k6/api-load-test.js --env BASE_URL=http://localhost:3000/api/v1 --quiet',
-      { allowFail: true },
-    );
-  }
+  run(
+    'k6 Load Tests',
+    'k6 run scripts/k6/api-load-test.js --env BASE_URL=http://localhost:3000/api/v1 --quiet',
+    { allowFail: true },
+  );
 } else {
   console.log('\nSkipping k6 tests — install k6 to enable:');
   console.log('  brew install k6  # macOS');

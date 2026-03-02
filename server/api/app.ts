@@ -7,11 +7,13 @@ import { apiAuditMiddleware } from '@/server/api/middleware/audit';
 import { authMiddleware } from '@/server/api/middleware/auth';
 import { corsMiddleware } from '@/server/api/middleware/cors';
 import { errorHandler } from '@/server/api/middleware/error-handler';
+import { idempotencyMiddleware } from '@/server/api/middleware/idempotency';
 import { createRateLimitMiddleware } from '@/server/api/middleware/rate-limit';
 import { requestIdMiddleware } from '@/server/api/middleware/request-id';
 import { clinicRoutes } from '@/server/api/routes/clinic';
 import { enrollmentRoutes } from '@/server/api/routes/enrollments';
 import { payoutRoutes } from '@/server/api/routes/payouts';
+import { webhookRoutes } from '@/server/api/routes/webhooks';
 import type { ApiVariables } from '@/server/api/types';
 
 const API_DESCRIPTION = `
@@ -95,6 +97,29 @@ All errors follow a consistent structure:
 
 All monetary amounts are in **integer cents** (USD). For example, \`150000\` = $1,500.00.
 
+## Idempotency
+
+POST endpoints support an \`Idempotency-Key\` header to prevent duplicate operations.
+If the same key is sent twice within 24 hours, the second request returns the cached
+response from the first. Keys must be 1–256 printable characters (UUIDs recommended).
+
+\`\`\`
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+\`\`\`
+
+Replayed responses include an \`Idempotent-Replayed: true\` header.
+
+## Webhooks
+
+Register webhook endpoints to receive real-time notifications for events like
+\`enrollment.created\`, \`payment.succeeded\`, and \`plan.defaulted\`. Payloads are
+signed with HMAC-SHA256 using your endpoint's secret key.
+
+Verify the \`X-Webhook-Signature\` header:
+\`\`\`
+sha256=<hex-digest-of-body>
+\`\`\`
+
 ## Request Tracing
 
 Every response includes an \`X-Request-Id\` header (UUID). Include this when
@@ -147,6 +172,7 @@ export function createApiApp() {
   app.use('*', corsMiddleware);
   app.use('*', createRateLimitMiddleware());
   app.use('*', authMiddleware);
+  app.use('*', idempotencyMiddleware);
   app.use('*', apiAuditMiddleware);
 
   // ── Global error handler ────────────────────────────────────────
@@ -159,6 +185,7 @@ export function createApiApp() {
   app.route('/enrollments', enrollmentRoutes);
   app.route('/clinic', clinicRoutes);
   app.route('/payouts', payoutRoutes);
+  app.route('/webhooks', webhookRoutes);
 
   // ── OpenAPI spec ────────────────────────────────────────────────
   app.doc('/openapi.json', {
@@ -180,12 +207,14 @@ export function createApiApp() {
       { name: 'Enrollments', description: 'Payment plan enrollment management' },
       { name: 'Clinic', description: 'Clinic profile, stats, clients, revenue, and exports' },
       { name: 'Payouts', description: 'Payout history and earnings' },
+      { name: 'Webhooks', description: 'Webhook endpoint management and event delivery' },
     ],
     'x-tagGroups': [
       { name: 'System', tags: ['System'] },
       { name: 'Enrollments', tags: ['Enrollments'] },
       { name: 'Clinic', tags: ['Clinic'] },
       { name: 'Payouts', tags: ['Payouts'] },
+      { name: 'Webhooks', tags: ['Webhooks'] },
     ],
   });
 
@@ -209,7 +238,7 @@ export function createApiApp() {
 </head>
 <body>
   <script id="api-reference" data-url="/api/v1/openapi.json"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@2.4.0" integrity="sha384-9b1b3030afed4818f8059961feede08c2e253fb8270ea462346625f3462b4f201f75d8a22b7d6b6fa6907b2adcdb96ef" crossorigin="anonymous"></script>
 </body>
 </html>`);
   });

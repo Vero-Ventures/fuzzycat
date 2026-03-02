@@ -24,23 +24,10 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  apiKeys: {
-    id: 'api_keys.id',
-    clinicId: 'api_keys.clinic_id',
-    name: 'api_keys.name',
-    keyHash: 'api_keys.key_hash',
-    keyPrefix: 'api_keys.key_prefix',
-    permissions: 'api_keys.permissions',
-    lastUsedAt: 'api_keys.last_used_at',
-    expiresAt: 'api_keys.expires_at',
-    allowedIps: 'api_keys.allowed_ips',
-    createdAt: 'api_keys.created_at',
-    revokedAt: 'api_keys.revoked_at',
-  },
-  clinics: { id: 'clinics.id' },
-  auditLog: { id: 'auditLog.id' },
-}));
+// Use shared mock to avoid cross-contamination with other isolated tests
+import { schemaMock } from '@/server/__tests__/stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 mock.module('@/server/services/audit', () => ({
   logAuditEvent: mock(() => Promise.resolve()),

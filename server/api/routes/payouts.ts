@@ -20,13 +20,10 @@ const payoutSummarySchema = z.object({
   createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
 });
 
-/** Payout list — has Date fields (createdAt), needs .passthrough() */
-const payoutListResponseSchema = z
-  .object({
-    payouts: z.array(payoutSummarySchema),
-    total: z.number().openapi({ example: 42 }),
-  })
-  .passthrough();
+const payoutListResponseSchema = z.object({
+  payouts: z.array(payoutSummarySchema),
+  total: z.number().openapi({ example: 42 }),
+});
 
 // ── Route definitions ────────────────────────────────────────────────
 
@@ -89,7 +86,13 @@ payoutRoutes.openapi(listPayoutsRoute, async (c) => {
     limit: query.limit,
     offset: query.offset,
   });
-  return c.json(result);
+  return c.json({
+    ...result,
+    payouts: result.payouts.map((p) => ({
+      ...p,
+      createdAt: p.createdAt?.toISOString() ?? null,
+    })),
+  });
 });
 
 // GET /payouts/earnings

@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  boolean,
   check,
   index,
   inet,
@@ -43,6 +44,11 @@ export const softCollectionStageEnum = pgEnum('soft_collection_stage', [
   'day_14_final',
   'completed',
   'cancelled',
+]);
+export const webhookDeliveryStatusEnum = pgEnum('webhook_delivery_status', [
+  'pending',
+  'succeeded',
+  'failed',
 ]);
 
 // ── Veterinary clinics ──────────────────────────────────────────────
@@ -306,12 +312,81 @@ export const auditLog = pgTable(
   ],
 );
 
+// ── Idempotency keys (API request deduplication) ─────────────────────
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clinicId: uuid('clinic_id')
+      .references(() => clinics.id)
+      .notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    httpMethod: text('http_method').notNull(),
+    httpPath: text('http_path').notNull(),
+    responseStatus: integer('response_status').notNull(),
+    responseBody: jsonb('response_body'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('uq_idempotency_clinic_key').on(table.clinicId, table.idempotencyKey),
+    index('idx_idempotency_expires').on(table.expiresAt),
+  ],
+);
+
+// ── Webhook endpoints (clinic-registered callback URLs) ──────────────
+export const webhookEndpoints = pgTable(
+  'webhook_endpoints',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clinicId: uuid('clinic_id')
+      .references(() => clinics.id)
+      .notNull(),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(), // HMAC signing secret
+    events: text('events').array().notNull(), // e.g. ['enrollment.created', 'payment.succeeded']
+    enabled: boolean('enabled').notNull().default(true),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index('idx_webhook_endpoints_clinic').on(table.clinicId)],
+);
+
+// ── Webhook deliveries (delivery attempt log) ────────────────────────
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    endpointId: uuid('endpoint_id')
+      .references(() => webhookEndpoints.id)
+      .notNull(),
+    eventType: text('event_type').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: webhookDeliveryStatusEnum('status').notNull().default('pending'),
+    httpStatus: integer('http_status'),
+    responseBody: text('response_body'),
+    attempts: integer('attempts').notNull().default(0),
+    nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('idx_webhook_deliveries_endpoint').on(table.endpointId),
+    index('idx_webhook_deliveries_status').on(table.status),
+    index('idx_webhook_deliveries_retry').on(table.nextRetryAt),
+  ],
+);
+
 // ── Relations (for db.query API — no SQL impact) ────────────────────
 
 export const clinicsRelations = relations(clinics, ({ many }) => ({
   plans: many(plans),
   payouts: many(payouts),
   apiKeys: many(apiKeys),
+  webhookEndpoints: many(webhookEndpoints),
 }));
 
 export const ownersRelations = relations(owners, ({ many }) => ({
@@ -361,4 +436,16 @@ export const softCollectionsRelations = relations(softCollections, ({ one }) => 
 
 export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
   clinic: one(clinics, { fields: [apiKeys.clinicId], references: [clinics.id] }),
+}));
+
+export const webhookEndpointsRelations = relations(webhookEndpoints, ({ one, many }) => ({
+  clinic: one(clinics, { fields: [webhookEndpoints.clinicId], references: [clinics.id] }),
+  deliveries: many(webhookDeliveries),
+}));
+
+export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one }) => ({
+  endpoint: one(webhookEndpoints, {
+    fields: [webhookDeliveries.endpointId],
+    references: [webhookEndpoints.id],
+  }),
 }));

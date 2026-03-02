@@ -28,6 +28,7 @@ import {
   owners,
   payments,
   payouts,
+  pets,
   plans,
   riskPool,
   softCollections,
@@ -466,6 +467,24 @@ async function seedOwners(tx: Tx, ownerAuthId: string) {
   console.log(`  Owner 3 (Carol, debit_card):     ${owner3.id}`);
 
   return { owner1, owner2, owner3 };
+}
+
+// ── Seed: Pets ─────────────────────────────────────────────────────
+
+async function seedPets(tx: Tx, owner1Id: string, owner2Id: string, owner3Id: string) {
+  console.log('Creating pets...');
+
+  await tx.insert(pets).values([
+    { ownerId: owner1Id, name: 'Whiskers', species: 'cat', breed: 'Siamese', age: 4 },
+    { ownerId: owner1Id, name: 'Buddy', species: 'dog', breed: 'Golden Retriever', age: 7 },
+    { ownerId: owner2Id, name: 'Mittens', species: 'cat', breed: 'Maine Coon', age: 3 },
+    { ownerId: owner2Id, name: 'Coco', species: 'dog', breed: 'Poodle', age: 2 },
+    { ownerId: owner3Id, name: 'Luna', species: 'cat', breed: 'Persian', age: 5 },
+    { ownerId: owner3Id, name: 'Max', species: 'dog', breed: 'Labrador', age: 6 },
+    { ownerId: owner3Id, name: 'Bella', species: 'rabbit', breed: null, age: 1 },
+  ]);
+
+  console.log('  Created 7 pets (2 for Alice, 2 for Bob, 3 for Carol).');
 }
 
 // ── Seed: Plans + Payments ──────────────────────────────────────────
@@ -1102,7 +1121,9 @@ async function main() {
   console.log('Truncating all tables...');
   await db.execute(sql`
     TRUNCATE TABLE
-      soft_collections, audit_log, risk_pool, payouts, payments, plans, owners, clinics
+      webhook_deliveries, webhook_endpoints, idempotency_keys, api_keys,
+      soft_collections, audit_log, risk_pool, payouts, payments, plans,
+      pets, payment_methods, owners, clinics
     CASCADE
   `);
   console.log('  All tables truncated.');
@@ -1120,6 +1141,7 @@ async function main() {
   await db.transaction(async (tx) => {
     const { clinic1, clinic2, clinic3 } = await seedClinics(tx, clinicAuthId);
     const { owner1, owner2, owner3 } = await seedOwners(tx, ownerAuthId);
+    await seedPets(tx, owner1.id, owner2.id, owner3.id);
 
     const { plans: p } = await seedPlansAndPayments(tx, {
       owner1Id: owner1.id,
@@ -1141,6 +1163,7 @@ async function main() {
   console.log('Auth users: 3 (owner, clinic, admin)');
   console.log('Clinics:    3 (active, pending, suspended)');
   console.log('Owners:     3 (Alice/debit_card, Bob/bank_account, Carol/debit_card)');
+  console.log('Pets:       7 (2 for Alice, 2 for Bob, 3 for Carol)');
   console.log('Plans:      7 (pending, deposit_paid, active x2, completed, defaulted, cancelled)');
   console.log('Payments:   49 (7 plans x 7 payments each)');
   console.log('Payouts:    ~20 (succeeded, pending, failed)');

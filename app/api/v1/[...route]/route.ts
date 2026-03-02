@@ -1,10 +1,16 @@
 // ── Next.js catch-all route for external REST API ────────────────────
 // Forwards all /api/v1/* requests to the Hono app via the Vercel adapter.
+// The basePath must match the Next.js route prefix so Hono can match
+// paths like /api/v1/health → /health on the app router.
 
+import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
 import { createApiApp } from '@/server/api/app';
 
-const app = createApiApp();
+const apiApp = createApiApp();
+
+// Mount the API app under /api/v1 so the full path matches
+const app = new Hono().route('/api/v1', apiApp);
 
 export const GET = handle(app);
 export const POST = handle(app);

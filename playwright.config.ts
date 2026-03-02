@@ -109,6 +109,12 @@ export default defineConfig({
             use: { ...devices['Desktop Chrome'] },
           },
         ]),
+    // ── API tests (external REST API) ────────────────────────────────
+    {
+      name: 'api',
+      testDir: './e2e/tests/api',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ── Edge case tests ─────────────────────────────────────────────
     {
       name: 'edge-cases',

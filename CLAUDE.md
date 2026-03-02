@@ -21,7 +21,7 @@ Payment plan platform for veterinary clinics. Pet owners split vet bills into bi
 |-------|-----------|
 | Runtime | Bun (dev + CI), Node.js (Vercel production) |
 | Frontend | Next.js 16 (App Router) + Tailwind CSS v4 + shadcn/ui |
-| Backend | Next.js API routes + tRPC |
+| Backend | Next.js API routes + tRPC (internal) + Hono REST API (external) |
 | ORM | Drizzle ORM (`server/db/schema.ts`) |
 | Database | PostgreSQL via Supabase (separate dev + production instances) |
 | Payments | Stripe Checkout (deposits), Stripe ACH (installments), Stripe Connect (payouts) |
@@ -110,6 +110,37 @@ PAYOUTS:
   1. Stripe Connect transfer after each successful installment
   2. Transfer = installment minus FuzzyCat share; clinic's 3% included
 ```
+
+## External REST API
+
+Public REST API at `/api/v1/` for vet clinic POS integrations. Built with **Hono + @hono/zod-openapi**, served via Next.js catch-all route.
+
+### Architecture
+- **Auth**: API key (`fc_live_<32hex>`) via `Authorization: Bearer` header. SHA-256 hashed in `api_keys` table.
+- **Middleware**: request-id → CORS → rate-limit (Upstash, optional) → auth → permissions
+- **Permissions**: `enrollments:read/write`, `clinic:read/write`, `clients:read`, `export:read`, `payouts:read`
+- **Service layer**: Both tRPC (internal) and Hono (external) call the same service functions in `server/services/`.
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `server/api/app.ts` | Hono app factory with middleware + route groups |
+| `server/api/types.ts` | Context types + permission scopes |
+| `server/api/routes/enrollments.ts` | 3 enrollment endpoints |
+| `server/api/routes/clinic.ts` | 14 clinic endpoints |
+| `server/api/routes/payouts.ts` | 2 payout endpoints |
+| `server/services/api-key.ts` | Key generation, validation, revocation |
+| `server/services/clinic-queries.ts` | Extracted clinic query functions (shared tRPC + REST) |
+| `app/api/v1/[...route]/route.ts` | Next.js catch-all → Hono |
+| `app/clinic/settings/_components/api-keys-section.tsx` | Key management UI |
+
+### Error Format
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": {} } }
+```
+
+### OpenAPI Spec
+Auto-generated at `/api/v1/openapi.json`.
 
 ## Development Workflow
 

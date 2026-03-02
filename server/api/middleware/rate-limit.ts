@@ -1,9 +1,10 @@
 // ── Rate limiting middleware (optional, env-gated) ───────────────────
 // Uses @upstash/ratelimit when UPSTASH_REDIS_REST_URL is configured.
-// When not configured, this middleware is a no-op passthrough.
+// Falls back to an in-memory fixed-window limiter when Redis is unavailable.
 
 import type { MiddlewareHandler } from 'hono';
 import { serverEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { ApiError, ErrorCodes } from '@/server/api/middleware/error-handler';
 import type { ApiVariables } from '@/server/api/types';
 
@@ -13,13 +14,67 @@ type RateLimiter = {
   ) => Promise<{ success: boolean; limit: number; remaining: number; reset: number }>;
 };
 
+/** Simple in-memory fixed-window rate limiter (fallback when Redis unavailable). */
+class InMemoryRateLimiter implements RateLimiter {
+  private windows = new Map<string, { count: number; resetAt: number }>();
+  private maxRequests: number;
+  private windowMs: number;
+  // Periodic cleanup to prevent memory leaks
+  private cleanupInterval: ReturnType<typeof setInterval>;
+
+  constructor(maxRequests: number, windowMs: number) {
+    this.maxRequests = maxRequests;
+    this.windowMs = windowMs;
+    // Clean up expired entries every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // Don't keep the process alive just for cleanup
+    if (this.cleanupInterval.unref) this.cleanupInterval.unref();
+  }
+
+  private cleanup() {
+    const now = Date.now();
+    for (const [key, entry] of this.windows) {
+      if (now >= entry.resetAt) this.windows.delete(key);
+    }
+  }
+
+  async limit(
+    id: string,
+  ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
+    const now = Date.now();
+    const entry = this.windows.get(id);
+
+    if (!entry || now >= entry.resetAt) {
+      this.windows.set(id, { count: 1, resetAt: now + this.windowMs });
+      return {
+        success: true,
+        limit: this.maxRequests,
+        remaining: this.maxRequests - 1,
+        reset: Math.ceil((now + this.windowMs) / 1000),
+      };
+    }
+
+    entry.count++;
+    const remaining = Math.max(0, this.maxRequests - entry.count);
+    return {
+      success: entry.count <= this.maxRequests,
+      limit: this.maxRequests,
+      remaining,
+      reset: Math.ceil(entry.resetAt / 1000),
+    };
+  }
+}
+
 /** Attempt to create an Upstash-backed rate limiter from env vars. */
-async function initLimiter(): Promise<RateLimiter | null> {
+async function initLimiter(): Promise<RateLimiter> {
   try {
     const env = serverEnv();
     const url = env.UPSTASH_REDIS_REST_URL;
     const token = env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) return null;
+    if (!url || !token) {
+      logger.info('Rate limiter: using in-memory fallback (Redis not configured)');
+      return new InMemoryRateLimiter(100, 60_000);
+    }
 
     const { Ratelimit } = await import('@upstash/ratelimit');
     const { Redis } = await import('@upstash/redis');
@@ -30,7 +85,8 @@ async function initLimiter(): Promise<RateLimiter | null> {
       prefix: 'api_v1',
     });
   } catch {
-    return null;
+    logger.info('Rate limiter: using in-memory fallback (Redis not configured)');
+    return new InMemoryRateLimiter(100, 60_000);
   }
 }
 
@@ -56,13 +112,10 @@ export function createRateLimitMiddleware(): MiddlewareHandler<{ Variables: ApiV
       limiter = await initLimiter();
     }
 
-    if (!limiter) {
-      await next();
-      return;
-    }
-
+    // limiter is always non-null after initLimiter (falls back to in-memory)
+    const activeLimiter = limiter as RateLimiter;
     const identifier = c.get('clinicId') ?? c.req.header('x-forwarded-for') ?? 'anonymous';
-    const result = await limiter.limit(identifier);
+    const result = await activeLimiter.limit(identifier);
 
     c.header('X-RateLimit-Limit', String(result.limit));
     c.header('X-RateLimit-Remaining', String(result.remaining));

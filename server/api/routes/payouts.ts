@@ -7,6 +7,27 @@ import { requirePermission } from '@/server/api/middleware/permissions';
 import type { ApiVariables } from '@/server/api/types';
 import { getClinicEarnings, getClinicPayoutHistory } from '@/server/services/payout';
 
+// ── Response schemas ─────────────────────────────────────────────────
+
+const payoutSummarySchema = z.object({
+  id: z.string().uuid(),
+  planId: z.string().uuid().nullable(),
+  paymentId: z.string().uuid().nullable(),
+  amountCents: z.number().openapi({ example: 19000 }),
+  clinicShareCents: z.number().openapi({ example: 570 }),
+  stripeTransferId: z.string().nullable().openapi({ example: 'tr_1234567890' }),
+  status: z.enum(['pending', 'succeeded', 'failed']).openapi({ example: 'succeeded' }),
+  createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+});
+
+/** Payout list — has Date fields (createdAt), needs .passthrough() */
+const payoutListResponseSchema = z
+  .object({
+    payouts: z.array(payoutSummarySchema),
+    total: z.number().openapi({ example: 42 }),
+  })
+  .passthrough();
+
 // ── Route definitions ────────────────────────────────────────────────
 
 const listPayoutsRoute = createRoute({
@@ -25,7 +46,7 @@ const listPayoutsRoute = createRoute({
   responses: {
     200: {
       description: 'Payout list',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: payoutListResponseSchema } },
     },
   },
 });

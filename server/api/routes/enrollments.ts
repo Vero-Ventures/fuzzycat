@@ -16,6 +16,28 @@ import {
   getEnrollmentSummary,
 } from '@/server/services/enrollment';
 
+// ── Enrollment velocity limiter ──────────────────────────────────────
+// Prevents rapid-fire enrollment creation. Max 10 enrollments per clinic
+// per hour via the API. This is an in-memory check (resets on restart).
+
+const ENROLLMENT_RATE_LIMIT = 10;
+const ENROLLMENT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+const enrollmentWindows = new Map<string, { count: number; resetAt: number }>();
+
+function checkEnrollmentVelocity(clinicId: string): boolean {
+  const now = Date.now();
+  const entry = enrollmentWindows.get(clinicId);
+
+  if (!entry || now >= entry.resetAt) {
+    enrollmentWindows.set(clinicId, { count: 1, resetAt: now + ENROLLMENT_WINDOW_MS });
+    return true;
+  }
+
+  entry.count++;
+  return entry.count <= ENROLLMENT_RATE_LIMIT;
+}
+
 // ── Schemas ──────────────────────────────────────────────────────────
 
 const ownerDataSchema = z.object({
@@ -119,6 +141,10 @@ const createEnrollmentRoute = createRoute({
       description: 'Unauthorized',
       content: { 'application/json': { schema: errorResponseSchema } },
     },
+    429: {
+      description: 'Enrollment rate limit exceeded',
+      content: { 'application/json': { schema: errorResponseSchema } },
+    },
     422: {
       description: 'Validation failed',
       content: { 'application/json': { schema: errorResponseSchema } },
@@ -199,6 +225,15 @@ enrollmentRoutes.openapi(createEnrollmentRoute, async (c) => {
       400,
       ErrorCodes.VALIDATION_ERROR,
       'Payment plans are not currently available in New York state.',
+    );
+  }
+
+  // Velocity check — prevent rapid-fire enrollment creation
+  if (!checkEnrollmentVelocity(clinicId)) {
+    throw new ApiError(
+      429,
+      ErrorCodes.RATE_LIMITED,
+      'Enrollment rate limit exceeded. Maximum 10 enrollments per hour.',
     );
   }
 

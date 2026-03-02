@@ -274,6 +274,8 @@ export const apiKeys = pgTable(
     keyPrefix: text('key_prefix').notNull(),
     permissions: text('permissions').array().notNull(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    allowedIps: text('allowed_ips').array(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },

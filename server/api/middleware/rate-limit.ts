@@ -15,12 +15,12 @@ type RateLimiter = {
 
 /** Attempt to create an Upstash-backed rate limiter from env vars. */
 async function initLimiter(): Promise<RateLimiter | null> {
-  const env = serverEnv();
-  const url = env.UPSTASH_REDIS_REST_URL;
-  const token = env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-
   try {
+    const env = serverEnv();
+    const url = env.UPSTASH_REDIS_REST_URL;
+    const token = env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) return null;
+
     const { Ratelimit } = await import('@upstash/ratelimit');
     const { Redis } = await import('@upstash/redis');
     const redis = new Redis({ url, token });

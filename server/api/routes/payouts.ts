@@ -33,6 +33,7 @@ const payoutListResponseSchema = z
 const listPayoutsRoute = createRoute({
   method: 'get',
   path: '/',
+  operationId: 'listPayouts',
   tags: ['Payouts'],
   summary: 'List payout history',
   description: 'Get paginated payout history for your clinic.',
@@ -54,6 +55,7 @@ const listPayoutsRoute = createRoute({
 const getEarningsRoute = createRoute({
   method: 'get',
   path: '/earnings',
+  operationId: 'getEarnings',
   tags: ['Payouts'],
   summary: 'Get earnings summary',
   description: 'Get aggregate earnings data for your clinic.',

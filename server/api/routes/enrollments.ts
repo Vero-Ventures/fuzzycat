@@ -117,6 +117,7 @@ const errorResponseSchema = z.object({
 const createEnrollmentRoute = createRoute({
   method: 'post',
   path: '/',
+  operationId: 'createEnrollment',
   tags: ['Enrollments'],
   summary: 'Create a new enrollment',
   description: 'Create a payment plan for a pet owner at your clinic.',
@@ -155,6 +156,7 @@ const createEnrollmentRoute = createRoute({
 const getEnrollmentRoute = createRoute({
   method: 'get',
   path: '/{planId}',
+  operationId: 'getEnrollment',
   tags: ['Enrollments'],
   summary: 'Get enrollment details',
   description: 'Retrieve full details of an enrollment including payment schedule.',
@@ -179,6 +181,7 @@ const getEnrollmentRoute = createRoute({
 const cancelEnrollmentRoute = createRoute({
   method: 'post',
   path: '/{planId}/cancel',
+  operationId: 'cancelEnrollment',
   tags: ['Enrollments'],
   summary: 'Cancel an enrollment',
   description:
@@ -200,6 +203,10 @@ const cancelEnrollmentRoute = createRoute({
     },
     400: {
       description: 'Cannot cancel',
+      content: { 'application/json': { schema: errorResponseSchema } },
+    },
+    401: {
+      description: 'Unauthorized',
       content: { 'application/json': { schema: errorResponseSchema } },
     },
     404: {

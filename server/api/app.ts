@@ -104,6 +104,7 @@ contacting support for request-level debugging.
 const healthRoute = createRoute({
   method: 'get',
   path: '/health',
+  operationId: 'healthCheck',
   tags: ['System'],
   summary: 'Health check',
   description: 'Returns API health status. No authentication required.',
@@ -166,15 +167,35 @@ export function createApiApp() {
       title: 'FuzzyCat API',
       version: '1.0.0',
       description: API_DESCRIPTION,
+      contact: {
+        name: 'FuzzyCat Support',
+        url: 'https://www.fuzzycatapp.com',
+        email: 'support@fuzzycatapp.com',
+      },
     },
     servers: [{ url: '/api/v1', description: 'API v1' }],
     security: [{ bearerAuth: [] }],
+    tags: [
+      { name: 'System', description: 'Health check and system status' },
+      { name: 'Enrollments', description: 'Payment plan enrollment management' },
+      { name: 'Clinic', description: 'Clinic profile, stats, clients, revenue, and exports' },
+      { name: 'Payouts', description: 'Payout history and earnings' },
+    ],
     'x-tagGroups': [
       { name: 'System', tags: ['System'] },
       { name: 'Enrollments', tags: ['Enrollments'] },
       { name: 'Clinic', tags: ['Clinic'] },
       { name: 'Payouts', tags: ['Payouts'] },
     ],
+  });
+
+  // Register securitySchemes in components (required for spec validity)
+  app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'API Key',
+    description:
+      'API key in fc_live_<32hex> format. Obtain from Clinic Portal → Settings → API Keys.',
   });
 
   // ── Scalar API docs UI ──────────────────────────────────────────

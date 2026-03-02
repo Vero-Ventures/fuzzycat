@@ -214,8 +214,11 @@ const revenueReportSchema = z.object({
 const getProfileRoute = createRoute({
   method: 'get',
   path: '/profile',
+  operationId: 'getClinicProfile',
   tags: ['Clinic'],
   summary: 'Get clinic profile',
+  description:
+    'Retrieve your clinic profile including name, contact info, and Stripe account status.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -232,8 +235,10 @@ const getProfileRoute = createRoute({
 const updateProfileRoute = createRoute({
   method: 'patch',
   path: '/profile',
+  operationId: 'updateClinicProfile',
   tags: ['Clinic'],
   summary: 'Update clinic profile',
+  description: 'Update clinic contact information. Only provided fields are changed.',
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -263,14 +268,21 @@ const updateProfileRoute = createRoute({
       description: 'Bad request',
       content: { 'application/json': { schema: errorResponseSchema } },
     },
+    401: {
+      description: 'Unauthorized',
+      content: { 'application/json': { schema: errorResponseSchema } },
+    },
   },
 });
 
 const getStatsRoute = createRoute({
   method: 'get',
   path: '/stats',
+  operationId: 'getDashboardStats',
   tags: ['Clinic'],
   summary: 'Get dashboard statistics',
+  description:
+    'Get aggregate dashboard statistics including plan counts, revenue totals, and recent enrollments.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -283,8 +295,11 @@ const getStatsRoute = createRoute({
 const getClientStatsRoute = createRoute({
   method: 'get',
   path: '/stats/clients',
+  operationId: 'getClientStats',
   tags: ['Clinic'],
   summary: 'Get client statistics',
+  description:
+    'Get client-level statistics including active plans, outstanding balances, and default rate.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -297,8 +312,11 @@ const getClientStatsRoute = createRoute({
 const getDefaultsRoute = createRoute({
   method: 'get',
   path: '/stats/defaults',
+  operationId: 'getDefaultRate',
   tags: ['Clinic'],
   summary: 'Get default rate',
+  description:
+    'Get the overall default rate for your clinic including total and defaulted plan counts.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -311,8 +329,10 @@ const getDefaultsRoute = createRoute({
 const getTrendsRoute = createRoute({
   method: 'get',
   path: '/stats/trends',
+  operationId: 'getEnrollmentTrends',
   tags: ['Clinic'],
   summary: 'Get enrollment trends',
+  description: 'Get monthly enrollment counts for trend analysis. Defaults to last 12 months.',
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -330,8 +350,11 @@ const getTrendsRoute = createRoute({
 const getClientsRoute = createRoute({
   method: 'get',
   path: '/clients',
+  operationId: 'listClients',
   tags: ['Clinic'],
   summary: 'List clients',
+  description:
+    'List clients with pagination. Supports search by name/email and filtering by plan status.',
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -354,8 +377,10 @@ const getClientsRoute = createRoute({
 const getClientDetailsRoute = createRoute({
   method: 'get',
   path: '/clients/{planId}',
+  operationId: 'getClientDetails',
   tags: ['Clinic'],
   summary: 'Get client details',
+  description: 'Get detailed client information including owner profile and all associated plans.',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({ planId: z.string().uuid() }),
@@ -375,8 +400,10 @@ const getClientDetailsRoute = createRoute({
 const getPlanDetailsRoute = createRoute({
   method: 'get',
   path: '/plans/{planId}',
+  operationId: 'getPlanDetails',
   tags: ['Clinic'],
   summary: 'Get plan details with payments and payouts',
+  description: 'Get full plan details including payment schedule and payout history.',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({ planId: z.string().uuid() }),
@@ -396,8 +423,11 @@ const getPlanDetailsRoute = createRoute({
 const getRevenueRoute = createRoute({
   method: 'get',
   path: '/revenue',
+  operationId: 'getMonthlyRevenue',
   tags: ['Clinic'],
   summary: 'Get monthly revenue (last 12 months)',
+  description:
+    'Get monthly revenue breakdown for the last 12 months including payout totals and clinic share.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -410,8 +440,11 @@ const getRevenueRoute = createRoute({
 const getRevenueReportRoute = createRoute({
   method: 'get',
   path: '/revenue/report',
+  operationId: 'getRevenueReport',
   tags: ['Clinic'],
   summary: 'Get revenue report within date range',
+  description:
+    'Get a revenue report for a custom date range with monthly enrollment and payout aggregates.',
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -430,8 +463,10 @@ const getRevenueReportRoute = createRoute({
 const exportClientsRoute = createRoute({
   method: 'get',
   path: '/export/clients',
+  operationId: 'exportClientsCsv',
   tags: ['Clinic'],
   summary: 'Export clients as CSV',
+  description: 'Export all client data as a CSV string for offline reporting.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -444,8 +479,10 @@ const exportClientsRoute = createRoute({
 const exportRevenueRoute = createRoute({
   method: 'get',
   path: '/export/revenue',
+  operationId: 'exportRevenueCsv',
   tags: ['Clinic'],
   summary: 'Export revenue as CSV',
+  description: 'Export revenue data as a CSV string for a given date range.',
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -464,8 +501,10 @@ const exportRevenueRoute = createRoute({
 const exportPayoutsRoute = createRoute({
   method: 'get',
   path: '/export/payouts',
+  operationId: 'exportPayoutsCsv',
   tags: ['Clinic'],
   summary: 'Export payouts as CSV',
+  description: 'Export payout history as a CSV string for offline reporting.',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {

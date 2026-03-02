@@ -43,7 +43,7 @@ type Tx = PgTransaction<
 // ── Config ──────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'TestPassword123!';
+const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'TzaZDjm0FZ0x6vTtQ9p5xH1b';
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');

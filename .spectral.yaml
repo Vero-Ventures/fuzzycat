@@ -1,0 +1,25 @@
+# Spectral OpenAPI linting for FuzzyCat API.
+# Run: bun run api:lint
+
+extends:
+  - spectral:oas
+
+rules:
+  # Relax: our Hono routes auto-generate operationIds
+  operation-operationId-valid-in-url: off
+  # Relax: we use x-tagGroups
+  oas3-api-servers: warn
+  # Tighten: security must be declared on every operation
+  oas3-operation-security-defined: error
+  # Contact info is nice to have
+  info-contact: warn
+
+  # ── Financial API custom rule ───────────────────────────────────────
+  write-ops-require-401:
+    description: "Write operations must document a 401 Unauthorized response."
+    message: "{{description}}"
+    severity: warn
+    given: "$.paths[*][post,patch,put,delete].responses"
+    then:
+      field: "401"
+      function: truthy

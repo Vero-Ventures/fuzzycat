@@ -910,7 +910,7 @@ export const clinicRouter = router({
         month,
         enrollments: enrollmentMap.get(month) ?? 0,
         revenueCents: revenueMap.get(month)?.revenueCents ?? 0,
-        payoutsCents: revenueMap.get(month)?.revenueCents ?? 0,
+        payoutsCents: revenueMap.get(month)?.clinicShareCents ?? 0,
         clinicShareCents: revenueMap.get(month)?.clinicShareCents ?? 0,
       }));
     }),

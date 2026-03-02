@@ -522,6 +522,117 @@ export const ownerRouter = router({
     }),
 
   /**
+   * Create a Stripe SetupIntent for linking a bank account via Financial Connections.
+   * Returns a client secret for the frontend to open the Financial Connections modal.
+   */
+  createBankAccountSetupIntent: ownerProcedure.mutation(async ({ ctx }) => {
+    const [owner] = await ctx.db
+      .select({ stripeCustomerId: owners.stripeCustomerId })
+      .from(owners)
+      .where(eq(owners.id, ctx.ownerId))
+      .limit(1);
+
+    if (!owner?.stripeCustomerId) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'No Stripe customer found for this account.',
+      });
+    }
+
+    const setupIntent = await stripe().setupIntents.create({
+      customer: owner.stripeCustomerId,
+      payment_method_types: ['us_bank_account'],
+      payment_method_options: {
+        us_bank_account: {
+          financial_connections: {
+            permissions: ['payment_method'],
+          },
+        },
+      },
+    });
+
+    return {
+      clientSecret: setupIntent.client_secret,
+      setupIntentId: setupIntent.id,
+    };
+  }),
+
+  /**
+   * Confirm a bank account setup after the user completes Financial Connections.
+   * Retrieves the SetupIntent and saves the payment method to the owner record.
+   */
+  confirmBankAccount: ownerProcedure
+    .input(z.object({ setupIntentId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const setupIntent = await stripe().setupIntents.retrieve(input.setupIntentId);
+
+      if (setupIntent.status !== 'succeeded') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Bank account setup is not complete (status: ${setupIntent.status})`,
+        });
+      }
+
+      const paymentMethodId =
+        typeof setupIntent.payment_method === 'string'
+          ? setupIntent.payment_method
+          : setupIntent.payment_method?.id;
+
+      if (!paymentMethodId) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'SetupIntent has no payment method',
+        });
+      }
+
+      // Detach old bank account PM if replacing
+      const [existingOwner] = await ctx.db
+        .select({ stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId })
+        .from(owners)
+        .where(eq(owners.id, ctx.ownerId))
+        .limit(1);
+
+      const oldAchPmId = existingOwner?.stripeAchPaymentMethodId;
+
+      if (oldAchPmId && oldAchPmId !== paymentMethodId) {
+        try {
+          await stripe().paymentMethods.detach(oldAchPmId);
+        } catch (err) {
+          logger.error('Failed to detach old ACH payment method from Stripe', {
+            ownerId: ctx.ownerId,
+            oldPaymentMethodId: oldAchPmId,
+            error: err,
+          });
+        }
+      }
+
+      await ctx.db
+        .update(owners)
+        .set({
+          stripeAchPaymentMethodId: paymentMethodId,
+          paymentMethod: 'bank_account',
+        })
+        .where(eq(owners.id, ctx.ownerId));
+
+      await logAuditEvent({
+        entityType: 'owner',
+        entityId: ctx.ownerId,
+        action:
+          oldAchPmId && oldAchPmId !== paymentMethodId
+            ? 'payment_method_replaced'
+            : 'status_changed',
+        oldValue: oldAchPmId ? { stripeAchPaymentMethodId: oldAchPmId } : null,
+        newValue: { stripeAchPaymentMethodId: paymentMethodId, paymentMethod: 'bank_account' },
+        actorType: 'owner',
+        actorId: ctx.ownerId,
+      });
+
+      revalidateTag(`owner:${ctx.ownerId}:profile`);
+
+      return { success: true as const, paymentMethodId };
+    }),
+
+  /**
    * Retrieve saved payment instrument details from Stripe.
    * Returns card brand/last4/expiry and/or bank name/last4 depending on what's on file.
    */

@@ -68,6 +68,13 @@ const mockPaymentMethodsDetach = mock((_id: string) => Promise.resolve({ id: _id
 const mockCustomersDeleteSource = mock((_cust: string, _src: string) =>
   Promise.resolve({ id: _src, deleted: true }),
 );
+const mockSetupIntentsCreate = mock(() =>
+  Promise.resolve({
+    id: 'seti_bank_test_123',
+    client_secret: 'seti_bank_test_123_secret_abc',
+    status: 'requires_payment_method',
+  }),
+);
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
@@ -79,7 +86,7 @@ mock.module('@/lib/stripe', () => ({
     checkout: {
       sessions: { create: mockCheckoutSessionsCreate, retrieve: mockCheckoutSessionsRetrieve },
     },
-    setupIntents: { retrieve: mockSetupIntentsRetrieve },
+    setupIntents: { retrieve: mockSetupIntentsRetrieve, create: mockSetupIntentsCreate },
   }),
 }));
 
@@ -119,6 +126,7 @@ function clearStripeMocks() {
   mockCheckoutSessionsCreate.mockClear();
   mockCheckoutSessionsRetrieve.mockClear();
   mockSetupIntentsRetrieve.mockClear();
+  mockSetupIntentsCreate.mockClear();
   mockPaymentMethodsDetach.mockClear();
   mockCustomersDeleteSource.mockClear();
 }
@@ -924,5 +932,125 @@ describe('owner.confirmCardPaymentMethod — replacement', () => {
     const result = await caller.confirmCardPaymentMethod({ sessionId: 'cs_setup_test_123' });
     expect(result.success).toBe(true);
     expect(result.paymentMethodId).toBe('pm_card_new_456');
+  });
+});
+
+// ── createBankAccountSetupIntent ────────────────────────────────────
+
+describe('owner.createBankAccountSetupIntent', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('creates SetupIntent and returns client secret', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCustomerId: 'cus_bank_test' }], // owner lookup
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.createBankAccountSetupIntent();
+    expect(result.clientSecret).toBe('seti_bank_test_123_secret_abc');
+    expect(result.setupIntentId).toBe('seti_bank_test_123');
+    expect(mockSetupIntentsCreate).toHaveBeenCalledTimes(1);
+    expect(mockSetupIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: 'cus_bank_test',
+        payment_method_types: ['us_bank_account'],
+      }),
+    );
+  });
+
+  it('throws BAD_REQUEST when no Stripe customer', async () => {
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeCustomerId: null }], // no customer
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    await expect(caller.createBankAccountSetupIntent()).rejects.toThrow('No Stripe customer found');
+  });
+});
+
+// ── confirmBankAccount ──────────────────────────────────────────────
+
+describe('owner.confirmBankAccount', () => {
+  beforeEach(() => {
+    resetDbMocks();
+    clearStripeMocks();
+  });
+  afterEach(resetDbMocks);
+
+  it('saves bank PM from succeeded SetupIntent', async () => {
+    mockSetupIntentsRetrieve.mockResolvedValueOnce({
+      id: 'seti_bank_ok',
+      status: 'succeeded',
+      payment_method: 'pm_bank_new_789',
+    });
+
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeAchPaymentMethodId: null }], // no existing bank
+      [], // DB update
+      [], // audit log insert
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.confirmBankAccount({ setupIntentId: 'seti_bank_ok' });
+    expect(result.success).toBe(true);
+    expect(result.paymentMethodId).toBe('pm_bank_new_789');
+    expect(mockPaymentMethodsDetach).not.toHaveBeenCalled();
+  });
+
+  it('detaches old ACH PM when replacing', async () => {
+    mockSetupIntentsRetrieve.mockResolvedValueOnce({
+      id: 'seti_bank_replace',
+      status: 'succeeded',
+      payment_method: 'pm_bank_new_999',
+    });
+
+    createMockChain([
+      [{ id: OWNER_ID }], // middleware
+      [{ stripeAchPaymentMethodId: 'pm_bank_old_111' }], // existing bank
+      [], // DB update
+      [], // audit log insert
+    ]);
+
+    const caller = createOwnerCaller(ctx());
+    const result = await caller.confirmBankAccount({ setupIntentId: 'seti_bank_replace' });
+    expect(result.success).toBe(true);
+    expect(mockPaymentMethodsDetach).toHaveBeenCalledWith('pm_bank_old_111');
+  });
+
+  it('rejects non-succeeded SetupIntent', async () => {
+    mockSetupIntentsRetrieve.mockResolvedValueOnce({
+      id: 'seti_pending',
+      status: 'requires_payment_method',
+      payment_method: null,
+    });
+
+    createMockChain([[{ id: OWNER_ID }]]);
+
+    const caller = createOwnerCaller(ctx());
+    await expect(caller.confirmBankAccount({ setupIntentId: 'seti_pending' })).rejects.toThrow(
+      'not complete',
+    );
+  });
+
+  it('rejects SetupIntent with no payment method', async () => {
+    mockSetupIntentsRetrieve.mockResolvedValueOnce({
+      id: 'seti_no_pm',
+      status: 'succeeded',
+      payment_method: null,
+    });
+
+    createMockChain([[{ id: OWNER_ID }]]);
+
+    const caller = createOwnerCaller(ctx());
+    await expect(caller.confirmBankAccount({ setupIntentId: 'seti_no_pm' })).rejects.toThrow(
+      'no payment method',
+    );
   });
 });

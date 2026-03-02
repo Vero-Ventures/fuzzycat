@@ -1,8 +1,8 @@
 'use client';
 
 import { Calendar, CreditCard, Landmark } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
-import { Captcha } from '@/components/shared/captcha';
+import { useMemo, useRef } from 'react';
+import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,6 +32,8 @@ function formatDate(date: Date): string {
 }
 
 export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepReviewConfirmProps) {
+  const captchaRef = useRef<CaptchaHandle>(null);
+
   const schedule = useMemo(() => {
     try {
       return calculatePaymentSchedule(data.billAmountCents);
@@ -40,29 +42,22 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
     }
   }, [data.billAmountCents]);
 
-  const handleTurnstileVerify = useCallback(
-    (token: string) => {
-      updateData({ captchaToken: token });
-    },
-    [updateData],
-  );
-
-  const handleTurnstileError = useCallback(() => {
-    updateData({ captchaToken: null });
-  }, [updateData]);
-
   const needsAchAuth = data.paymentMethod === 'bank_account';
 
   const canContinue =
     data.disclaimersAccepted &&
     (!needsAchAuth || data.achAuthorizationAccepted) &&
-    data.captchaVerified &&
-    (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? !!data.captchaToken : true);
+    data.captchaVerified;
 
-  function handleContinue() {
-    if (canContinue) {
-      onNext();
+  async function handleContinue() {
+    if (!canContinue) return;
+
+    // Execute Turnstile challenge at confirm time (deferred PoW)
+    const token = await captchaRef.current?.execute();
+    if (token) {
+      updateData({ captchaToken: token });
     }
+    onNext();
   }
 
   if (!schedule) {
@@ -233,7 +228,7 @@ export function StepReviewConfirm({ data, updateData, onNext, onBack }: StepRevi
         <h3 className="mb-3 font-semibold">Verification</h3>
         <div className="space-y-4">
           <MathCaptcha onVerified={(verified) => updateData({ captchaVerified: verified })} />
-          <Captcha onVerify={handleTurnstileVerify} onError={handleTurnstileError} />
+          <Captcha ref={captchaRef} />
         </div>
       </div>
 

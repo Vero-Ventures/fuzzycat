@@ -1,22 +1,25 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getUserRole, ROLE_HOME, SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
 import { checkLoginRateLimit } from './actions';
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
 
     try {
       const { error: rateLimitError } = await checkLoginRateLimit();
@@ -54,7 +57,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -70,8 +73,6 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           type="email"
           required
           autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
@@ -85,8 +86,6 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           type="password"
           required
           autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>

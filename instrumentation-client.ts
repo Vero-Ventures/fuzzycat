@@ -14,26 +14,30 @@ Sentry.init({
 // ~400ms of CDN fetch + integration init during the interaction window.
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   const loadIntegrations = () => {
-    Sentry.lazyLoadIntegration('replayIntegration').then((replayIntegration) => {
-      Sentry.addIntegration(replayIntegration());
-    });
+    Sentry.lazyLoadIntegration('replayIntegration')
+      .then((replayIntegration) => {
+        Sentry.addIntegration(replayIntegration());
+      })
+      .catch(() => {});
 
-    Sentry.lazyLoadIntegration('feedbackIntegration').then((feedbackIntegration) => {
-      Sentry.addIntegration(
-        feedbackIntegration({
-          colorScheme: 'system',
-          autoInject: true,
-          enableScreenshot: true,
-          showBranding: false,
-          triggerLabel: 'Feedback',
-          formTitle: 'Send us feedback',
-          submitButtonLabel: 'Send feedback',
-          messagePlaceholder: "What's on your mind? Bug reports, suggestions, anything.",
-          isEmailRequired: false,
-          isNameRequired: false,
-        }),
-      );
-    });
+    Sentry.lazyLoadIntegration('feedbackIntegration')
+      .then((feedbackIntegration) => {
+        Sentry.addIntegration(
+          feedbackIntegration({
+            colorScheme: 'system',
+            autoInject: true,
+            enableScreenshot: true,
+            showBranding: false,
+            triggerLabel: 'Feedback',
+            formTitle: 'Send us feedback',
+            submitButtonLabel: 'Send feedback',
+            messagePlaceholder: "What's on your mind? Bug reports, suggestions, anything.",
+            isEmailRequired: false,
+            isNameRequired: false,
+          }),
+        );
+      })
+      .catch(() => {});
   };
 
   if (typeof requestIdleCallback === 'function') {

@@ -475,7 +475,7 @@ export async function getRevenueReport(clinicId: string, dateFrom: Date, dateTo:
     month,
     enrollments: enrollmentMap.get(month) ?? 0,
     revenueCents: revenueMap.get(month)?.revenueCents ?? 0,
-    payoutsCents: revenueMap.get(month)?.revenueCents ?? 0,
+    payoutsCents: revenueMap.get(month)?.clinicShareCents ?? 0,
     clinicShareCents: revenueMap.get(month)?.clinicShareCents ?? 0,
   }));
 }

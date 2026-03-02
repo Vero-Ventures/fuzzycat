@@ -8,7 +8,9 @@ import { corsMiddleware } from '@/server/api/middleware/cors';
 import { errorHandler } from '@/server/api/middleware/error-handler';
 import { createRateLimitMiddleware } from '@/server/api/middleware/rate-limit';
 import { requestIdMiddleware } from '@/server/api/middleware/request-id';
+import { clinicRoutes } from '@/server/api/routes/clinic';
 import { enrollmentRoutes } from '@/server/api/routes/enrollments';
+import { payoutRoutes } from '@/server/api/routes/payouts';
 import type { ApiVariables } from '@/server/api/types';
 
 export function createApiApp() {
@@ -43,6 +45,8 @@ export function createApiApp() {
 
   // ── Route groups ────────────────────────────────────────────────
   app.route('/enrollments', enrollmentRoutes);
+  app.route('/clinic', clinicRoutes);
+  app.route('/payouts', payoutRoutes);
 
   // ── OpenAPI spec ────────────────────────────────────────────────
   app.doc('/openapi.json', {

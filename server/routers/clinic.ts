@@ -9,7 +9,9 @@ import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { escapeIlike } from '@/lib/utils/sql';
+import { API_PERMISSIONS } from '@/server/api/types';
 import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
+import { generateApiKey, listApiKeys, revokeApiKey } from '@/server/services/api-key';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
@@ -1114,4 +1116,58 @@ export const clinicRouter = router({
 
     return { csv: generateCsv(headers, rows) };
   }),
+
+  // ── API Key Management ──────────────────────────────────────────
+
+  /**
+   * Create a new API key for the clinic.
+   * Returns the plaintext key exactly once — it cannot be retrieved later.
+   */
+  createApiKey: clinicProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, 'Key name is required').max(100),
+        permissions: z.array(z.enum(API_PERMISSIONS)).min(1, 'At least one permission is required'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await generateApiKey(
+          ctx.clinicId,
+          input.name,
+          input.permissions,
+          ctx.session.userId,
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to create API key';
+        throw new TRPCError({ code: 'BAD_REQUEST', message });
+      }
+    }),
+
+  /**
+   * List all API keys for the clinic (prefix + name + dates, never the hash).
+   */
+  listApiKeys: clinicProcedure.query(async ({ ctx }) => {
+    return listApiKeys(ctx.clinicId);
+  }),
+
+  /**
+   * Revoke an API key (soft-delete).
+   */
+  revokeApiKey: clinicProcedure
+    .input(
+      z.object({
+        apiKeyId: z.string().uuid('Valid API key ID is required'),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const revoked = await revokeApiKey(input.apiKeyId, ctx.clinicId, ctx.session.userId);
+      if (!revoked) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'API key not found or already revoked',
+        });
+      }
+      return { success: true as const };
+    }),
 });

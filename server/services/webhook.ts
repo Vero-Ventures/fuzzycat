@@ -3,7 +3,7 @@
 // Uses HMAC-SHA256 signatures for payload verification.
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { lookup } from 'node:dns/promises';
+import { resolve4, resolve6 } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { and, eq, lte } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
@@ -57,14 +57,28 @@ async function validateWebhookUrl(urlString: string): Promise<void> {
     }
     return;
   }
-  // Resolve DNS and check all resolved IPs
+  // Resolve ALL DNS records and check every IP (prevents DNS rebinding)
   try {
-    const { address } = await lookup(url.hostname);
-    if (isPrivateIp(address)) {
-      throw new Error('Webhook URL must not target private/internal networks');
+    const [ipv4s, ipv6s] = await Promise.all([
+      resolve4(url.hostname).catch(() => [] as string[]),
+      resolve6(url.hostname).catch(() => [] as string[]),
+    ]);
+    const allIps = [...ipv4s, ...ipv6s];
+    if (allIps.length === 0) {
+      throw new Error('Webhook URL hostname could not be resolved');
+    }
+    for (const ip of allIps) {
+      if (isPrivateIp(ip)) {
+        throw new Error('Webhook URL must not target private/internal networks');
+      }
     }
   } catch (error) {
-    if (error instanceof Error && error.message.includes('private')) throw error;
+    if (
+      error instanceof Error &&
+      (error.message.includes('private') || error.message.includes('resolved'))
+    ) {
+      throw error;
+    }
     throw new Error('Webhook URL hostname could not be resolved');
   }
 }
@@ -295,7 +309,7 @@ export async function dispatchWebhookEvent(
       .returning();
 
     // Attempt immediate delivery (fire-and-forget)
-    deliverWebhook(delivery.id, endpoint.url, endpoint.secret, payload).catch((err) => {
+    deliverWebhook(delivery.id, endpoint.url, endpoint.secret, payload, 1).catch((err) => {
       logger.error('Webhook delivery failed', {
         deliveryId: delivery.id,
         endpointId: endpoint.id,
@@ -303,6 +317,33 @@ export async function dispatchWebhookEvent(
       });
     });
   }
+}
+
+const MAX_RESPONSE_BODY_BYTES = 8192; // 8 KB max response body read
+
+/**
+ * Read response body with a size limit to prevent DoS from large responses.
+ */
+async function readResponseBody(response: Response): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return '';
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (totalBytes < MAX_RESPONSE_BODY_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      totalBytes += value.length;
+    }
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+
+  const decoder = new TextDecoder();
+  return chunks.map((c) => decoder.decode(c, { stream: true })).join('');
 }
 
 /**
@@ -314,7 +355,21 @@ async function deliverWebhook(
   url: string,
   secret: string,
   payload: WebhookPayload,
+  attemptNumber: number,
 ) {
+  // Re-validate URL at delivery time (prevents DNS rebinding TOCTOU)
+  try {
+    await validateWebhookUrl(url);
+  } catch {
+    await scheduleRetry(
+      deliveryId,
+      attemptNumber,
+      null,
+      'URL failed SSRF validation at delivery time',
+    );
+    return;
+  }
+
   const body = JSON.stringify(payload);
   const signature = signPayload(body, secret);
   const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -333,7 +388,7 @@ async function deliverWebhook(
       signal: AbortSignal.timeout(10_000), // 10s timeout
     });
 
-    const responseBody = await response.text().catch(() => '');
+    const responseBody = await readResponseBody(response).catch(() => '');
 
     if (response.ok) {
       await db
@@ -342,16 +397,16 @@ async function deliverWebhook(
           status: 'succeeded',
           httpStatus: response.status,
           responseBody: responseBody.slice(0, 1000),
-          attempts: 1,
+          attempts: attemptNumber,
           completedAt: new Date(),
         })
         .where(eq(webhookDeliveries.id, deliveryId));
     } else {
-      await scheduleRetry(deliveryId, 1, response.status, responseBody.slice(0, 1000));
+      await scheduleRetry(deliveryId, attemptNumber, response.status, responseBody.slice(0, 1000));
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    await scheduleRetry(deliveryId, 1, null, errorMessage);
+    await scheduleRetry(deliveryId, attemptNumber, null, errorMessage);
   }
 }
 
@@ -433,6 +488,7 @@ export async function processWebhookRetries() {
       endpoint.url,
       endpoint.secret,
       delivery.payload as WebhookPayload,
+      delivery.attempts + 1,
     ).catch((err) => {
       logger.error('Webhook retry failed', {
         deliveryId: delivery.id,

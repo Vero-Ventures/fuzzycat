@@ -9,6 +9,7 @@
 
 import { and, eq, isNull } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
+import { logger } from '@/lib/logger';
 import type { ApiVariables } from '@/server/api/types';
 import { db } from '@/server/db';
 import { idempotencyKeys } from '@/server/db/schema';
@@ -50,7 +51,12 @@ async function removePlaceholder(id: string): Promise<void> {
   await db
     .delete(idempotencyKeys)
     .where(eq(idempotencyKeys.id, id))
-    .catch(() => {});
+    .catch((error) => {
+      logger.error('Failed to remove idempotency key placeholder', {
+        placeholderId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 }
 
 /**

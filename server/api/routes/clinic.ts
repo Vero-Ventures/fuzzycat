@@ -310,7 +310,7 @@ clinicRoutes.openapi(getProfileRoute, async (c) => {
   if (!profile) {
     throw new ApiError(404, ErrorCodes.NOT_FOUND, 'Clinic profile not found');
   }
-  return c.json(profile);
+  return c.json(profile, 200);
 });
 
 // PATCH /clinic/profile
@@ -321,7 +321,7 @@ clinicRoutes.openapi(updateProfileRoute, async (c) => {
   if (!updated) {
     throw new ApiError(400, ErrorCodes.VALIDATION_ERROR, 'No fields to update');
   }
-  return c.json(updated);
+  return c.json(updated, 200);
 });
 
 // GET /clinic/stats
@@ -374,7 +374,7 @@ clinicRoutes.openapi(getClientDetailsRoute, async (c) => {
   if (!details) {
     throw new ApiError(404, ErrorCodes.NOT_FOUND, 'Client not found');
   }
-  return c.json(details);
+  return c.json(details, 200);
 });
 
 // GET /clinic/plans/:planId
@@ -385,7 +385,7 @@ clinicRoutes.openapi(getPlanDetailsRoute, async (c) => {
   if (!details) {
     throw new ApiError(404, ErrorCodes.NOT_FOUND, 'Plan not found');
   }
-  return c.json(details);
+  return c.json(details, 200);
 });
 
 // GET /clinic/revenue

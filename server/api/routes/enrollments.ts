@@ -233,17 +233,20 @@ enrollmentRoutes.openapi(getEnrollmentRoute, async (c) => {
     const summary = await getEnrollmentSummary(planId);
 
     // Serialize dates to ISO strings for JSON response
-    return c.json({
-      ...summary,
-      plan: {
-        ...summary.plan,
-        createdAt: summary.plan.createdAt?.toISOString() ?? null,
+    return c.json(
+      {
+        ...summary,
+        plan: {
+          ...summary.plan,
+          createdAt: summary.plan.createdAt?.toISOString() ?? null,
+        },
+        payments: summary.payments.map((p) => ({
+          ...p,
+          scheduledAt: p.scheduledAt.toISOString(),
+        })),
       },
-      payments: summary.payments.map((p) => ({
-        ...p,
-        scheduledAt: p.scheduledAt.toISOString(),
-      })),
-    });
+      200,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get enrollment';
     throw new ApiError(404, ErrorCodes.NOT_FOUND, message);
@@ -269,7 +272,7 @@ enrollmentRoutes.openapi(cancelEnrollmentRoute, async (c) => {
 
   try {
     await cancelEnrollment(planId, undefined, 'clinic');
-    return c.json({ success: true });
+    return c.json({ success: true }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to cancel enrollment';
     throw new ApiError(400, ErrorCodes.VALIDATION_ERROR, message);

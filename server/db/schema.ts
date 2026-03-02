@@ -261,6 +261,28 @@ export const softCollections = pgTable(
   ],
 );
 
+// ── API keys (external REST API authentication) ─────────────────────
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clinicId: uuid('clinic_id')
+      .references(() => clinics.id)
+      .notNull(),
+    name: text('name').notNull(),
+    keyHash: text('key_hash').notNull(),
+    keyPrefix: text('key_prefix').notNull(),
+    permissions: text('permissions').array().notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('idx_api_keys_clinic').on(table.clinicId),
+    index('idx_api_keys_hash').on(table.keyHash),
+  ],
+);
+
 // ── Audit log (MANDATORY for compliance) ────────────────────────────
 export const auditLog = pgTable(
   'audit_log',
@@ -287,6 +309,7 @@ export const auditLog = pgTable(
 export const clinicsRelations = relations(clinics, ({ many }) => ({
   plans: many(plans),
   payouts: many(payouts),
+  apiKeys: many(apiKeys),
 }));
 
 export const ownersRelations = relations(owners, ({ many }) => ({
@@ -332,4 +355,8 @@ export const riskPoolRelations = relations(riskPool, ({ one }) => ({
 
 export const softCollectionsRelations = relations(softCollections, ({ one }) => ({
   plan: one(plans, { fields: [softCollections.planId], references: [plans.id] }),
+}));
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  clinic: one(clinics, { fields: [apiKeys.clinicId], references: [clinics.id] }),
 }));

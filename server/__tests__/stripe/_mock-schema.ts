@@ -61,6 +61,22 @@ export const schemaMock = {
   riskPoolTypeEnum: {},
   actorTypeEnum: {},
   softCollectionStageEnum: {},
+  apiKeys: {
+    id: 'api_keys.id',
+    clinicId: 'api_keys.clinic_id',
+    name: 'api_keys.name',
+    keyHash: 'api_keys.key_hash',
+    keyPrefix: 'api_keys.key_prefix',
+    permissions: 'api_keys.permissions',
+    lastUsedAt: 'api_keys.last_used_at',
+    createdAt: 'api_keys.created_at',
+    revokedAt: 'api_keys.revoked_at',
+  },
+  paymentMethods: {
+    id: 'payment_methods.id',
+    ownerId: 'payment_methods.owner_id',
+  },
+  paymentMethodsRelations: {},
   clinicsRelations: {},
   ownersRelations: {},
   petsRelations: {},
@@ -69,4 +85,5 @@ export const schemaMock = {
   payoutsRelations: {},
   riskPoolRelations: {},
   softCollectionsRelations: {},
+  apiKeysRelations: {},
 };

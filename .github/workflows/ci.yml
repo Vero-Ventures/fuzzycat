@@ -197,9 +197,6 @@ jobs:
           STRIPE_SECRET_KEY: sk_test_placeholder
           STRIPE_WEBHOOK_SECRET: whsec_placeholder
           RESEND_API_KEY: re_placeholder
-          PLAID_CLIENT_ID: placeholder
-          PLAID_SECRET: placeholder
-          PLAID_ENV: sandbox
           TWILIO_ACCOUNT_SID: ACplaceholder
           TWILIO_AUTH_TOKEN: placeholder
           TWILIO_PHONE_NUMBER: '+10000000000'
@@ -230,9 +227,6 @@ jobs:
           STRIPE_SECRET_KEY: sk_test_placeholder
           STRIPE_WEBHOOK_SECRET: whsec_placeholder
           RESEND_API_KEY: re_placeholder
-          PLAID_CLIENT_ID: placeholder
-          PLAID_SECRET: placeholder
-          PLAID_ENV: sandbox
           TWILIO_ACCOUNT_SID: ACplaceholder
           TWILIO_AUTH_TOKEN: placeholder
           TWILIO_PHONE_NUMBER: '+10000000000'

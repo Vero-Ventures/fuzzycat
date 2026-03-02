@@ -238,7 +238,7 @@ export function createApiApp() {
 </head>
 <body>
   <script id="api-reference" data-url="/api/v1/openapi.json"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@0.1.5" integrity="sha384-nkaTxTyLh1KRRqMea/fXk3r6dumKhvBIfFtoJk64Lzlsb0p/6MTGvWHTHE03hiPV" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.46.0" integrity="sha384-J8SKUvgS9P4wa0c+HdF7IJMAxLKPA2MTTiMrMHEnBGrImueMygyFW5kWh60jyN1j" crossorigin="anonymous"></script>
 </body>
 </html>`);
   });

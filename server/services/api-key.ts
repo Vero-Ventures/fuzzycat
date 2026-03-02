@@ -177,19 +177,19 @@ export async function validateApiKey(
     return null;
   }
 
-  // Check IP allowlist
-  if (row.allowedIps && row.allowedIps.length > 0 && options?.ipAddress) {
-    if (!row.allowedIps.includes(options.ipAddress)) {
-      logger.warn('API key IP not allowed', {
+  // Check IP allowlist — fail-safe: reject if allowlist configured but IP unknown
+  if (row.allowedIps && row.allowedIps.length > 0) {
+    if (!options?.ipAddress || !row.allowedIps.includes(options.ipAddress)) {
+      logger.warn('API key IP not allowed or missing', {
         apiKeyId: row.id,
         clinicId: row.clinicId,
-        ip: options.ipAddress,
+        ip: options?.ipAddress,
       });
       logAuditEvent({
         entityType: 'api_key',
         entityId: row.id,
         action: 'api_key_ip_rejected',
-        newValue: { clinicId: row.clinicId, ip: options.ipAddress },
+        newValue: { clinicId: row.clinicId, ip: options?.ipAddress ?? 'unknown' },
         actorType: 'system',
       });
       return null;

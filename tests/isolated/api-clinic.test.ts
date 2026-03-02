@@ -36,7 +36,10 @@ mock.module('@/server/services/clinic-queries', () => ({
 
 const mockValidateApiKey = mock();
 mock.module('@/server/services/api-key', () => ({
+  generateApiKey: mock(),
   validateApiKey: mockValidateApiKey,
+  revokeApiKey: mock(),
+  listApiKeys: mock(),
 }));
 
 // Enrollment service mock (needed by app.ts import chain)
@@ -192,7 +195,14 @@ describe('GET /clinic/stats', () => {
     setupAuth(['clinic:read']);
     mockGetDashboardStats.mockResolvedValue({
       activePlans: 5,
+      completedPlans: 10,
+      defaultedPlans: 1,
+      totalPlans: 16,
       totalRevenueCents: 100000,
+      totalPayoutCents: 80000,
+      pendingPayoutsCount: 2,
+      pendingPayoutsCents: 20000,
+      recentEnrollments: [],
     });
 
     const res = await apiGet(app, '/clinic/stats');

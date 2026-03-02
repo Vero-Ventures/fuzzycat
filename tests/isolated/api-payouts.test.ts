@@ -15,7 +15,10 @@ mock.module('@/server/services/payout', () => ({
 
 const mockValidateApiKey = mock();
 mock.module('@/server/services/api-key', () => ({
+  generateApiKey: mock(),
   validateApiKey: mockValidateApiKey,
+  revokeApiKey: mock(),
+  listApiKeys: mock(),
 }));
 
 // Other mocks needed by the app import chain

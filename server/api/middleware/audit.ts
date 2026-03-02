@@ -50,10 +50,11 @@ export const apiAuditMiddleware: MiddlewareHandler<{ Variables: ApiVariables }> 
   });
 
   // Audit log to database for write operations only (compliance trail)
-  if (clinicId && WRITE_METHODS.has(method)) {
+  const apiKeyId = c.get('apiKeyId');
+  if (clinicId && apiKeyId && WRITE_METHODS.has(method)) {
     logAuditEvent({
       entityType: 'api_key',
-      entityId: clinicId,
+      entityId: apiKeyId,
       action: 'api_request',
       newValue: { method, path, status, durationMs, requestId },
       actorType: 'clinic',

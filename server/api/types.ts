@@ -3,6 +3,8 @@
 export interface ApiVariables {
   /** The authenticated clinic's database ID. */
   clinicId: string;
+  /** The authenticated API key's database ID. */
+  apiKeyId: string;
   /** Permission scopes granted to the API key. */
   permissions: string[];
   /** Unique request ID for log correlation. */

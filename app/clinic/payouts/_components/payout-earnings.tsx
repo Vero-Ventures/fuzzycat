@@ -10,7 +10,7 @@ import { formatCents } from '@/lib/utils/money';
 export function PayoutEarnings() {
   const trpc = useTRPC();
 
-  const { data: earnings, isLoading, error } = useQuery(trpc.payout.earnings.queryOptions());
+  const { data: earnings, isLoading, error } = useQuery(trpc.clinic.getEarnings.queryOptions());
 
   if (isLoading) {
     return <PayoutEarningsSkeleton />;

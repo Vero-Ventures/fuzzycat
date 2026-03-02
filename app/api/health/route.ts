@@ -51,11 +51,6 @@ export async function GET() {
     await stripe().balance.retrieve();
   }, 'unreachable');
 
-  checks.plaid = await runCheck(async () => {
-    const { plaid } = await import('@/lib/plaid');
-    plaid();
-  }, 'misconfigured');
-
   const overallStatus = deriveOverallStatus(checks);
   const httpStatus = overallStatus === 'ok' ? 200 : 503;
 

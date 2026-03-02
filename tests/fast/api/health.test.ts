@@ -24,6 +24,6 @@ describe('Health API', () => {
     expect(body.checks).toHaveProperty('serverEnv');
     expect(body.checks).toHaveProperty('database');
     expect(body.checks).toHaveProperty('stripe');
-    expect(body.checks).toHaveProperty('plaid');
+    expect(body.checks).toHaveProperty('stripe');
   });
 });

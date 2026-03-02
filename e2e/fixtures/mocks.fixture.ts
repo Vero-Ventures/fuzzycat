@@ -12,17 +12,6 @@ async function mockStripe(page: Page) {
   );
 }
 
-/** Block Plaid Link from loading and provide a stub. */
-async function mockPlaid(page: Page) {
-  await page.route('**/cdn.plaid.com/**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/javascript',
-      body: 'window.Plaid = { create: function() { return { open: function() {}, exit: function() {}, destroy: function() {} } } };',
-    }),
-  );
-}
-
 /** Block Turnstile from loading and provide a stub that auto-passes. */
 async function mockTurnstile(page: Page) {
   await page.route('**/challenges.cloudflare.com/**', (route) =>
@@ -52,14 +41,12 @@ async function mockAnalytics(page: Page) {
 /** Convenience: apply all external service mocks at once. */
 async function mockAllExternal(page: Page) {
   await mockStripe(page);
-  await mockPlaid(page);
   await mockTurnstile(page);
   await mockAnalytics(page);
 }
 
 export const test = base.extend<{
   mockStripe: undefined;
-  mockPlaid: undefined;
   mockTurnstile: undefined;
   mockAnalytics: undefined;
   mockAllExternal: undefined;
@@ -67,13 +54,6 @@ export const test = base.extend<{
   mockStripe: [
     async ({ page }, use) => {
       await mockStripe(page);
-      await use(undefined);
-    },
-    { auto: false },
-  ],
-  mockPlaid: [
-    async ({ page }, use) => {
-      await mockPlaid(page);
       await use(undefined);
     },
     { auto: false },

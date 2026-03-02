@@ -33,9 +33,6 @@ process.env.TWILIO_ACCOUNT_SID = 'ACtest1234567890abcdef1234567890ab';
 process.env.TWILIO_AUTH_TOKEN = 'test-twilio-auth-token';
 process.env.TWILIO_PHONE_NUMBER = '+15551234567';
 process.env.RESEND_API_KEY = 're_test_abc123';
-process.env.PLAID_CLIENT_ID = 'test-plaid-client-id';
-process.env.PLAID_SECRET = 'test-plaid-secret';
-process.env.PLAID_ENV = 'sandbox';
 process.env.TURNSTILE_SECRET_KEY = '1x0000000000000000000000000000000AA';
 process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
 

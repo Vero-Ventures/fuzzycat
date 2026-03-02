@@ -7,7 +7,7 @@ import { test as screenshotsTest } from './screenshots.fixture';
 /**
  * Combined test fixture that includes all custom fixtures:
  * - Auth: ownerPage, clinicPage, adminPage
- * - Mocks: mockStripe, mockPlaid, mockTurnstile, mockAnalytics, mockAllExternal
+ * - Mocks: mockStripe, mockTurnstile, mockAnalytics, mockAllExternal
  * - Screenshots: takeScreenshot
  * - Logging: consoleErrors, networkFailures, responseErrors, attachLogs
  */

@@ -55,7 +55,6 @@ async function checkCspHeader(name: string): Promise<void> {
       { test: csp.includes("object-src 'none'"), label: "object-src 'none'" },
       { test: csp.includes('upgrade-insecure-requests'), label: 'upgrade-insecure-requests' },
       { test: csp.includes('https://js.stripe.com'), label: 'js.stripe.com whitelisted' },
-      { test: csp.includes('https://cdn.plaid.com'), label: 'cdn.plaid.com whitelisted' },
       { test: csp.includes('https://*.sentry-cdn.com'), label: '*.sentry-cdn.com whitelisted' },
       { test: csp.includes('https://*.posthog.com'), label: '*.posthog.com whitelisted' },
       { test: !csp.includes("'strict-dynamic'"), label: "no 'strict-dynamic'" },
@@ -244,48 +243,6 @@ async function main() {
 
     for (const [url, name] of ownerPages) {
       await checkPage(ownerPage, url, `Owner: ${name}`);
-    }
-
-    // ── Plaid Link Token Test ──
-    console.log('\n── Plaid createLinkToken ──');
-    const plaidErrors: string[] = [];
-    ownerPage.on('console', (msg) => {
-      const text = msg.text();
-      if (
-        text.includes('TRPCClientError') ||
-        text.includes('500') ||
-        text.includes('INTERNAL_SERVER_ERROR')
-      ) {
-        plaidErrors.push(text.slice(0, 200));
-      }
-    });
-
-    try {
-      await ownerPage.goto(`${BASE}/owner/enroll`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
-      });
-      await ownerPage.waitForTimeout(2000);
-
-      // Look for the Bank Account button and click it
-      const bankBtn = ownerPage.locator('text=Bank Account').first();
-      if (await bankBtn.isVisible({ timeout: 5000 })) {
-        await bankBtn.click();
-        await ownerPage.waitForTimeout(3000);
-        if (plaidErrors.length === 0) {
-          record('Plaid createLinkToken', 'PASS', 'No tRPC errors');
-        } else {
-          record('Plaid createLinkToken', 'FAIL', plaidErrors.join('; '));
-        }
-      } else {
-        record(
-          'Plaid createLinkToken',
-          'PASS',
-          'Bank Account button not visible (enrollment step mismatch — OK)',
-        );
-      }
-    } catch (err) {
-      record('Plaid createLinkToken', 'FAIL', String(err).slice(0, 120));
     }
 
     // ── Debit Card Button Test ──

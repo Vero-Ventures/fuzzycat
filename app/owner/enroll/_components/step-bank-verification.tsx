@@ -1,13 +1,10 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, CreditCard } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useTRPC } from '@/lib/trpc/client';
-import { PlaidLinkButton } from './plaid-link-button';
 import type { EnrollmentData } from './types';
 
 interface StepBankVerificationProps {
@@ -23,56 +20,15 @@ export function StepBankVerification({
   onNext,
   onBack,
 }: StepBankVerificationProps) {
-  const [bankConnected, setBankConnected] = useState(!!data.plaidPublicToken);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const trpc = useTRPC();
-
-  const createLinkToken = useMutation(trpc.plaid.createLinkToken.mutationOptions());
-
-  const exchangeToken = useMutation(
-    trpc.plaid.exchangePublicToken.mutationOptions({
-      onSuccess: () => {
-        setBankConnected(true);
-        setConnectionError(null);
-      },
-      onError: (error) => {
-        setConnectionError(error.message || 'Failed to connect bank account. Please try again.');
-      },
-    }),
-  );
-
-  const linkToken = createLinkToken.data?.linkToken ?? null;
-
-  function handleGetLinkToken() {
-    setConnectionError(null);
-    createLinkToken.mutate();
-  }
-
-  function handlePlaidSuccess(publicToken: string, accountId: string) {
-    updateData({
-      plaidPublicToken: publicToken,
-      plaidAccountId: accountId,
-      paymentMethod: 'bank_account',
-    });
-    setConnectionError(null);
-    // Exchange the public token immediately
-    exchangeToken.mutate({ publicToken, accountId });
-  }
-
-  function handlePlaidExit() {
-    if (!bankConnected) {
-      setConnectionError('Bank connection was cancelled. You can try again or use a debit card.');
-    }
-  }
+  const [_connectionError, setConnectionError] = useState<string | null>(null);
 
   function handleDebitCardChoice() {
-    updateData({ paymentMethod: 'debit_card', plaidPublicToken: null, plaidAccountId: null });
-    setBankConnected(false);
+    updateData({ paymentMethod: 'debit_card' });
     setConnectionError(null);
   }
 
   function handleContinue() {
-    if (bankConnected || data.paymentMethod === 'debit_card') {
+    if (data.paymentMethod === 'debit_card') {
       onNext();
     }
   }
@@ -82,88 +38,29 @@ export function StepBankVerification({
       <div>
         <h2 className="text-xl font-semibold">Payment Method</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Choose how you would like to make your payments. Bank account is used for biweekly
-          installments. Your deposit will be charged via debit card at checkout.
+          Choose how you would like to make your payments. Your deposit will be charged via debit
+          card at checkout.
         </p>
       </div>
 
-      {/* Option 1: Bank account via Plaid */}
+      <Alert>
+        <AlertTitle>Bank account payments coming soon</AlertTitle>
+        <AlertDescription>
+          ACH bank account payments will be available in a future update. For now, please use a
+          debit card for all payments.
+        </AlertDescription>
+      </Alert>
+
+      <Separator />
+
+      {/* Debit card option */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Option 1: Bank Account (Recommended)</h3>
-        <p className="text-xs text-muted-foreground">
-          Recommended for biweekly installments. We verify your balance to ensure the plan works for
-          you.
-        </p>
-
-        {!linkToken && !bankConnected && (
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full"
-            onClick={handleGetLinkToken}
-            disabled={createLinkToken.isPending}
-          >
-            {createLinkToken.isPending ? 'Preparing...' : 'Connect Bank Account'}
-          </Button>
-        )}
-
-        {linkToken && !bankConnected && (
-          <PlaidLinkButton
-            linkToken={linkToken}
-            onSuccess={handlePlaidSuccess}
-            onExit={handlePlaidExit}
-            disabled={exchangeToken.isPending}
-          />
-        )}
-
-        {exchangeToken.isPending && (
-          <Alert>
-            <AlertDescription>Connecting your bank account...</AlertDescription>
-          </Alert>
-        )}
-
-        {bankConnected && (
-          <Alert>
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Bank account connected</AlertTitle>
-            <AlertDescription>
-              Your bank account has been securely linked. We will use it for biweekly installment
-              payments.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {connectionError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{connectionError}</AlertDescription>
-          </Alert>
-        )}
-
-        {createLinkToken.isError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Failed to initialize bank connection. Please try again or use a debit card instead.
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Separator className="flex-1" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <Separator className="flex-1" />
-      </div>
-
-      {/* Option 2: Debit card */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Option 2: Debit Card</h3>
+        <h3 className="text-sm font-medium">Debit Card</h3>
         <p className="text-xs text-muted-foreground">
           Pay all installments with your debit card. Your card will be charged at Stripe checkout.
         </p>
         <Button
-          variant={data.paymentMethod === 'debit_card' && !bankConnected ? 'default' : 'outline'}
+          variant={data.paymentMethod === 'debit_card' ? 'default' : 'outline'}
           size="lg"
           className="w-full justify-start gap-3 h-auto py-4"
           onClick={handleDebitCardChoice}
@@ -182,11 +79,7 @@ export function StepBankVerification({
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button
-          onClick={handleContinue}
-          disabled={!bankConnected && data.paymentMethod !== 'debit_card'}
-          size="lg"
-        >
+        <Button onClick={handleContinue} disabled={data.paymentMethod !== 'debit_card'} size="lg">
           Continue
         </Button>
       </div>

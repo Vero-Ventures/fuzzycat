@@ -46,9 +46,6 @@ mock.module('@/lib/env', () => ({
     STRIPE_SECRET_KEY: 'sk_test_abc123',
     STRIPE_WEBHOOK_SECRET: 'whsec_test_abc123',
     RESEND_API_KEY: 're_test_abc123',
-    PLAID_CLIENT_ID: 'test-plaid-client-id',
-    PLAID_SECRET: 'test-plaid-secret',
-    PLAID_ENV: 'sandbox',
     TWILIO_ACCOUNT_SID: 'ACtest1234567890abcdef1234567890ab',
     TWILIO_AUTH_TOKEN: 'test-twilio-auth-token',
     TWILIO_PHONE_NUMBER: '+15551234567',
@@ -138,7 +135,7 @@ describe('middleware', () => {
     expect(dynamicCsp).toContain('upgrade-insecure-requests');
     // Whitelisted external script domains instead of broad https:
     expect(dynamicCsp).toContain('https://js.stripe.com');
-    expect(dynamicCsp).toContain('https://cdn.plaid.com');
+    expect(dynamicCsp).not.toContain('https://cdn.plaid.com');
     expect(dynamicCsp).toContain('https://*.sentry-cdn.com');
     // No nonce or strict-dynamic — Next.js SPA navigation injects inline
     // scripts without nonces, so strict-dynamic blocks framework scripts.

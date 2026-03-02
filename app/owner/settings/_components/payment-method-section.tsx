@@ -21,29 +21,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTRPC } from '@/lib/trpc/client';
 import { cn } from '@/lib/utils';
-import { PlaidLinkButton } from '../../enroll/_components/plaid-link-button';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-function BusyIndicator({
-  setupCard,
-  createLinkToken,
-  exchangeToken,
-}: {
-  setupCard: boolean;
-  createLinkToken: boolean;
-  exchangeToken: boolean;
-}) {
+function BusyIndicator({ setupCard }: { setupCard: boolean }) {
   return (
     <p className="flex items-center gap-1 text-sm text-muted-foreground">
       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      {setupCard
-        ? 'Redirecting to card setup...'
-        : createLinkToken
-          ? 'Preparing bank connection...'
-          : exchangeToken
-            ? 'Connecting bank account...'
-            : 'Saving...'}
+      {setupCard ? 'Redirecting to card setup...' : 'Saving...'}
     </p>
   );
 }
@@ -54,7 +39,6 @@ function SavedMethodDetails({
   bankAccount,
   disabled,
   onReplaceCard,
-  onReplaceBank,
   onRemoveCard,
   onRemoveBank,
 }: {
@@ -63,7 +47,6 @@ function SavedMethodDetails({
   bankAccount: { bankName: string; last4: string } | null | undefined;
   disabled: boolean;
   onReplaceCard: () => void;
-  onReplaceBank: () => void;
   onRemoveCard: () => void;
   onRemoveBank: () => void;
 }) {
@@ -95,9 +78,6 @@ function SavedMethodDetails({
               {bankAccount.bankName} ****{bankAccount.last4}
             </p>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" disabled={disabled} onClick={onReplaceBank}>
-                Replace
-              </Button>
               <RemoveConfirmDialog
                 methodLabel="bank account"
                 disabled={disabled}
@@ -198,7 +178,6 @@ export function PaymentMethodSection() {
   });
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showPlaidLink, setShowPlaidLink] = useState(false);
 
   const invalidateQueries = () => {
     queryClient.invalidateQueries({ queryKey: trpc.owner.getProfile.queryKey() });
@@ -239,15 +218,6 @@ export function PaymentMethodSection() {
     }
   }, [setupSessionId]);
 
-  const createLinkToken = useMutation(
-    trpc.plaid.createLinkToken.mutationOptions({
-      onError: (error) => {
-        handleMutationError(error, 'Failed to connect bank. Please try again.');
-        setShowPlaidLink(false);
-      },
-    }),
-  );
-
   const updateMutation = useMutation(
     trpc.owner.updatePaymentMethod.mutationOptions({
       onSuccess: () => {
@@ -256,19 +226,6 @@ export function PaymentMethodSection() {
         setTimeout(() => setSaveStatus('idle'), 2000);
       },
       onError: (error) => handleMutationError(error, 'Failed to update payment method.'),
-    }),
-  );
-
-  const exchangeToken = useMutation(
-    trpc.plaid.exchangePublicToken.mutationOptions({
-      onSuccess: () => {
-        updateMutation.mutate({ paymentMethod: 'bank_account' });
-        setShowPlaidLink(false);
-      },
-      onError: (error) => {
-        handleMutationError(error, 'Failed to connect bank account.');
-        setShowPlaidLink(false);
-      },
     }),
   );
 
@@ -299,8 +256,10 @@ export function PaymentMethodSection() {
     if (profile?.paymentMethod === 'bank_account') return;
     setErrorMessage(null);
     if (!paymentDetails?.bankAccount) {
-      setShowPlaidLink(true);
-      createLinkToken.mutate();
+      // Bank account setup via Stripe will be available in a future update
+      setErrorMessage('Bank account setup is not yet available. Please use a debit card.');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } else {
       setSaveStatus('saving');
       updateMutation.mutate({ paymentMethod: 'bank_account' });
@@ -312,12 +271,6 @@ export function PaymentMethodSection() {
     setSaveStatus('saving');
     const baseUrl = `${window.location.origin}${pathname}`;
     setupCard.mutate({ successUrl: baseUrl, cancelUrl: baseUrl });
-  }
-
-  function handleReplaceBank() {
-    setErrorMessage(null);
-    setShowPlaidLink(true);
-    createLinkToken.mutate();
   }
 
   function handleRemoveCard() {
@@ -351,8 +304,6 @@ export function PaymentMethodSection() {
     saveStatus === 'saving' ||
     setupCard.isPending ||
     confirmCard.isPending ||
-    createLinkToken.isPending ||
-    exchangeToken.isPending ||
     removeMutation.isPending;
 
   return (
@@ -381,36 +332,17 @@ export function PaymentMethodSection() {
           />
         </div>
 
-        {showPlaidLink && createLinkToken.data?.linkToken && (
-          <PlaidLinkButton
-            linkToken={createLinkToken.data.linkToken}
-            onSuccess={(publicToken, accountId) => {
-              setSaveStatus('saving');
-              exchangeToken.mutate({ publicToken, accountId });
-            }}
-            onExit={() => setShowPlaidLink(false)}
-            disabled={exchangeToken.isPending}
-          />
-        )}
-
         <SavedMethodDetails
           isLoading={isLoadingDetails}
           card={paymentDetails?.card}
           bankAccount={paymentDetails?.bankAccount}
           disabled={isBusy}
           onReplaceCard={handleReplaceCard}
-          onReplaceBank={handleReplaceBank}
           onRemoveCard={handleRemoveCard}
           onRemoveBank={handleRemoveBank}
         />
 
-        {isBusy && (
-          <BusyIndicator
-            setupCard={setupCard.isPending}
-            createLinkToken={createLinkToken.isPending}
-            exchangeToken={exchangeToken.isPending}
-          />
-        )}
+        {isBusy && <BusyIndicator setupCard={setupCard.isPending} />}
         <StatusMessage saveStatus={saveStatus} errorMessage={errorMessage} />
       </CardContent>
     </Card>

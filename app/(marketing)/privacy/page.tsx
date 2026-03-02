@@ -36,10 +36,9 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong className="text-foreground">Financial information:</strong> We use Stripe to
-              process debit card payments and ACH transfers, and Plaid to verify bank account
-              ownership. FuzzyCat does not store your card numbers, bank account numbers, or routing
-              numbers on our servers. All payment credentials are handled directly by Stripe and
-              Plaid in compliance with PCI DSS standards.
+              process debit card payments and ACH transfers. FuzzyCat does not store your card
+              numbers, bank account numbers, or routing numbers on our servers. All payment
+              credentials are handled directly by Stripe in compliance with PCI DSS standards.
             </li>
             <li>
               <strong className="text-foreground">Payment plan data:</strong> Bill amounts, payment
@@ -63,9 +62,7 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-3 list-disc space-y-2 pl-6">
             <li>Create and manage your account and payment plans.</li>
             <li>Process payments, including deposits and biweekly installments.</li>
-            <li>
-              Verify your bank account through Plaid to ensure you can make scheduled payments.
-            </li>
+            <li>Verify your bank account to ensure you can make scheduled payments.</li>
             <li>
               Send payment confirmations, reminders, and notifications about your plan status.
             </li>
@@ -90,8 +87,7 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-3 list-disc space-y-2 pl-6">
             <li>
               <strong className="text-foreground">Payment processors:</strong> Stripe processes your
-              payments and receives the data necessary to complete transactions. Plaid verifies your
-              bank account ownership.
+              payments and receives the data necessary to complete transactions.
             </li>
             <li>
               <strong className="text-foreground">Veterinary clinics:</strong> If you are a pet
@@ -116,9 +112,9 @@ export default function PrivacyPolicyPage() {
           <p className="mt-3">
             We implement industry-standard security measures to protect your information. All data
             transmitted between your browser and our servers is encrypted using TLS. Sensitive
-            financial data is handled exclusively by PCI-compliant third parties (Stripe and Plaid)
-            and is never stored on our servers. We use Supabase Auth with role-based access controls
-            and enforce Content Security Policy headers to prevent cross-site scripting attacks.
+            financial data is handled exclusively by PCI-compliant third parties (Stripe) and is
+            never stored on our servers. We use Supabase Auth with role-based access controls and
+            enforce Content Security Policy headers to prevent cross-site scripting attacks.
           </p>
         </section>
 

@@ -28,7 +28,7 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-import { schemaMock } from '../../__tests__/stripe/_mock-schema';
+import { schemaMock } from '../../server/__tests__/stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
@@ -38,6 +38,35 @@ mock.module('@/server/services/audit', () => ({
 
 mock.module('@/lib/logger', () => ({
   logger: { info: mock(), warn: mock(), error: mock() },
+}));
+
+mock.module('@/lib/env', () => ({
+  serverEnv: () => ({}),
+  publicEnv: () => ({}),
+  _resetEnvCache: mock(),
+}));
+
+// Mock clinic-queries and payout services (imported by other route modules via createApiApp)
+mock.module('@/server/services/clinic-queries', () => ({
+  getClinicProfile: mock(),
+  updateClinicProfile: mock(),
+  getDashboardStats: mock(),
+  getClientStats: mock(),
+  getClients: mock(),
+  getClientDetails: mock(),
+  getClientPlanDetails: mock(),
+  getMonthlyRevenue: mock(),
+  getRevenueReport: mock(),
+  getEnrollmentTrends: mock(),
+  getDefaultRate: mock(),
+  exportClientsCSV: mock(),
+  exportRevenueCSV: mock(),
+  exportPayoutsCSV: mock(),
+}));
+
+mock.module('@/server/services/payout', () => ({
+  getClinicPayoutHistory: mock(),
+  getClinicEarnings: mock(),
 }));
 
 // Must import AFTER mocks

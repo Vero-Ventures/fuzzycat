@@ -50,7 +50,7 @@ mock.module('@/server/db', () => ({
   db: { select: mock(), update: mock() },
 }));
 
-import { schemaMock } from '../../__tests__/stripe/_mock-schema';
+import { schemaMock } from '../../server/__tests__/stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
@@ -60,6 +60,18 @@ mock.module('@/server/services/audit', () => ({
 
 mock.module('@/lib/logger', () => ({
   logger: { info: mock(), warn: mock(), error: mock() },
+}));
+
+mock.module('@/lib/env', () => ({
+  serverEnv: () => ({}),
+  publicEnv: () => ({}),
+  _resetEnvCache: mock(),
+}));
+
+// Payout service mock (needed by app.ts import chain)
+mock.module('@/server/services/payout', () => ({
+  getClinicPayoutHistory: mock(),
+  getClinicEarnings: mock(),
 }));
 
 const { createApiApp } = await import('@/server/api/app');

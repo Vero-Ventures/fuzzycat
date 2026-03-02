@@ -112,16 +112,16 @@ export async function getRiskPoolBalance(): Promise<
     totalRecoveriesCents: 0,
   };
 
-  // Ensure values are numbers (SQL aggregates may return strings in some drivers)
-  const contributions = Number(row.totalContributionsCents);
-  const claims = Number(row.totalClaimsCents);
-  const recoveries = Number(row.totalRecoveriesCents);
+  // Ensure values are integer cents (SQL aggregates may return strings in some drivers)
+  const contributions = Math.round(Number(row.totalContributionsCents));
+  const claims = Math.round(Number(row.totalClaimsCents));
+  const recoveries = Math.round(Number(row.totalRecoveriesCents));
 
   return {
     totalContributionsCents: contributions,
     totalClaimsCents: claims,
     totalRecoveriesCents: recoveries,
-    balanceCents: contributions + recoveries - claims,
+    balanceCents: Math.round(contributions + recoveries - claims),
   };
 }
 
@@ -145,7 +145,7 @@ export async function getRiskPoolHealth(): Promise<ReserveHealth> {
   ]);
 
   const outstanding = outstandingResult[0] ?? { outstandingCents: 0, activePlanCount: 0 };
-  const outstandingCents = Number(outstanding.outstandingCents);
+  const outstandingCents = Math.round(Number(outstanding.outstandingCents));
   const activePlanCount = Number(outstanding.activePlanCount);
 
   return {

@@ -29,7 +29,7 @@ export function PayoutHistory() {
     data: historyData,
     isLoading,
     error,
-  } = useQuery(trpc.payout.history.queryOptions({ limit: PAGE_SIZE, offset }));
+  } = useQuery(trpc.clinic.getPayoutHistory.queryOptions({ limit: PAGE_SIZE, offset }));
 
   if (isLoading) {
     return <PayoutHistorySkeleton />;

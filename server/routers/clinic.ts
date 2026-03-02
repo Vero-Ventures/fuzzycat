@@ -14,6 +14,7 @@ import { clinics, owners, payments, payouts, pets, plans } from '@/server/db/sch
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/server/services/api-key';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
+import { getClinicEarnings, getClinicPayoutHistory } from '@/server/services/payout';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
@@ -882,6 +883,32 @@ export const clinicRouter = router({
       payoutCount: Number(row.payoutCount),
     }));
   }),
+
+  /**
+   * Get aggregate earnings summary for the clinic payouts page.
+   */
+  getEarnings: clinicProcedure.query(async ({ ctx }) => {
+    return getClinicEarnings(ctx.clinicId);
+  }),
+
+  /**
+   * Get paginated payout history for the clinic.
+   */
+  getPayoutHistory: clinicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(100).default(20),
+          offset: z.number().int().min(0).default(0),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return getClinicPayoutHistory(ctx.clinicId, {
+        limit: input?.limit ?? 20,
+        offset: input?.offset ?? 0,
+      });
+    }),
 
   // ── Reporting procedures (Issue #36) ─────────────────────────────
 

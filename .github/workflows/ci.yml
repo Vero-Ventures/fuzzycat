@@ -131,8 +131,8 @@ jobs:
           else
             echo "No test files found, skipping."
           fi
-      - name: Run middleware tests (isolated — mock.module leaks)
-        run: bun test middleware.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage-middleware
+      - name: Run proxy tests (isolated — mock.module leaks)
+        run: bun test proxy.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage-proxy
       - name: Run authorization matrix tests (isolated — mock.module leaks)
         run: bun test authorization-matrix.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage-authz
       - name: Run isolated tests (one-per-process — mock.module leaks)
@@ -144,7 +144,7 @@ jobs:
       - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         if: hashFiles('coverage/lcov.info') != ''
         with:
-          files: coverage/lcov.info,coverage-middleware/lcov.info,coverage-authz/lcov.info
+          files: coverage/lcov.info,coverage-proxy/lcov.info,coverage-authz/lcov.info
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -54,9 +54,9 @@ mock.module('@/lib/env', () => ({
   _resetEnvCache: () => {},
 }));
 
-const { middleware } = await import('./middleware');
+const { proxy } = await import('./proxy');
 
-describe('middleware', () => {
+describe('proxy', () => {
   let consoleSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
@@ -74,7 +74,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/clinic/dashboard');
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     // Should pass through (200) rather than crash
     expect(response.status).toBe(200);
@@ -85,7 +85,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/clinic/dashboard');
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
@@ -108,7 +108,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/login');
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
@@ -126,7 +126,7 @@ describe('middleware', () => {
         error: null,
       }),
     );
-    const dynamicResp = await middleware(dynamicReq);
+    const dynamicResp = await proxy(dynamicReq);
     const dynamicCsp = dynamicResp.headers.get('Content-Security-Policy');
     expect(dynamicCsp).toBeTruthy();
     expect(dynamicCsp).toContain("default-src 'self'");
@@ -145,7 +145,7 @@ describe('middleware', () => {
     // Test a static route — same CSP
     mockGetUser.mockImplementation(() => Promise.resolve({ data: { user: null }, error: null }));
     const staticReq = new NextRequest('http://localhost:3000/');
-    const staticResp = await middleware(staticReq);
+    const staticResp = await proxy(staticReq);
     const staticCsp = staticResp.headers.get('Content-Security-Policy');
     expect(staticCsp).toEqual(dynamicCsp);
   });
@@ -155,7 +155,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/');
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     const csp = response.headers.get('Content-Security-Policy');
     expect(csp).toBeTruthy();
@@ -171,7 +171,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost:3000/owner/payments');
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     // Should redirect to login (unauthenticated)
     expect(response.status).toBe(307);
@@ -211,7 +211,7 @@ describe('middleware', () => {
 
     const { NextRequest } = await import('next/server');
     const req = new NextRequest(`http://localhost:3000${path}`);
-    const response = await middleware(req);
+    const response = await proxy(req);
 
     expect(response.status).toBe(status);
     if (redirect) {

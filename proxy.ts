@@ -92,8 +92,8 @@ function buildRoleRedirect(
   return null;
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: middleware is inherently sequential — auth routing requires nested conditionals
-export async function middleware(request: NextRequest) {
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: proxy is inherently sequential — auth routing requires nested conditionals
+export async function proxy(request: NextRequest) {
   const startTime = performance.now();
   const nonce = crypto.randomUUID();
   const { pathname } = request.nextUrl;

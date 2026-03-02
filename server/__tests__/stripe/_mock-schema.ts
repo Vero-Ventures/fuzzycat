@@ -69,6 +69,8 @@ export const schemaMock = {
     keyPrefix: 'api_keys.key_prefix',
     permissions: 'api_keys.permissions',
     lastUsedAt: 'api_keys.last_used_at',
+    expiresAt: 'api_keys.expires_at',
+    allowedIps: 'api_keys.allowed_ips',
     createdAt: 'api_keys.created_at',
     revokedAt: 'api_keys.revoked_at',
   },

@@ -19,6 +19,7 @@ export const AUDIT_ENTITY_TYPES = [
   'risk_pool',
   'clinic',
   'owner',
+  'api_key',
 ] as const;
 export type EntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
@@ -36,6 +37,9 @@ export const AUDIT_ACTIONS = [
   'payments_written_off',
   'payment_method_removed',
   'payment_method_replaced',
+  'api_request',
+  'api_key_expired',
+  'api_key_ip_rejected',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

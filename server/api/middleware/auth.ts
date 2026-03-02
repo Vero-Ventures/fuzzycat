@@ -11,12 +11,13 @@ import { validateApiKey } from '@/server/services/api-key';
  * Authentication middleware for external API routes.
  * Expects: `Authorization: Bearer fc_live_...`
  *
- * Skips auth for the OpenAPI spec endpoint.
+ * Skips auth for the OpenAPI spec and health check endpoints.
+ * Passes client IP for allowlist checking.
  */
 export const authMiddleware: MiddlewareHandler<{ Variables: ApiVariables }> = async (c, next) => {
-  // Skip auth for OpenAPI spec and health check
+  // Skip auth for OpenAPI spec, health check, and docs
   const path = c.req.path;
-  if (path.endsWith('/openapi.json') || path.endsWith('/health')) {
+  if (path.endsWith('/openapi.json') || path.endsWith('/health') || path.endsWith('/docs')) {
     await next();
     return;
   }
@@ -32,7 +33,14 @@ export const authMiddleware: MiddlewareHandler<{ Variables: ApiVariables }> = as
   }
 
   const token = match[1];
-  const result = await validateApiKey(token);
+
+  // Extract client IP for allowlist validation
+  const ipAddress =
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
+    c.req.header('x-real-ip') ??
+    undefined;
+
+  const result = await validateApiKey(token, { ipAddress });
 
   if (!result) {
     throw new ApiError(401, ErrorCodes.UNAUTHORIZED, 'Invalid or revoked API key');

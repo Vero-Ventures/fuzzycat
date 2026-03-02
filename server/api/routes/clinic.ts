@@ -33,6 +33,182 @@ const errorResponseSchema = z.object({
   }),
 });
 
+// ── Response schemas ─────────────────────────────────────────────────
+
+const clinicProfileSchema = z.object({
+  id: z.string().uuid().openapi({ example: '550e8400-e29b-41d4-a716-446655440000' }),
+  name: z.string().openapi({ example: 'Happy Paws Veterinary' }),
+  email: z.string().email().openapi({ example: 'clinic@happypaws.com' }),
+  phone: z.string().nullable().openapi({ example: '+15551234567' }),
+  addressLine1: z.string().nullable().openapi({ example: '123 Main St' }),
+  addressCity: z.string().nullable().openapi({ example: 'Austin' }),
+  addressState: z.string().nullable().openapi({ example: 'TX' }),
+  addressZip: z.string().nullable().openapi({ example: '78701' }),
+  stripeAccountId: z.string().nullable().openapi({ example: 'acct_1234567890' }),
+  status: z.string().openapi({ example: 'active' }),
+});
+
+const recentEnrollmentSchema = z.object({
+  id: z.string().uuid(),
+  ownerName: z.string().nullable(),
+  petName: z.string().nullable(),
+  totalBillCents: z.number().openapi({ example: 150000 }),
+  status: z.string().openapi({ example: 'active' }),
+  createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+});
+
+/** Dashboard stats — has Date fields in recentEnrollments, needs .passthrough() */
+const dashboardStatsSchema = z
+  .object({
+    activePlans: z.number().openapi({ example: 12 }),
+    completedPlans: z.number().openapi({ example: 45 }),
+    defaultedPlans: z.number().openapi({ example: 2 }),
+    totalPlans: z.number().openapi({ example: 59 }),
+    totalRevenueCents: z.number().openapi({ example: 850000 }),
+    totalPayoutCents: z.number().openapi({ example: 7500000 }),
+    pendingPayoutsCount: z.number().openapi({ example: 3 }),
+    pendingPayoutsCents: z.number().openapi({ example: 450000 }),
+    recentEnrollments: z.array(recentEnrollmentSchema),
+  })
+  .passthrough();
+
+const clientStatsSchema = z.object({
+  activePlans: z.number().openapi({ example: 5 }),
+  totalOutstandingCents: z.number().openapi({ example: 250000 }),
+  defaultRate: z.number().openapi({ example: 2.5 }),
+});
+
+const defaultRateSchema = z.object({
+  totalPlans: z.number().openapi({ example: 50 }),
+  defaultedPlans: z.number().openapi({ example: 2 }),
+  defaultRate: z.number().openapi({ example: 4.0 }),
+});
+
+const enrollmentTrendSchema = z.object({
+  month: z.string().openapi({ example: '2026-01' }),
+  enrollments: z.number().openapi({ example: 8 }),
+});
+
+const clientRowSchema = z.object({
+  planId: z.string().uuid(),
+  ownerName: z.string().nullable(),
+  ownerEmail: z.string().nullable(),
+  ownerPhone: z.string().nullable(),
+  petName: z.string().nullable(),
+  totalBillCents: z.number().openapi({ example: 150000 }),
+  totalWithFeeCents: z.number().openapi({ example: 159000 }),
+  planStatus: z.string().openapi({ example: 'active' }),
+  nextPaymentAt: z.string().nullable().openapi({ example: '2026-02-01T00:00:00.000Z' }),
+  createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+  totalPaidCents: z.number().openapi({ example: 39750 }),
+});
+
+/** Clients list — has Date fields (nextPaymentAt, createdAt), needs .passthrough() */
+const clientsResponseSchema = z
+  .object({
+    clients: z.array(clientRowSchema),
+    pagination: z.object({
+      page: z.number().openapi({ example: 1 }),
+      pageSize: z.number().openapi({ example: 20 }),
+      totalCount: z.number().openapi({ example: 42 }),
+      totalPages: z.number().openapi({ example: 3 }),
+    }),
+  })
+  .passthrough();
+
+const clientPlanSchema = z.object({
+  id: z.string().uuid(),
+  totalBillCents: z.number(),
+  totalWithFeeCents: z.number(),
+  depositCents: z.number(),
+  installmentCents: z.number(),
+  numInstallments: z.number(),
+  status: z.string(),
+  createdAt: z.string().nullable(),
+  petName: z.string().nullable(),
+  totalPaidCents: z.number(),
+});
+
+/** Client details — has Date fields (plans[].createdAt, clientSince), needs .passthrough() */
+const clientDetailsSchema = z
+  .object({
+    owner: z.object({
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      petName: z.string().nullable(),
+    }),
+    plans: z.array(clientPlanSchema),
+    clientSince: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+  })
+  .passthrough();
+
+const planDetailSchema = z.object({
+  id: z.string().uuid(),
+  clinicId: z.string().uuid().nullable(),
+  totalBillCents: z.number(),
+  feeCents: z.number(),
+  totalWithFeeCents: z.number(),
+  depositCents: z.number(),
+  remainingCents: z.number(),
+  installmentCents: z.number(),
+  numInstallments: z.number(),
+  status: z.string(),
+  depositPaidAt: z.string().nullable(),
+  nextPaymentAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  createdAt: z.string().nullable(),
+  ownerName: z.string().nullable(),
+  ownerEmail: z.string().nullable(),
+  ownerPhone: z.string().nullable(),
+  petName: z.string().nullable(),
+});
+
+const paymentDetailSchema = z.object({
+  id: z.string().uuid(),
+  type: z.string().openapi({ example: 'installment' }),
+  sequenceNum: z.number().nullable().openapi({ example: 1 }),
+  amountCents: z.number().openapi({ example: 19875 }),
+  status: z.string().openapi({ example: 'succeeded' }),
+  scheduledAt: z.string().openapi({ example: '2026-02-01T00:00:00.000Z' }),
+  processedAt: z.string().nullable().openapi({ example: '2026-02-01T12:30:00.000Z' }),
+  failureReason: z.string().nullable(),
+  retryCount: z.number().nullable().openapi({ example: 0 }),
+});
+
+const payoutDetailSchema = z.object({
+  id: z.string().uuid(),
+  amountCents: z.number().openapi({ example: 19000 }),
+  clinicShareCents: z.number().openapi({ example: 570 }),
+  stripeTransferId: z.string().nullable().openapi({ example: 'tr_1234567890' }),
+  status: z.string().openapi({ example: 'succeeded' }),
+  createdAt: z.string().nullable().openapi({ example: '2026-02-01T12:30:00.000Z' }),
+});
+
+/** Plan details — has many Date fields, needs .passthrough() */
+const planDetailsResponseSchema = z
+  .object({
+    plan: planDetailSchema,
+    payments: z.array(paymentDetailSchema),
+    payouts: z.array(payoutDetailSchema),
+  })
+  .passthrough();
+
+const monthlyRevenueSchema = z.object({
+  month: z.string().openapi({ example: '2026-01' }),
+  totalPayoutCents: z.number().openapi({ example: 500000 }),
+  totalShareCents: z.number().openapi({ example: 15000 }),
+  payoutCount: z.number().openapi({ example: 10 }),
+});
+
+const revenueReportSchema = z.object({
+  month: z.string().openapi({ example: '2026-01' }),
+  enrollments: z.number().openapi({ example: 8 }),
+  revenueCents: z.number().openapi({ example: 500000 }),
+  payoutsCents: z.number().openapi({ example: 500000 }),
+  clinicShareCents: z.number().openapi({ example: 15000 }),
+});
+
 // ── Route definitions ────────────────────────────────────────────────
 
 const getProfileRoute = createRoute({
@@ -44,7 +220,7 @@ const getProfileRoute = createRoute({
   responses: {
     200: {
       description: 'Clinic profile',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: clinicProfileSchema } },
     },
     404: {
       description: 'Not found',
@@ -81,7 +257,7 @@ const updateProfileRoute = createRoute({
   responses: {
     200: {
       description: 'Updated profile',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: clinicProfileSchema } },
     },
     400: {
       description: 'Bad request',
@@ -99,7 +275,7 @@ const getStatsRoute = createRoute({
   responses: {
     200: {
       description: 'Dashboard stats',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: dashboardStatsSchema } },
     },
   },
 });
@@ -113,7 +289,7 @@ const getClientStatsRoute = createRoute({
   responses: {
     200: {
       description: 'Client stats',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: clientStatsSchema } },
     },
   },
 });
@@ -127,7 +303,7 @@ const getDefaultsRoute = createRoute({
   responses: {
     200: {
       description: 'Default rate',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: defaultRateSchema } },
     },
   },
 });
@@ -146,7 +322,7 @@ const getTrendsRoute = createRoute({
   responses: {
     200: {
       description: 'Enrollment trends',
-      content: { 'application/json': { schema: z.array(z.object({}).passthrough()) } },
+      content: { 'application/json': { schema: z.array(enrollmentTrendSchema) } },
     },
   },
 });
@@ -170,7 +346,7 @@ const getClientsRoute = createRoute({
   responses: {
     200: {
       description: 'Client list with pagination',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: clientsResponseSchema } },
     },
   },
 });
@@ -187,7 +363,7 @@ const getClientDetailsRoute = createRoute({
   responses: {
     200: {
       description: 'Client details',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: clientDetailsSchema } },
     },
     404: {
       description: 'Not found',
@@ -208,7 +384,7 @@ const getPlanDetailsRoute = createRoute({
   responses: {
     200: {
       description: 'Plan details',
-      content: { 'application/json': { schema: z.object({}).passthrough() } },
+      content: { 'application/json': { schema: planDetailsResponseSchema } },
     },
     404: {
       description: 'Not found',
@@ -226,7 +402,7 @@ const getRevenueRoute = createRoute({
   responses: {
     200: {
       description: 'Monthly revenue data',
-      content: { 'application/json': { schema: z.array(z.object({}).passthrough()) } },
+      content: { 'application/json': { schema: z.array(monthlyRevenueSchema) } },
     },
   },
 });
@@ -246,7 +422,7 @@ const getRevenueReportRoute = createRoute({
   responses: {
     200: {
       description: 'Revenue report',
-      content: { 'application/json': { schema: z.array(z.object({}).passthrough()) } },
+      content: { 'application/json': { schema: z.array(revenueReportSchema) } },
     },
   },
 });

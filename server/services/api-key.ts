@@ -19,6 +19,14 @@ const DISPLAY_PREFIX_LENGTH = 12; // e.g. "fc_live_a1b2"
 
 // ── Types ────────────────────────────────────────────────────────────
 
+export interface CreateApiKeyOptions {
+  actorId?: string;
+  /** Optional expiration date. After this time, the key is rejected. */
+  expiresAt?: Date;
+  /** Optional IP allowlist. If set, requests from other IPs are rejected. */
+  allowedIps?: string[];
+}
+
 export interface CreateApiKeyResult {
   /** The API key ID (database UUID). */
   id: string;
@@ -34,6 +42,8 @@ export interface ApiKeyInfo {
   keyPrefix: string;
   permissions: string[];
   lastUsedAt: Date | null;
+  expiresAt: Date | null;
+  allowedIps: string[] | null;
   createdAt: Date | null;
   revokedAt: Date | null;
 }
@@ -73,8 +83,12 @@ export async function generateApiKey(
   clinicId: string,
   name: string,
   permissions: string[],
-  actorId?: string,
+  options?: CreateApiKeyOptions | string,
 ): Promise<CreateApiKeyResult> {
+  // Backwards-compat: old signature passed actorId as 4th arg
+  const opts: CreateApiKeyOptions =
+    typeof options === 'string' ? { actorId: options } : (options ?? {});
+
   const validPermissions = validatePermissions(permissions);
   const plaintextKey = generatePlaintextKey();
   const keyHash = hashKey(plaintextKey);
@@ -88,17 +102,25 @@ export async function generateApiKey(
       keyHash,
       keyPrefix,
       permissions: validPermissions,
+      ...(opts.expiresAt && { expiresAt: opts.expiresAt }),
+      ...(opts.allowedIps && { allowedIps: opts.allowedIps }),
     })
     .returning({ id: apiKeys.id });
 
   await logAuditEvent({
-    entityType: 'clinic',
-    entityId: clinicId,
+    entityType: 'api_key',
+    entityId: inserted.id,
     action: 'created',
     oldValue: null,
-    newValue: { apiKeyId: inserted.id, name, permissions: validPermissions },
-    actorType: actorId ? 'clinic' : 'system',
-    actorId: actorId ?? null,
+    newValue: {
+      clinicId,
+      name,
+      permissions: validPermissions,
+      ...(opts.expiresAt && { expiresAt: opts.expiresAt.toISOString() }),
+      ...(opts.allowedIps && { allowedIps: opts.allowedIps }),
+    },
+    actorType: opts.actorId ? 'clinic' : 'system',
+    actorId: opts.actorId ?? null,
   });
 
   logger.info('API key created', { clinicId, apiKeyId: inserted.id, name });
@@ -112,10 +134,13 @@ export async function generateApiKey(
 
 /**
  * Validate an API key and return the associated clinic + permissions.
- * Returns null if the key is invalid, revoked, or not found.
+ * Returns null if the key is invalid, revoked, expired, or IP-rejected.
  * Updates `lastUsedAt` on successful validation.
  */
-export async function validateApiKey(plaintextKey: string): Promise<ValidatedApiKey | null> {
+export async function validateApiKey(
+  plaintextKey: string,
+  options?: { ipAddress?: string },
+): Promise<ValidatedApiKey | null> {
   if (!plaintextKey.startsWith(KEY_PREFIX)) {
     return null;
   }
@@ -128,6 +153,8 @@ export async function validateApiKey(plaintextKey: string): Promise<ValidatedApi
       clinicId: apiKeys.clinicId,
       permissions: apiKeys.permissions,
       revokedAt: apiKeys.revokedAt,
+      expiresAt: apiKeys.expiresAt,
+      allowedIps: apiKeys.allowedIps,
     })
     .from(apiKeys)
     .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)))
@@ -135,6 +162,38 @@ export async function validateApiKey(plaintextKey: string): Promise<ValidatedApi
 
   if (!row) {
     return null;
+  }
+
+  // Check expiration
+  if (row.expiresAt && new Date() > row.expiresAt) {
+    logger.warn('API key expired', { apiKeyId: row.id, clinicId: row.clinicId });
+    logAuditEvent({
+      entityType: 'api_key',
+      entityId: row.id,
+      action: 'api_key_expired',
+      newValue: { clinicId: row.clinicId, expiresAt: row.expiresAt.toISOString() },
+      actorType: 'system',
+    });
+    return null;
+  }
+
+  // Check IP allowlist
+  if (row.allowedIps && row.allowedIps.length > 0 && options?.ipAddress) {
+    if (!row.allowedIps.includes(options.ipAddress)) {
+      logger.warn('API key IP not allowed', {
+        apiKeyId: row.id,
+        clinicId: row.clinicId,
+        ip: options.ipAddress,
+      });
+      logAuditEvent({
+        entityType: 'api_key',
+        entityId: row.id,
+        action: 'api_key_ip_rejected',
+        newValue: { clinicId: row.clinicId, ip: options.ipAddress },
+        actorType: 'system',
+      });
+      return null;
+    }
   }
 
   // Fire-and-forget lastUsedAt update (non-blocking)
@@ -175,11 +234,11 @@ export async function revokeApiKey(
   }
 
   await logAuditEvent({
-    entityType: 'clinic',
-    entityId: clinicId,
+    entityType: 'api_key',
+    entityId: apiKeyId,
     action: 'status_changed',
-    oldValue: { apiKeyId, revokedAt: null },
-    newValue: { apiKeyId, revokedAt: new Date().toISOString() },
+    oldValue: { clinicId, revokedAt: null },
+    newValue: { clinicId, revokedAt: new Date().toISOString() },
     actorType: actorId ? 'clinic' : 'system',
     actorId: actorId ?? null,
   });
@@ -200,6 +259,8 @@ export async function listApiKeys(clinicId: string): Promise<ApiKeyInfo[]> {
       keyPrefix: apiKeys.keyPrefix,
       permissions: apiKeys.permissions,
       lastUsedAt: apiKeys.lastUsedAt,
+      expiresAt: apiKeys.expiresAt,
+      allowedIps: apiKeys.allowedIps,
       createdAt: apiKeys.createdAt,
       revokedAt: apiKeys.revokedAt,
     })

@@ -103,9 +103,8 @@ export default function SupportPage() {
               <AccordionTrigger>Is my financial information secure?</AccordionTrigger>
               <AccordionContent>
                 Yes. FuzzyCat never stores your card numbers, bank account numbers, or routing
-                numbers. All payment processing is handled by Stripe (PCI DSS Level 1 certified) and
-                bank verification is handled by Plaid. Your data is encrypted in transit and at
-                rest.
+                numbers. All payment processing is handled by Stripe (PCI DSS Level 1 certified).
+                Your data is encrypted in transit and at rest.
               </AccordionContent>
             </AccordionItem>
 

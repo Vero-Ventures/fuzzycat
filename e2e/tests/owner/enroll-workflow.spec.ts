@@ -148,7 +148,7 @@ test.describe('Enrollment Wizard Workflow', () => {
     await expect(page.getByRole('button', { name: /continue/i })).toBeEnabled({ timeout: 5000 });
   });
 
-  test('Step 3: connect bank via Plaid shows button', async ({ page }) => {
+  test('Step 3: debit card option is available', async ({ page }) => {
     await gotoPortalPage(page, '/owner/enroll');
 
     // Navigate past Step 1
@@ -165,11 +165,11 @@ test.describe('Enrollment Wizard Workflow', () => {
     await page.locator('#pet-name').fill('Whiskers');
     await page.getByRole('button', { name: /continue/i }).click();
 
-    // Step 3: Bank account option
+    // Step 3: Payment method selection
     await expect(page.getByText(/payment method|step 3/i).first()).toBeVisible({ timeout: 5000 });
 
-    const bankBtn = page.getByRole('button', { name: /connect bank|bank account/i });
-    await expect(bankBtn).toBeVisible();
+    const debitBtn = page.getByRole('button', { name: /debit card/i });
+    await expect(debitBtn).toBeVisible();
   });
 
   // ── Step 4: Review & Confirm ───────────────────────────────────────────────

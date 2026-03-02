@@ -3,7 +3,6 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { logger } from '@/lib/logger';
-import { plaid } from '@/lib/plaid';
 import { stripe } from '@/lib/stripe';
 import { clinics, owners, payments, pets, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
@@ -66,7 +65,6 @@ async function detachStripeInstrument(
     stripeCustomerId: string | null;
     stripeCardPaymentMethodId: string | null;
     stripeAchPaymentMethodId: string | null;
-    plaidAccessToken: string | null;
   },
   ownerId: string,
 ): Promise<void> {
@@ -93,14 +91,6 @@ async function detachStripeInstrument(
         error: err,
       });
     }
-
-    if (owner.plaidAccessToken) {
-      try {
-        await plaid().itemRemove({ access_token: owner.plaidAccessToken });
-      } catch (err) {
-        logger.error('Failed to remove Plaid item', { ownerId, error: err });
-      }
-    }
   }
 }
 
@@ -117,9 +107,6 @@ function buildRemoveFields(
     updateFields.stripeCardPaymentMethodId = null;
   } else {
     updateFields.stripeAchPaymentMethodId = null;
-    updateFields.plaidAccessToken = null;
-    updateFields.plaidItemId = null;
-    updateFields.plaidAccountId = null;
   }
 
   if (currentMethod === method && otherMethodExists) {
@@ -309,7 +296,6 @@ export const ownerRouter = router({
           stripeCustomerId: owners.stripeCustomerId,
           stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
           stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
-          plaidAccessToken: owners.plaidAccessToken,
           paymentMethod: owners.paymentMethod,
         })
         .from(owners)

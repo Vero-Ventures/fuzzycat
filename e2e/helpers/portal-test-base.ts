@@ -85,7 +85,7 @@ export async function mockAllTrpc(page: Page) {
 }
 
 /**
- * Mock all external services (Stripe, Plaid, Turnstile, analytics) at the network layer.
+ * Mock all external services (Stripe, Turnstile, analytics) at the network layer.
  */
 export async function mockExternalServices(page: Page) {
   await page.route('**/js.stripe.com/**', (route) =>
@@ -93,13 +93,6 @@ export async function mockExternalServices(page: Page) {
       status: 200,
       contentType: 'application/javascript',
       body: 'window.Stripe = function() { return { elements: function() { return { create: function() { return { mount: function() {}, on: function() {} } } } }, confirmPayment: function() { return Promise.resolve({ paymentIntent: { status: "succeeded" } }) }, confirmSetup: function() { return Promise.resolve({ setupIntent: { status: "succeeded" } }) } } };',
-    }),
-  );
-  await page.route('**/cdn.plaid.com/**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/javascript',
-      body: 'window.Plaid = { create: function() { return { open: function() {}, exit: function() {}, destroy: function() {} } } };',
     }),
   );
   await page.route('**/challenges.cloudflare.com/**', (route) =>

@@ -9,9 +9,6 @@ const REQUIRED_ENV_DEFAULTS: Record<string, string> = {
   STRIPE_SECRET_KEY: 'sk_test_placeholder',
   STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
   RESEND_API_KEY: 're_test_placeholder',
-  PLAID_CLIENT_ID: 'test-plaid-client',
-  PLAID_SECRET: 'test-plaid-secret',
-  PLAID_ENV: 'sandbox',
   TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
   TWILIO_AUTH_TOKEN: 'test-auth-token',
   TWILIO_PHONE_NUMBER: '+15551234567',
@@ -167,11 +164,6 @@ mock.module('@/server/services/payment', () => ({
   handlePaymentSuccess: mock(),
   handlePaymentFailure: mock(),
   findPaymentByStripeId: mock(),
-}));
-mock.module('@/server/services/plaid', () => ({
-  createLinkToken: mock(),
-  exchangePublicToken: mock(),
-  checkBalance: mock(),
 }));
 mock.module('@/server/services/guarantee', () => ({
   calculateContribution: mock(),
@@ -337,10 +329,6 @@ const PROCEDURES: ProcSpec[] = [
   { path: 'payout.process', base: 'admin' },
   { path: 'payout.history', base: 'clinic' },
   { path: 'payout.earnings', base: 'clinic' },
-  // plaid
-  { path: 'plaid.createLinkToken', base: 'owner' },
-  { path: 'plaid.exchangePublicToken', base: 'owner' },
-  { path: 'plaid.checkBalance', base: 'owner' },
   // owner
   { path: 'owner.healthCheck', base: 'owner' },
   { path: 'owner.getProfile', base: 'owner' },

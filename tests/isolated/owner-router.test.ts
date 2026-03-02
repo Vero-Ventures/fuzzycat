@@ -10,9 +10,6 @@ for (const [key, val] of Object.entries({
   STRIPE_SECRET_KEY: 'sk_test_placeholder',
   STRIPE_WEBHOOK_SECRET: 'whsec_test_placeholder',
   RESEND_API_KEY: 're_test_placeholder',
-  PLAID_CLIENT_ID: 'test-plaid-client',
-  PLAID_SECRET: 'test-plaid-secret',
-  PLAID_ENV: 'sandbox',
   TWILIO_ACCOUNT_SID: 'ACtest_placeholder',
   TWILIO_AUTH_TOKEN: 'test-auth-token',
   TWILIO_PHONE_NUMBER: '+15551234567',
@@ -86,16 +83,6 @@ mock.module('@/lib/stripe', () => ({
   }),
 }));
 
-// ── Plaid mocks ──────────────────────────────────────────────────────
-
-const mockPlaidItemRemove = mock((_params: unknown) => Promise.resolve({ data: {} }));
-
-mock.module('@/lib/plaid', () => ({
-  plaid: () => ({
-    itemRemove: mockPlaidItemRemove,
-  }),
-}));
-
 // ── Router + caller setup ─────────────────────────────────────────────
 
 const { ownerRouter } = await import('@/server/routers/owner');
@@ -134,7 +121,6 @@ function clearStripeMocks() {
   mockSetupIntentsRetrieve.mockClear();
   mockPaymentMethodsDetach.mockClear();
   mockCustomersDeleteSource.mockClear();
-  mockPlaidItemRemove.mockClear();
 }
 
 // ── healthCheck ───────────────────────────────────────────────────────
@@ -742,7 +728,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
           stripeAchPaymentMethodId: null,
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch
@@ -756,7 +741,7 @@ describe('owner.removePaymentMethod', () => {
     expect(mockPaymentMethodsDetach).toHaveBeenCalledWith('pm_card_123');
   });
 
-  it('removes bank account — deletes Stripe source and Plaid item', async () => {
+  it('removes bank account — deletes Stripe source', async () => {
     createMockChain([
       [{ id: OWNER_ID }], // middleware
       [
@@ -764,7 +749,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: null,
           stripeAchPaymentMethodId: 'ba_ach_123',
-          plaidAccessToken: 'access-sandbox-123',
           paymentMethod: 'bank_account',
         },
       ], // owner fetch
@@ -776,7 +760,6 @@ describe('owner.removePaymentMethod', () => {
     const result = await caller.removePaymentMethod({ method: 'bank_account' });
     expect(result.success).toBe(true);
     expect(mockCustomersDeleteSource).toHaveBeenCalledWith('cus_test', 'ba_ach_123');
-    expect(mockPlaidItemRemove).toHaveBeenCalledWith({ access_token: 'access-sandbox-123' });
   });
 
   it('auto-switches to other method when removing active preference', async () => {
@@ -787,7 +770,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
           stripeAchPaymentMethodId: 'ba_ach_456',
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (card is active, bank also exists)
@@ -808,7 +790,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
           stripeAchPaymentMethodId: null,
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (only card, no bank)
@@ -827,7 +808,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
           stripeAchPaymentMethodId: 'ba_ach_456',
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (both methods exist)
@@ -848,7 +828,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: null,
           stripeAchPaymentMethodId: null,
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (no card on file)
@@ -870,7 +849,6 @@ describe('owner.removePaymentMethod', () => {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
           stripeAchPaymentMethodId: null,
-          plaidAccessToken: null,
           paymentMethod: 'debit_card',
         },
       ], // owner fetch

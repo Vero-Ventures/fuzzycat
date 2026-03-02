@@ -8,17 +8,12 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 });
 
-// Lazy-load replay and feedback integrations to reduce initial bundle size.
-// Replay (~50kB) and feedback (~20kB) are loaded asynchronously after init,
-// which keeps the critical JS bundle well under budget. Both integrations
-// are low-priority for initial page load — replay only samples 10% of
-// sessions and feedback is rarely interacted with.
+// Load replay and feedback integrations asynchronously via dynamic import
+// to reduce initial bundle size. Using @sentry/browser npm imports instead
+// of lazyLoadIntegration() (CDN-based) to avoid CSP eval violations.
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  Sentry.lazyLoadIntegration('replayIntegration').then((replayIntegration) => {
+  import('@sentry/browser').then(({ replayIntegration, feedbackIntegration }) => {
     Sentry.addIntegration(replayIntegration());
-  });
-
-  Sentry.lazyLoadIntegration('feedbackIntegration').then((feedbackIntegration) => {
     Sentry.addIntegration(
       feedbackIntegration({
         colorScheme: 'system',

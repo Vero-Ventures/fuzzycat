@@ -196,7 +196,7 @@ export const adminRouter = router({
             clinics: clinicRows.map((row) => ({
               ...row,
               enrollmentCount: Number(row.enrollmentCount),
-              totalRevenueCents: Number(row.totalRevenueCents),
+              totalRevenueCents: Math.round(Number(row.totalRevenueCents)),
               stripeConnected: row.stripeAccountId !== null,
             })),
             pagination: {

@@ -563,7 +563,7 @@ export async function exportClientsCSV(clinicId: string) {
     row.petName ?? '',
     row.planStatus ?? '',
     formatCents(row.totalBillCents),
-    formatCents(Number(row.totalPaidCents)),
+    formatCents(Math.round(Number(row.totalPaidCents))),
     formatCents(row.remainingCents),
   ]);
 
@@ -593,8 +593,8 @@ export async function exportRevenueCSV(clinicId: string, dateFrom: Date, dateTo:
   const headers = ['Month', 'Revenue', 'Clinic Share', 'Payouts'];
   const rows = revenueData.map((row) => [
     row.month,
-    formatCents(Number(row.revenueCents)),
-    formatCents(Number(row.clinicShareCents)),
+    formatCents(Math.round(Number(row.revenueCents))),
+    formatCents(Math.round(Number(row.clinicShareCents))),
     Number(row.payoutCount),
   ]);
 

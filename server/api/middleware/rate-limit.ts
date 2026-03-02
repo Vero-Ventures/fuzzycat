@@ -3,6 +3,7 @@
 // When not configured, this middleware is a no-op passthrough.
 
 import type { MiddlewareHandler } from 'hono';
+import { serverEnv } from '@/lib/env';
 import { ApiError, ErrorCodes } from '@/server/api/middleware/error-handler';
 import type { ApiVariables } from '@/server/api/types';
 
@@ -14,8 +15,9 @@ type RateLimiter = {
 
 /** Attempt to create an Upstash-backed rate limiter from env vars. */
 async function initLimiter(): Promise<RateLimiter | null> {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const env = serverEnv();
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
 
   try {

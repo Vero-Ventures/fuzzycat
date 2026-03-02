@@ -84,8 +84,9 @@ function setupUpdateChain(returnValue: unknown) {
 // ── Tests ────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  mock.restore();
-  // Re-setup mocks after restore
+  // Only reset individual mocks — do NOT call mock.restore() here because
+  // it undoes mock.module() registrations, causing cross-contamination
+  // when tests run together in CI.
   mockInsertReturning.mockReset();
   mockInsertValues.mockReset();
   mockInsert.mockReset();

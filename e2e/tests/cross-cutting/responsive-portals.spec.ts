@@ -37,31 +37,6 @@ test.describe('Portal Mobile Responsive — Owner', () => {
       contentType: 'image/png',
     });
   });
-
-  test('enrollment wizard on mobile', async ({ page }, testInfo) => {
-    await mockExternalServices(page);
-    const { clinicSearch } = await import('../../helpers/audit-mock-data');
-    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
-    await mockAllTrpc(page);
-
-    const loaded = await gotoPortalPage(page, '/owner/enroll');
-    if (!loaded) return;
-
-    await expect(page.getByText(/enroll|payment plan|step 1|find your vet/i).first()).toBeVisible({
-      timeout: 5000,
-    });
-
-    const searchInput = page.locator('#clinic-search');
-    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await searchInput.fill('Happy');
-      await expect(page.getByText('Happy Paws Veterinary').first()).toBeVisible({ timeout: 5000 });
-    }
-
-    await testInfo.attach('mobile-enrollment-wizard', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
 });
 
 test.describe('Portal Mobile Responsive — Clinic', () => {

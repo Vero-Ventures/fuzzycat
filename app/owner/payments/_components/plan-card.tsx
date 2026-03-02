@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,17 @@ export function PlanCard({ plan }: PlanCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Deposit CTA — prominent when plan is pending */}
+        {plan.status === 'pending' && (
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+            <p className="text-sm font-medium">Deposit required to activate your plan</p>
+            <p className="mt-1 text-lg font-bold">{formatCents(plan.depositCents)}</p>
+            <Button asChild size="sm" className="mt-3">
+              <Link href={`/owner/payments/${plan.id}/deposit`}>Pay Deposit</Link>
+            </Button>
+          </div>
+        )}
+
         {/* Next Payment — prominent when plan is active */}
         {(plan.status === 'active' || plan.status === 'deposit_paid') && plan.nextPaymentAt && (
           <div className="rounded-md bg-muted/50 p-3">

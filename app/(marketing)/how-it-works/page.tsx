@@ -13,12 +13,6 @@ import {
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,11 +20,9 @@ import { Separator } from '@/components/ui/separator';
 import {
   CLINIC_SHARE_RATE,
   DEPOSIT_RATE,
-  MIN_BILL_CENTS,
   NUM_INSTALLMENTS,
   PLATFORM_FEE_RATE,
 } from '@/lib/constants';
-import { formatCents } from '@/lib/utils/money';
 import { PaymentCalculator } from './payment-calculator';
 
 export const metadata: Metadata = {
@@ -269,108 +261,6 @@ export default function HowItWorksPage() {
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      <Separator />
-
-      {/* FAQ */}
-      <section className="px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Frequently Asked Questions</h2>
-            <p className="mt-3 text-muted-foreground">
-              Everything you need to know about FuzzyCat payment plans.
-            </p>
-          </div>
-          <div className="mt-10">
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="what-is-fuzzycat">
-                <AccordionTrigger>What is FuzzyCat?</AccordionTrigger>
-                <AccordionContent>
-                  FuzzyCat is a payment plan platform for veterinary care. We help pet owners pay
-                  their vet bills in {NUM_INSTALLMENTS} biweekly installments over 12 weeks. We are
-                  not a lender &mdash; we are a payment facilitation platform with a flat{' '}
-                  {feePercent}% fee and no credit check.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="credit-check">
-                <AccordionTrigger>Do you run a credit check?</AccordionTrigger>
-                <AccordionContent>
-                  No. FuzzyCat does not run credit checks and your credit score is never affected.
-                  We verify your bank account to ensure you can make payments, but we do not pull
-                  your credit report.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="fees">
-                <AccordionTrigger>What fees do I pay?</AccordionTrigger>
-                <AccordionContent>
-                  There is a single flat {feePercent}% platform fee added to your vet bill. On a
-                  $1,000 bill, the fee is $60, making your total $1,060. There is no interest, no
-                  late fees, and no other hidden charges. You see the exact total before you enroll.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="minimum">
-                <AccordionTrigger>Is there a minimum bill amount?</AccordionTrigger>
-                <AccordionContent>
-                  Yes. The minimum vet bill for a FuzzyCat payment plan is{' '}
-                  {formatCents(MIN_BILL_CENTS)}. FuzzyCat is designed for significant veterinary
-                  expenses &mdash; emergencies, surgeries, dental procedures, and multi-visit
-                  treatment plans.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="payment-methods">
-                <AccordionTrigger>What payment methods are accepted?</AccordionTrigger>
-                <AccordionContent>
-                  The deposit (25% of total) is charged via debit card for instant confirmation.
-                  Subsequent biweekly installments are deducted via ACH bank transfer from your
-                  connected bank account.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="missed-payment">
-                <AccordionTrigger>What happens if I miss a payment?</AccordionTrigger>
-                <AccordionContent>
-                  If a payment fails, we will retry it up to 3 times and notify you via email and
-                  SMS so you can ensure sufficient funds. There are no late fees. We work with you
-                  to get back on track.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="clinic-cost">
-                <AccordionTrigger>What does it cost the clinic?</AccordionTrigger>
-                <AccordionContent>
-                  Nothing. In fact, clinics earn a {clinicSharePercent}% revenue share on every
-                  enrollment. There are no setup fees, no merchant fees, and no contracts. FuzzyCat
-                  charges the pet owner a {feePercent}% platform fee and shares a portion with the
-                  clinic.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="clinic-guarantee">
-                <AccordionTrigger>What if a pet owner defaults?</AccordionTrigger>
-                <AccordionContent>
-                  FuzzyCat automatically retries failed payments with smart scheduling aligned to
-                  common paydays. We send escalating email reminders at days 1, 7, and 14. If a plan
-                  ultimately defaults after all retry attempts, the clinic is notified and can work
-                  directly with the pet owner to resolve the outstanding balance.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="which-clinics">
-                <AccordionTrigger>Which clinics accept FuzzyCat?</AccordionTrigger>
-                <AccordionContent>
-                  FuzzyCat is currently available at select veterinary clinics in California during
-                  our pilot program. We are expanding to more clinics and states. Ask your vet if
-                  they accept FuzzyCat, or encourage them to sign up as a partner clinic.
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
           </div>
         </div>
       </section>

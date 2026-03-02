@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+  type AnyPgColumn,
   check,
   index,
   inet,
@@ -80,16 +81,46 @@ export const owners = pgTable(
     addressZip: text('address_zip'),
     petName: text('pet_name').notNull(),
     stripeCustomerId: text('stripe_customer_id'),
+    // Legacy columns — kept until code migration in a later phase
     stripeCardPaymentMethodId: text('stripe_card_payment_method_id'),
     stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
     plaidAccessToken: text('plaid_access_token'),
     plaidItemId: text('plaid_item_id'),
     plaidAccountId: text('plaid_account_id'),
     paymentMethod: paymentMethodEnum('payment_method').notNull(),
+    // Multi-payment-method support (Phase 1A)
+    primaryPaymentMethodId: uuid('primary_payment_method_id').references(
+      (): AnyPgColumn => paymentMethods.id,
+    ),
+    secondaryPaymentMethodId: uuid('secondary_payment_method_id').references(
+      (): AnyPgColumn => paymentMethods.id,
+    ),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [index('idx_owners_plaid_item').on(table.plaidItemId)],
+);
+
+// ── Payment methods (multi-method support) ──────────────────────────
+export const paymentMethods = pgTable(
+  'payment_methods',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .references(() => owners.id)
+      .notNull(),
+    type: paymentMethodEnum('type').notNull(),
+    stripePaymentMethodId: text('stripe_payment_method_id').notNull(),
+    label: text('label'), // user-friendly name
+    last4: text('last4').notNull(),
+    brand: text('brand'), // visa, mastercard, etc (cards only)
+    bankName: text('bank_name'), // (banks only)
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index('idx_payment_methods_owner').on(table.ownerId),
+    index('idx_payment_methods_stripe').on(table.stripePaymentMethodId),
+  ],
 );
 
 // ── Pets ─────────────────────────────────────────────────────────────
@@ -261,6 +292,11 @@ export const clinicsRelations = relations(clinics, ({ many }) => ({
 export const ownersRelations = relations(owners, ({ many }) => ({
   plans: many(plans),
   pets: many(pets),
+  paymentMethods: many(paymentMethods),
+}));
+
+export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
+  owner: one(owners, { fields: [paymentMethods.ownerId], references: [owners.id] }),
 }));
 
 export const petsRelations = relations(pets, ({ one }) => ({

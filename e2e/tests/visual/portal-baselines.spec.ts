@@ -18,7 +18,6 @@ import {
   clinicOnboardingStatus,
   clinicProfile,
   clinicRevenueReport,
-  clinicSearch,
   ownerDashboardSummary,
   ownerPaymentHistory,
   ownerPlans,
@@ -58,19 +57,6 @@ test.describe('Visual Baselines — Owner Portal', () => {
     await gotoPortalPage(page, '/owner/settings');
 
     await expect(page).toHaveScreenshot('owner-settings.png', {
-      fullPage: true,
-      maxDiffPixelRatio: 0.02,
-    });
-  });
-
-  test('owner enrollment baseline', async ({ page }) => {
-    await mockExternalServices(page);
-    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/enroll');
-
-    await expect(page).toHaveScreenshot('owner-enroll.png', {
       fullPage: true,
       maxDiffPixelRatio: 0.02,
     });

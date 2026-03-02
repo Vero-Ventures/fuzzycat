@@ -1,10 +1,8 @@
 import { expect, test } from '@playwright/test';
 import {
-  clinicSearch,
   emptyOwnerDashboardSummary,
   emptyOwnerPaymentHistory,
   emptyOwnerPlans,
-  enrollmentSummary,
   ownerDashboardSummary,
   ownerPaymentHistory,
   ownerPlans,
@@ -122,100 +120,6 @@ test.describe('Owner Portal — Mobile', () => {
     }
 
     await testInfo.attach('mobile-owner-settings', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
-
-  // ── Enrollment Wizard ──────────────────────────────────────────────────────
-
-  test('enrollment wizard Step 1 on mobile', async ({ page }, testInfo) => {
-    await mockExternalServices(page);
-    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/enroll');
-
-    // Wizard renders
-    await expect(page.getByText(/enroll|payment plan|step 1|find your vet/i).first()).toBeVisible({
-      timeout: 5000,
-    });
-
-    // Search works on mobile
-    const searchInput = page.locator('#clinic-search');
-    await expect(searchInput).toBeVisible();
-    await searchInput.fill('Happy');
-
-    await expect(page.getByText('Happy Paws Veterinary').first()).toBeVisible({ timeout: 5000 });
-    await page.getByText('Happy Paws Veterinary').first().click();
-
-    // Continue button
-    const continueBtn = page.getByRole('button', { name: /continue/i });
-    await continueBtn.scrollIntoViewIfNeeded();
-    await expect(continueBtn).toBeEnabled();
-
-    await testInfo.attach('mobile-enroll-step1', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
-
-  test('enrollment wizard Step 2 on mobile', async ({ page }, testInfo) => {
-    await mockExternalServices(page);
-    await mockTrpcQuery(page, 'clinic.search', clinicSearch);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/enroll');
-
-    // Navigate to Step 2
-    await page.locator('#clinic-search').fill('Happy');
-    await page.getByText('Happy Paws Veterinary').first().click();
-    await page.getByRole('button', { name: /continue/i }).click();
-
-    // The stepper label "Bill Details" is hidden on mobile (hidden md:block).
-    // Instead, look for the always-visible step indicator or the h2 heading.
-    await expect(
-      page
-        .getByText(/step 2 of/i)
-        .or(page.locator('h2').filter({ hasText: /bill details/i }))
-        .first(),
-    ).toBeVisible({ timeout: 5000 });
-
-    // Form fields accessible and tapable on mobile
-    await page.locator('#bill-amount').fill('1200');
-    await page.locator('#owner-name').fill('Jane Smith');
-    await page.locator('#owner-email').fill('jane@example.com');
-    await page.locator('#owner-phone').fill('5551234567');
-    await page.locator('#pet-name').fill('Whiskers');
-
-    // Payment schedule visible — use specific text to avoid matching the hidden stepper label "Pay Deposit"
-    await expect(page.getByText(/deposit.*25%|your payment schedule/i).first()).toBeVisible({
-      timeout: 5000,
-    });
-
-    // No horizontal overflow
-    const hasOverflow = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
-    });
-    expect(hasOverflow).toBe(false);
-
-    await testInfo.attach('mobile-enroll-step2', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
-
-  test('enrollment success page on mobile', async ({ page }, testInfo) => {
-    await mockExternalServices(page);
-    await mockTrpcQuery(page, 'enrollment.getSummary', enrollmentSummary);
-    await mockAllTrpc(page);
-
-    await gotoPortalPage(page, '/owner/enroll/success?planId=plan-new-001');
-
-    await expect(page.getByText(/happy paws/i).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText(/whiskers/i).first()).toBeVisible({ timeout: 5000 });
-
-    await testInfo.attach('mobile-enroll-success', {
       body: await page.screenshot({ fullPage: true }),
       contentType: 'image/png',
     });

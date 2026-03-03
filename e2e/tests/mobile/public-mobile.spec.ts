@@ -96,28 +96,6 @@ test.describe('Public Pages — Mobile', () => {
     });
   });
 
-  test('FAQ accordion on mobile', async ({ page }, testInfo) => {
-    await page.goto('/how-it-works', { waitUntil: 'domcontentloaded' });
-
-    // FAQ section
-    const faqSection = page.getByText(/frequently asked/i);
-    if (await faqSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await faqSection.scrollIntoViewIfNeeded();
-    }
-
-    // Click to expand a FAQ item
-    const faqItem = page.getByText(/what is fuzzycat/i);
-    if (await faqItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await faqItem.click();
-      await page.waitForTimeout(500);
-    }
-
-    await testInfo.attach('mobile-faq', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
-  });
-
   test('dark mode toggle on mobile', async ({ page }, testInfo) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 

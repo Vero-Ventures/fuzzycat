@@ -29,6 +29,12 @@ function Header() {
           >
             How It Works
           </Link>
+          <Link
+            href="/support"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Support
+          </Link>
           <ThemeToggle />
           <Link href="/login/clinic">
             <Button variant="outline" size="sm">
@@ -45,6 +51,12 @@ function Header() {
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             How It Works
+          </Link>
+          <Link
+            href="/support"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Support
           </Link>
           <ThemeToggle />
           <Link href="/login/clinic">
@@ -88,6 +100,11 @@ function Footer() {
                   Sign Up
                 </Link>
               </li>
+              <li>
+                <Link href="/support" className="transition-colors hover:text-foreground">
+                  Support
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
@@ -101,6 +118,11 @@ function Footer() {
               <li>
                 <Link href="/signup/clinic" className="transition-colors hover:text-foreground">
                   Partner With Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/api-docs" className="transition-colors hover:text-foreground">
+                  API Documentation
                 </Link>
               </li>
             </ul>

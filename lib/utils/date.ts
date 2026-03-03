@@ -51,3 +51,12 @@ export function formatCountdown(date: Date | string): string {
   if (days === 1) return 'Tomorrow';
   return `In ${days} days`;
 }
+
+/**
+ * Add a number of days to a date and return a new Date.
+ */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}

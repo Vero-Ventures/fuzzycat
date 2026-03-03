@@ -17,11 +17,9 @@
   "ignoreDependencies": [
     "@commitlint/cli",
     "@next/env",
-    "@stripe/react-stripe-js",
     "@stripe/stripe-js",
     "playwright",
     "postcss",
-    "radix-ui",
     "shadcn",
     "tw-animate-css"
   ]

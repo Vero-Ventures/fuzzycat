@@ -9,6 +9,7 @@ import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function ClinicSignupPage() {
   const router = useRouter();
@@ -143,10 +144,9 @@ export default function ClinicSignupPage() {
               <Label htmlFor="password" className="uppercase text-xs font-semibold tracking-wide">
                 Password
               </Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 required
                 minLength={8}
                 autoComplete="new-password"

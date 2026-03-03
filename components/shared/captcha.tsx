@@ -7,8 +7,10 @@ import { publicEnv } from '@/lib/env';
 import { cn } from '@/lib/utils';
 
 export interface CaptchaHandle {
-  /** Execute the Turnstile challenge and return the token. */
+  /** Execute the Turnstile challenge and return the token. Automatically resets first. */
   execute: () => Promise<string>;
+  /** Reset the widget so it can be re-executed (e.g. after a failed submission). */
+  reset: () => void;
 }
 
 interface CaptchaProps {
@@ -35,11 +37,16 @@ export const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(function Captcha(
   useImperativeHandle(ref, () => ({
     execute: () => {
       if (!siteKey) return Promise.resolve('');
+      // Reset the widget before each execution to avoid stale/expired tokens
+      turnstileRef.current?.reset();
       return new Promise<string>((resolve, reject) => {
         resolveRef.current = resolve;
         rejectRef.current = reject;
         turnstileRef.current?.execute();
       });
+    },
+    reset: () => {
+      turnstileRef.current?.reset();
     },
   }));
 

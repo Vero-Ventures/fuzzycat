@@ -33,8 +33,8 @@ export function FoundingClinicBanner() {
           <div>
             <p className="font-semibold text-amber-900 dark:text-amber-100">Founding Clinic</p>
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              You earn 5% revenue share on every payment plan.
-              {status.expiresAt && ` Enhanced rate valid until ${formatDate(status.expiresAt)}.`}
+              You earn enhanced revenue share on every payment plan.
+              {status.expiresAt && ` Valid until ${formatDate(status.expiresAt)}.`}
             </p>
           </div>
         </div>
@@ -54,8 +54,8 @@ export function FoundingClinicBanner() {
           <div>
             <p className="font-semibold">Become a Founding Clinic</p>
             <p className="text-sm text-muted-foreground">
-              Earn 5% revenue share (vs. standard 3%) for 3 months. Only {status.spotsRemaining}{' '}
-              spots remaining.
+              Get enhanced revenue share as one of our first partner clinics. Only{' '}
+              {status.spotsRemaining} spots remaining.
             </p>
           </div>
         </div>

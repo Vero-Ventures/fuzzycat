@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { PasswordInput } from '@/components/ui/password-input';
 import { getUserRole, ROLE_HOME, SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
 import { checkLoginRateLimit } from './actions';
@@ -80,13 +81,12 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         <label htmlFor="password" className="block text-sm font-medium text-foreground">
           Password
         </label>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           required
           autoComplete="current-password"
-          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="mt-1"
         />
       </div>
       <div className="flex justify-end">

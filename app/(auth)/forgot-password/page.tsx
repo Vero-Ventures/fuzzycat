@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { publicEnv } from '@/lib/env';
 import { createClient } from '@/lib/supabase/client';
 import { checkResetRateLimit } from './actions';
 
@@ -28,8 +29,9 @@ export default function ForgotPasswordPage() {
       }
 
       const supabase = createClient();
+      const baseUrl = publicEnv().NEXT_PUBLIC_APP_URL || window.location.origin;
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${baseUrl}/reset-password`,
       });
 
       // Always show success to prevent user enumeration

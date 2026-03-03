@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
-const mockInsertValues = mock(() => Promise.resolve());
+const mockInsertReturning = mock(() => Promise.resolve([{ id: 'mock-inserted-id' }]));
+const mockInsertValues = mock(() => ({ returning: mockInsertReturning }));
 const mockInsert = mock(() => ({ values: mockInsertValues }));
 
 mock.module('@/server/db', () => ({
@@ -131,7 +132,7 @@ describe('signUpOwner', () => {
   beforeEach(() => {
     mock.restore();
     setupSuccessfulAuth();
-    mockInsertValues.mockResolvedValue(undefined);
+    mockInsertReturning.mockResolvedValue([{ id: 'mock-inserted-id' }]);
     mockDeleteUser.mockResolvedValue(undefined);
   });
 
@@ -141,6 +142,7 @@ describe('signUpOwner', () => {
     mockDeleteUser.mockReset();
     mockInsert.mockClear();
     mockInsertValues.mockClear();
+    mockInsertReturning.mockClear();
     mockCapture.mockClear();
   });
 
@@ -155,28 +157,28 @@ describe('signUpOwner', () => {
       'duplicate key value violates unique constraint "owners_email_unique"',
     );
     (pgError as unknown as { code: string }).code = '23505';
-    mockInsertValues.mockRejectedValue(pgError);
+    mockInsertReturning.mockRejectedValue(pgError);
 
     const result = await signUpOwner(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns duplicate email error when error message contains "duplicate key"', async () => {
-    mockInsertValues.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+    mockInsertReturning.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
     const result = await signUpOwner(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns duplicate email error when error message contains "unique"', async () => {
-    mockInsertValues.mockRejectedValue(new Error('unique constraint violated on email'));
+    mockInsertReturning.mockRejectedValue(new Error('unique constraint violated on email'));
 
     const result = await signUpOwner(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns generic error for non-unique DB failures', async () => {
-    mockInsertValues.mockRejectedValue(new Error('connection refused'));
+    mockInsertReturning.mockRejectedValue(new Error('connection refused'));
 
     const result = await signUpOwner(makeOwnerFormData());
     expect(result.error).toBe(
@@ -185,7 +187,7 @@ describe('signUpOwner', () => {
   });
 
   it('deletes auth user on DB insert failure', async () => {
-    mockInsertValues.mockRejectedValue(new Error('connection refused'));
+    mockInsertReturning.mockRejectedValue(new Error('connection refused'));
 
     await signUpOwner(makeOwnerFormData());
     expect(mockDeleteUser).toHaveBeenCalledWith(USER_ID);
@@ -211,7 +213,7 @@ describe('signUpOwner', () => {
 
   it('calls Sentry.captureException on DB insert failure', async () => {
     const dbError = new Error('connection refused');
-    mockInsertValues.mockRejectedValue(dbError);
+    mockInsertReturning.mockRejectedValue(dbError);
 
     await signUpOwner(makeOwnerFormData());
     expect(mockCaptureException).toHaveBeenCalledWith(dbError, {
@@ -225,7 +227,7 @@ describe('signUpClinic', () => {
   beforeEach(() => {
     mock.restore();
     setupSuccessfulAuth();
-    mockInsertValues.mockResolvedValue(undefined);
+    mockInsertReturning.mockResolvedValue([{ id: 'mock-inserted-id' }]);
     mockDeleteUser.mockResolvedValue(undefined);
   });
 
@@ -235,6 +237,7 @@ describe('signUpClinic', () => {
     mockDeleteUser.mockReset();
     mockInsert.mockClear();
     mockInsertValues.mockClear();
+    mockInsertReturning.mockClear();
     mockCapture.mockClear();
   });
 
@@ -249,21 +252,21 @@ describe('signUpClinic', () => {
       'duplicate key value violates unique constraint "clinics_email_unique"',
     );
     (pgError as unknown as { code: string }).code = '23505';
-    mockInsertValues.mockRejectedValue(pgError);
+    mockInsertReturning.mockRejectedValue(pgError);
 
     const result = await signUpClinic(makeClinicFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns duplicate email error when error message contains "duplicate key"', async () => {
-    mockInsertValues.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+    mockInsertReturning.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
 
     const result = await signUpClinic(makeClinicFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns generic error for non-unique DB failures', async () => {
-    mockInsertValues.mockRejectedValue(new Error('timeout'));
+    mockInsertReturning.mockRejectedValue(new Error('timeout'));
 
     const result = await signUpClinic(makeClinicFormData());
     expect(result.error).toBe(
@@ -272,7 +275,7 @@ describe('signUpClinic', () => {
   });
 
   it('deletes auth user on DB insert failure', async () => {
-    mockInsertValues.mockRejectedValue(new Error('timeout'));
+    mockInsertReturning.mockRejectedValue(new Error('timeout'));
 
     await signUpClinic(makeClinicFormData());
     expect(mockDeleteUser).toHaveBeenCalledWith(USER_ID);
@@ -298,7 +301,7 @@ describe('signUpClinic', () => {
 
   it('calls Sentry.captureException on DB insert failure', async () => {
     const dbError = new Error('timeout');
-    mockInsertValues.mockRejectedValue(dbError);
+    mockInsertReturning.mockRejectedValue(dbError);
 
     await signUpClinic(makeClinicFormData());
     expect(mockCaptureException).toHaveBeenCalledWith(dbError, {
@@ -312,7 +315,7 @@ describe('validateCaptcha (DISABLE_CAPTCHA flag)', () => {
   beforeEach(() => {
     mock.restore();
     setupSuccessfulAuth();
-    mockInsertValues.mockResolvedValue(undefined);
+    mockInsertReturning.mockResolvedValue([{ id: 'mock-inserted-id' }]);
     mockDeleteUser.mockResolvedValue(undefined);
   });
 
@@ -322,6 +325,7 @@ describe('validateCaptcha (DISABLE_CAPTCHA flag)', () => {
     mockDeleteUser.mockReset();
     mockInsert.mockClear();
     mockInsertValues.mockClear();
+    mockInsertReturning.mockClear();
     mockCapture.mockClear();
     mockVerifyCaptcha.mockClear();
     mockCaptureException.mockClear();

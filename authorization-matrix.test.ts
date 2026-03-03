@@ -212,7 +212,6 @@ mock.module('@/server/services/email', () => ({
 mock.module('@/server/services/stripe/connect', () => ({
   createConnectAccount: mock(),
   createOnboardingLink: mock(),
-  transferToClinic: mock(),
 }));
 mock.module('@/server/services/stripe/ach', () => ({
   createInstallmentPaymentIntent: mock(),
@@ -232,8 +231,7 @@ mock.module('@/server/services/collection', () => ({
 }));
 mock.module('@/server/services/payout', () => ({
   calculatePayoutBreakdown: mock(),
-  processClinicPayout: mock(),
-  processPendingPayouts: mock(),
+  calculateApplicationFee: mock(),
   getClinicPayoutHistory: mock(() => Promise.resolve([])),
   getClinicEarnings: mock(() =>
     Promise.resolve({ totalEarnings: 0, pendingPayouts: 0, completedPayouts: 0 }),
@@ -326,7 +324,6 @@ const PROCEDURES: ProcSpec[] = [
   { path: 'payment.escalateToDefault', base: 'admin' },
   { path: 'payment.getPlansForEscalation', base: 'admin' },
   // payout
-  { path: 'payout.process', base: 'admin' },
   { path: 'payout.history', base: 'clinic' },
   { path: 'payout.earnings', base: 'clinic' },
   // owner

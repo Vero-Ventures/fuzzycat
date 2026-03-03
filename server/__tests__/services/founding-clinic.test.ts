@@ -212,32 +212,26 @@ describe('founding-clinic service', () => {
 
     it('returns disabled status when feature flag is off', async () => {
       mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
-      mockSelectWhere.mockReturnValue({
-        limit: () => [{ foundingClinic: false, foundingExpiresAt: null }],
-      });
-      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
-      mockSelect.mockReturnValue({ from: mockSelectFrom });
 
       const status = await getFoundingClinicStatus('clinic-1');
       expect(status.enabled).toBe(false);
+      expect(status.isFoundingClinic).toBe(false);
+      expect(status.expiresAt).toBeNull();
       expect(status.spotsRemaining).toBe(0);
+      // Should not have queried the DB at all
+      expect(mockSelect).not.toHaveBeenCalled();
       // Restore default
       mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     });
 
-    it('still shows founding badge when disabled but clinic was already enrolled', async () => {
+    it('hides founding status when disabled even if clinic was enrolled', async () => {
       mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
-      const expiresAt = new Date('2027-01-01');
-      mockSelectWhere.mockReturnValue({
-        limit: () => [{ foundingClinic: true, foundingExpiresAt: expiresAt }],
-      });
-      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
-      mockSelect.mockReturnValue({ from: mockSelectFrom });
 
       const status = await getFoundingClinicStatus('clinic-1');
       expect(status.enabled).toBe(false);
-      expect(status.isFoundingClinic).toBe(true);
-      expect(status.expiresAt).toEqual(expiresAt);
+      expect(status.isFoundingClinic).toBe(false);
+      expect(status.expiresAt).toBeNull();
+      expect(status.spotsRemaining).toBe(0);
       // Restore default
       mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     });

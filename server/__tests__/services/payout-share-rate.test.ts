@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 
 import { DEFAULT_CLINIC_SHARE_BPS, FOUNDING_CLINIC_SHARE_BPS } from '@/lib/constants';
-import { getEffectiveShareRate } from '@/server/services/payout';
 
-// ── getEffectiveShareRate ────────────────────────────────────────────
-// Pure function — no mocking needed.
+// ── Mocks ────────────────────────────────────────────────────────────
+
+const mockServerEnv = mock(() => ({ ENABLE_FOUNDING_CLINIC: 'true' }) as Record<string, string>);
+mock.module('@/lib/env', () => ({
+  serverEnv: mockServerEnv,
+  _resetEnvCache: () => {},
+}));
+
+const { getEffectiveShareRate } = await import('@/server/services/payout');
+
+// ── Tests ────────────────────────────────────────────────────────────
 
 describe('getEffectiveShareRate', () => {
   const defaultRate = DEFAULT_CLINIC_SHARE_BPS / 10_000; // 0.03
@@ -38,7 +46,8 @@ describe('getEffectiveShareRate', () => {
     expect(rate).toBe(defaultRate);
   });
 
-  it('returns enhanced rate for founding clinic with future expiry', () => {
+  it('returns enhanced rate for founding clinic with future expiry when feature enabled', () => {
+    mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     const rate = getEffectiveShareRate({
       revenueShareBps: FOUNDING_CLINIC_SHARE_BPS,
@@ -48,7 +57,20 @@ describe('getEffectiveShareRate', () => {
     expect(rate).toBe(foundingRate);
   });
 
+  it('returns default rate for founding clinic when feature is disabled', () => {
+    mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
+    const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    const rate = getEffectiveShareRate({
+      revenueShareBps: FOUNDING_CLINIC_SHARE_BPS,
+      foundingClinic: true,
+      foundingExpiresAt: futureDate,
+    });
+    expect(rate).toBe(defaultRate);
+    mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
+  });
+
   it('returns custom BPS rate for founding clinic with future expiry', () => {
+    mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     const customBps = 700; // 7%
     const rate = getEffectiveShareRate({
@@ -70,15 +92,13 @@ describe('getEffectiveShareRate', () => {
   });
 
   it('returns default rate when expiry is exactly now (edge: not strictly greater)', () => {
-    // new Date() inside the function will be >= the value we set here,
-    // so the condition clinic.foundingExpiresAt > new Date() will be false.
+    mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     const now = new Date();
     const rate = getEffectiveShareRate({
       revenueShareBps: FOUNDING_CLINIC_SHARE_BPS,
       foundingClinic: true,
       foundingExpiresAt: now,
     });
-    // At best the dates are equal, so > fails → default rate
     expect(rate).toBe(defaultRate);
   });
 });

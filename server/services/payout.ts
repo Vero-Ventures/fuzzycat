@@ -8,6 +8,7 @@ import {
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { payouts } from '@/server/db/schema';
+import { isFoundingClinicEnabled } from '@/server/services/founding-clinic';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -114,7 +115,12 @@ export function getEffectiveShareRate(clinic: {
   foundingClinic: boolean;
   foundingExpiresAt: Date | null;
 }): number {
-  if (clinic.foundingClinic && clinic.foundingExpiresAt && clinic.foundingExpiresAt > new Date()) {
+  if (
+    isFoundingClinicEnabled() &&
+    clinic.foundingClinic &&
+    clinic.foundingExpiresAt &&
+    clinic.foundingExpiresAt > new Date()
+  ) {
     return clinic.revenueShareBps / 10_000;
   }
   return DEFAULT_CLINIC_SHARE_BPS / 10_000;

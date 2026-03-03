@@ -10,10 +10,11 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { escapeIlike } from '@/lib/utils/sql';
 import { API_PERMISSIONS } from '@/server/api/types';
-import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
+import { clinics, owners, payments, payouts, pets, plans } from '@/server/db/schema';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/server/services/api-key';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
+import { getClinicEarnings, getClinicPayoutHistory } from '@/server/services/payout';
 import { createConnectAccount, createOnboardingLink } from '@/server/services/stripe/connect';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
@@ -106,6 +107,58 @@ export const clinicRouter = router({
   healthCheck: clinicProcedure.query(() => {
     return { status: 'ok' as const, router: 'clinic' };
   }),
+
+  /**
+   * Search existing clients (owners) who have plans with this clinic.
+   * Used by the enrollment form to pre-populate returning client info.
+   */
+  searchClients: clinicProcedure
+    .input(z.object({ query: z.string().min(1).max(100) }))
+    .query(async ({ ctx, input }) => {
+      const searchPattern = `%${escapeIlike(input.query)}%`;
+      const searchCondition = or(
+        ilike(owners.name, searchPattern),
+        ilike(owners.email, searchPattern),
+      );
+
+      const clientRows = await ctx.db
+        .select({
+          id: owners.id,
+          name: owners.name,
+          email: owners.email,
+          phone: owners.phone,
+          petName: owners.petName,
+        })
+        .from(owners)
+        .innerJoin(plans, eq(plans.ownerId, owners.id))
+        .where(and(eq(plans.clinicId, ctx.clinicId), searchCondition ?? sql`true`))
+        .groupBy(owners.id)
+        .orderBy(owners.name)
+        .limit(10);
+
+      // Fetch pets for matched owners
+      const ownerIds = clientRows.map((r) => r.id);
+      const petRows =
+        ownerIds.length > 0
+          ? await ctx.db
+              .select({
+                id: pets.id,
+                ownerId: pets.ownerId,
+                name: pets.name,
+                species: pets.species,
+                breed: pets.breed,
+              })
+              .from(pets)
+              .where(
+                sql`${pets.ownerId} = ANY(${sql.raw(`ARRAY[${ownerIds.map((id) => `'${id}'`).join(',')}]::uuid[]`)})`,
+              )
+          : [];
+
+      return clientRows.map((client) => ({
+        ...client,
+        pets: petRows.filter((p) => p.ownerId === client.id),
+      }));
+    }),
 
   /**
    * Search clinics by name or city. Only returns active clinics.
@@ -831,6 +884,32 @@ export const clinicRouter = router({
     }));
   }),
 
+  /**
+   * Get aggregate earnings summary for the clinic payouts page.
+   */
+  getEarnings: clinicProcedure.query(async ({ ctx }) => {
+    return getClinicEarnings(ctx.clinicId);
+  }),
+
+  /**
+   * Get paginated payout history for the clinic.
+   */
+  getPayoutHistory: clinicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(100).default(20),
+          offset: z.number().int().min(0).default(0),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      return getClinicPayoutHistory(ctx.clinicId, {
+        limit: input?.limit ?? 20,
+        offset: input?.offset ?? 0,
+      });
+    }),
+
   // ── Reporting procedures (Issue #36) ─────────────────────────────
 
   /**
@@ -910,7 +989,7 @@ export const clinicRouter = router({
         month,
         enrollments: enrollmentMap.get(month) ?? 0,
         revenueCents: revenueMap.get(month)?.revenueCents ?? 0,
-        payoutsCents: revenueMap.get(month)?.revenueCents ?? 0,
+        payoutsCents: revenueMap.get(month)?.clinicShareCents ?? 0,
         clinicShareCents: revenueMap.get(month)?.clinicShareCents ?? 0,
       }));
     }),

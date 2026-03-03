@@ -1,78 +1,22 @@
 import { expect, test } from '@playwright/test';
 
-const FAQ_ITEMS = [
-  'What is FuzzyCat?',
-  'Do you run a credit check?',
-  'What fees do I pay?',
-  'Is there a minimum bill amount?',
-  'What payment methods are accepted?',
-  'What happens if I miss a payment?',
-  'What does it cost the clinic?',
-  'What if a pet owner defaults?',
-  'Which clinics accept FuzzyCat?',
-] as const;
-
 test.describe('How It Works — Interactions', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/how-it-works');
   });
 
-  test('all 9 FAQ items can be expanded and contain content', async ({ page }) => {
-    for (const question of FAQ_ITEMS) {
-      const trigger = page.getByText(question, { exact: true });
-      await expect(trigger).toBeVisible();
-
-      // Expand the accordion item
-      await trigger.click();
-
-      // The accordion content area closest to the trigger should now have visible text
-      // Each AccordionContent renders as the next sibling of the trigger's parent
-      const accordionItem = trigger.locator('xpath=ancestor::div[@data-state]').first();
-      await expect(accordionItem).toHaveAttribute('data-state', 'open');
-
-      // Close it before moving on (single collapsible mode — clicking again closes)
-      await trigger.click();
-      await expect(accordionItem).toHaveAttribute('data-state', 'closed');
-    }
-  });
-
-  test('only one FAQ item is open at a time', async ({ page }) => {
-    // Open the first FAQ
-    const firstTrigger = page.getByText(FAQ_ITEMS[0], { exact: true });
-    await firstTrigger.click();
-
-    const firstItem = firstTrigger.locator('xpath=ancestor::div[@data-state]').first();
-    await expect(firstItem).toHaveAttribute('data-state', 'open');
-
-    // Open the second FAQ — the first should automatically close
-    const secondTrigger = page.getByText(FAQ_ITEMS[1], { exact: true });
-    await secondTrigger.click();
-
-    const secondItem = secondTrigger.locator('xpath=ancestor::div[@data-state]').first();
-    await expect(secondItem).toHaveAttribute('data-state', 'open');
-    await expect(firstItem).toHaveAttribute('data-state', 'closed');
-
-    // Open the third FAQ — the second should automatically close
-    const thirdTrigger = page.getByText(FAQ_ITEMS[2], { exact: true });
-    await thirdTrigger.click();
-
-    const thirdItem = thirdTrigger.locator('xpath=ancestor::div[@data-state]').first();
-    await expect(thirdItem).toHaveAttribute('data-state', 'open');
-    await expect(secondItem).toHaveAttribute('data-state', 'closed');
-  });
-
-  test('"Become a Partner Clinic" CTA navigates to /signup', async ({ page }) => {
+  test('"Become a Partner Clinic" CTA navigates to /signup/clinic', async ({ page }) => {
     const cta = page.getByRole('link', { name: /become a partner clinic/i });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/clinic/);
   });
 
-  test('"Sign Up as Pet Owner" CTA navigates to /signup', async ({ page }) => {
+  test('"Sign Up as Pet Owner" CTA navigates to /signup/owner', async ({ page }) => {
     const cta = page.getByRole('link', { name: /sign up as pet owner/i });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/owner/);
   });
 
   test('clinic benefits section shows key value props', async ({ page }) => {

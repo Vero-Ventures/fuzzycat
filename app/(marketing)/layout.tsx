@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   },
   description:
-    'Pay your vet bill in easy biweekly installments. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment.',
+    'Pay your vet bill in easy biweekly installments. No credit check. Flat 8% fee. Clinics earn 3% on every enrollment.',
 };
 
 function Header() {
@@ -29,6 +29,12 @@ function Header() {
           >
             How It Works
           </Link>
+          <Link
+            href="/support"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Support
+          </Link>
           <ThemeToggle />
           <Link href="/login/clinic">
             <Button variant="outline" size="sm">
@@ -45,6 +51,12 @@ function Header() {
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             How It Works
+          </Link>
+          <Link
+            href="/support"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Support
           </Link>
           <ThemeToggle />
           <Link href="/login/clinic">
@@ -88,6 +100,16 @@ function Footer() {
                   Sign Up
                 </Link>
               </li>
+              <li>
+                <Link href="/support" className="transition-colors hover:text-foreground">
+                  Support
+                </Link>
+              </li>
+              <li>
+                <Link href="/request" className="transition-colors hover:text-foreground">
+                  Request FuzzyCat at Your Clinic
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
@@ -101,6 +123,11 @@ function Footer() {
               <li>
                 <Link href="/signup/clinic" className="transition-colors hover:text-foreground">
                   Partner With Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/api-docs" className="transition-colors hover:text-foreground">
+                  API Documentation
                 </Link>
               </li>
             </ul>

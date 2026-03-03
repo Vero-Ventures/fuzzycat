@@ -14,6 +14,7 @@
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { twilio } from '@/lib/twilio';
+import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
 import { isValidUSPhone } from '@/lib/utils/phone';
 import type { UrgencyLevel } from '@/server/services/collection';
@@ -144,16 +145,6 @@ function recordSend(phone: string): void {
 function maskPhone(phone: string): string {
   if (phone.length <= 4) return '****';
   return `****${phone.slice(-4)}`;
-}
-
-/** Format a Date as a short human-readable string (e.g., "Feb 20, 2026"). */
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 /** Append TCPA opt-out instructions to the first message sent to a number. */

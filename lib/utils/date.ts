@@ -51,3 +51,27 @@ export function formatCountdown(date: Date | string): string {
   if (days === 1) return 'Tomorrow';
   return `In ${days} days`;
 }
+
+/**
+ * Add a number of days to a date and return a new Date.
+ */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+/**
+ * Add a number of months to a date and return a new Date.
+ * Clamps to the last day of the month if the target month has fewer days.
+ */
+export function addMonths(date: Date, months: number): Date {
+  const result = new Date(date);
+  const targetMonth = result.getMonth() + months;
+  result.setMonth(targetMonth);
+  // If the day overflowed (e.g., Jan 31 + 1 month → Mar 3), clamp to last day
+  if (result.getMonth() !== ((targetMonth % 12) + 12) % 12) {
+    result.setDate(0); // last day of previous month
+  }
+  return result;
+}

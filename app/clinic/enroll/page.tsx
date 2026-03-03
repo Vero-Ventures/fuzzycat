@@ -14,6 +14,7 @@ import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
+import { type ClientResult, ClientSearch } from './_components/client-search';
 
 const MIN_BILL_DOLLARS = MIN_BILL_CENTS / 100;
 const MAX_BILL_DOLLARS = MAX_BILL_CENTS / 100;
@@ -21,9 +22,11 @@ const MAX_BILL_DOLLARS = MAX_BILL_CENTS / 100;
 export default function ClinicEnrollPage() {
   const trpc = useTRPC();
 
-  // Fetch the clinic's own ID from their profile
   const profileQuery = useQuery(trpc.clinic.getProfile.queryOptions());
   const clinicId = profileQuery.data?.id;
+
+  // Client search
+  const [selectedClient, setSelectedClient] = useState<ClientResult | null>(null);
 
   // Form state
   const [ownerName, setOwnerName] = useState('');
@@ -34,6 +37,22 @@ export default function ClinicEnrollPage() {
   const [billDollars, setBillDollars] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successPlanId, setSuccessPlanId] = useState<string | null>(null);
+
+  function handleSelectClient(client: ClientResult) {
+    setSelectedClient(client);
+    setOwnerName(client.name);
+    setOwnerEmail(client.email);
+    setOwnerPhone(client.phone);
+    setPetName(client.pets.length > 0 ? client.pets[0].name : client.petName);
+  }
+
+  function handleClearClient() {
+    setSelectedClient(null);
+    setOwnerName('');
+    setOwnerEmail('');
+    setOwnerPhone('');
+    setPetName('');
+  }
 
   const billAmountCents = useMemo(() => {
     const parsed = Number.parseFloat(billDollars);
@@ -69,7 +88,6 @@ export default function ClinicEnrollPage() {
       setError('Clinic profile not loaded. Please try again.');
       return;
     }
-
     if (!ownerName.trim()) {
       setError('Owner name is required.');
       return;
@@ -104,7 +122,6 @@ export default function ClinicEnrollPage() {
     });
   }
 
-  // Success state
   if (successPlanId) {
     return (
       <div className="container mx-auto max-w-2xl px-6 py-8">
@@ -136,7 +153,7 @@ export default function ClinicEnrollPage() {
                   <p className="font-medium">{formatCents(schedule.totalBillCents)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total with Fee (6%)</p>
+                  <p className="text-xs text-muted-foreground">Total with Fee (8%)</p>
                   <p className="font-medium">{formatCents(schedule.totalWithFeeCents)}</p>
                 </div>
                 <div>
@@ -161,10 +178,7 @@ export default function ClinicEnrollPage() {
           <Button
             onClick={() => {
               setSuccessPlanId(null);
-              setOwnerName('');
-              setOwnerEmail('');
-              setOwnerPhone('');
-              setPetName('');
+              handleClearClient();
               setBillDollars('');
               setPaymentMethod('debit_card');
               setError(null);
@@ -177,7 +191,6 @@ export default function ClinicEnrollPage() {
     );
   }
 
-  // Loading state
   if (profileQuery.isLoading) {
     return (
       <div className="container mx-auto max-w-2xl px-6 py-8">
@@ -188,7 +201,6 @@ export default function ClinicEnrollPage() {
     );
   }
 
-  // Error loading profile
   if (profileQuery.isError || !clinicId) {
     return (
       <div className="container mx-auto max-w-2xl px-6 py-8">
@@ -230,6 +242,21 @@ export default function ClinicEnrollPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Client Search */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium">Find Existing Client</h3>
+              <ClientSearch
+                selectedClient={selectedClient}
+                onSelect={handleSelectClient}
+                onClear={handleClearClient}
+              />
+              <p className="text-xs text-muted-foreground">
+                Search for a returning client or enter new client details below.
+              </p>
+            </div>
+
+            <Separator />
+
             {/* Owner Information */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium">Pet Owner Information</h3>
@@ -243,6 +270,8 @@ export default function ClinicEnrollPage() {
                     onChange={(e) => setOwnerName(e.target.value)}
                     placeholder="Jane Smith"
                     required
+                    readOnly={!!selectedClient}
+                    className={selectedClient ? 'bg-muted' : ''}
                   />
                 </div>
                 <div className="space-y-2">
@@ -254,6 +283,8 @@ export default function ClinicEnrollPage() {
                     onChange={(e) => setOwnerEmail(e.target.value)}
                     placeholder="jane@example.com"
                     required
+                    readOnly={!!selectedClient}
+                    className={selectedClient ? 'bg-muted' : ''}
                   />
                 </div>
               </div>
@@ -272,13 +303,30 @@ export default function ClinicEnrollPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pet-name">Pet Name</Label>
-                  <Input
-                    id="pet-name"
-                    value={petName}
-                    onChange={(e) => setPetName(e.target.value)}
-                    placeholder="Whiskers"
-                    required
-                  />
+                  {selectedClient && selectedClient.pets.length > 1 ? (
+                    <select
+                      id="pet-name"
+                      value={petName}
+                      onChange={(e) => setPetName(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      required
+                    >
+                      {selectedClient.pets.map((pet) => (
+                        <option key={pet.id} value={pet.name}>
+                          {pet.name} ({pet.species})
+                        </option>
+                      ))}
+                      <option value="">New pet...</option>
+                    </select>
+                  ) : (
+                    <Input
+                      id="pet-name"
+                      value={petName}
+                      onChange={(e) => setPetName(e.target.value)}
+                      placeholder="Whiskers"
+                      required
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -337,11 +385,11 @@ export default function ClinicEnrollPage() {
 
             {/* Payment Preview */}
             {schedule && (
-              <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+              <div className="space-y-2 rounded-md border bg-muted/30 p-4">
                 <h3 className="text-sm font-medium">Payment Plan Preview</h3>
                 <div className="grid gap-2 text-sm md:grid-cols-2">
                   <div className="flex justify-between md:flex-col">
-                    <span className="text-muted-foreground">Platform Fee (6%)</span>
+                    <span className="text-muted-foreground">Platform Fee (8%)</span>
                     <span className="font-medium">{formatCents(schedule.feeCents)}</span>
                   </div>
                   <div className="flex justify-between md:flex-col">

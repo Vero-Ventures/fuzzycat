@@ -3,8 +3,6 @@ import { fetchPage } from '../helpers/fetch';
 
 const PROTECTED_ROUTES = [
   '/owner/payments',
-  '/owner/enroll',
-  '/owner/enroll/success',
   '/owner/settings',
   '/clinic/dashboard',
   '/clinic/onboarding',

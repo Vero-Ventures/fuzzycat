@@ -252,14 +252,81 @@ export function PaymentMethodSection() {
     }
   }
 
+  async function runFinancialConnections(clientSecret: string, setupIntentId: string) {
+    const { loadStripe } = await import('@stripe/stripe-js');
+    const stripeJs = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '');
+    if (!stripeJs) {
+      handleMutationError(
+        { message: 'Stripe failed to load' },
+        'Failed to load payment processor.',
+      );
+      return;
+    }
+    const { error: stripeError } = await stripeJs.collectBankAccountForSetup({
+      clientSecret,
+      params: {
+        payment_method_type: 'us_bank_account',
+        payment_method_data: {
+          billing_details: {
+            name: profile?.name ?? '',
+            email: profile?.email ?? '',
+          },
+        },
+      },
+    });
+    if (stripeError) {
+      if (stripeError.type !== 'validation_error') {
+        handleMutationError({ message: stripeError.message }, 'Bank account connection failed.');
+      }
+      setSaveStatus('idle');
+      return;
+    }
+    const { error: confirmError, setupIntent } =
+      await stripeJs.confirmUsBankAccountSetup(clientSecret);
+    if (confirmError) {
+      handleMutationError({ message: confirmError.message }, 'Bank account confirmation failed.');
+      return;
+    }
+    if (setupIntent?.status === 'succeeded') {
+      confirmBank.mutate({ setupIntentId });
+    } else {
+      setSaveStatus('idle');
+    }
+  }
+
+  const createBankSetup = useMutation(
+    trpc.owner.createBankAccountSetupIntent.mutationOptions({
+      onSuccess: (data) => {
+        if (!data.clientSecret || !data.setupIntentId) {
+          handleMutationError(
+            { message: 'No client secret returned' },
+            'Failed to start bank setup.',
+          );
+          return;
+        }
+        runFinancialConnections(data.clientSecret, data.setupIntentId);
+      },
+      onError: (error) => handleMutationError(error, 'Failed to start bank setup.'),
+    }),
+  );
+
+  const confirmBank = useMutation(
+    trpc.owner.confirmBankAccount.mutationOptions({
+      onSuccess: () => {
+        setSaveStatus('saved');
+        invalidateQueries();
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      },
+      onError: (error) => handleMutationError(error, 'Failed to confirm bank account.'),
+    }),
+  );
+
   function handleSelectBankAccount() {
     if (profile?.paymentMethod === 'bank_account') return;
     setErrorMessage(null);
     if (!paymentDetails?.bankAccount) {
-      // Bank account setup via Stripe will be available in a future update
-      setErrorMessage('Bank account setup is not yet available. Please use a debit card.');
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      setSaveStatus('saving');
+      createBankSetup.mutate();
     } else {
       setSaveStatus('saving');
       updateMutation.mutate({ paymentMethod: 'bank_account' });
@@ -304,6 +371,8 @@ export function PaymentMethodSection() {
     saveStatus === 'saving' ||
     setupCard.isPending ||
     confirmCard.isPending ||
+    createBankSetup.isPending ||
+    confirmBank.isPending ||
     removeMutation.isPending;
 
   return (
@@ -342,7 +411,7 @@ export function PaymentMethodSection() {
           onRemoveBank={handleRemoveBank}
         />
 
-        {isBusy && <BusyIndicator setupCard={setupCard.isPending} />}
+        {isBusy && <BusyIndicator setupCard={setupCard.isPending || createBankSetup.isPending} />}
         <StatusMessage saveStatus={saveStatus} errorMessage={errorMessage} />
       </CardContent>
     </Card>

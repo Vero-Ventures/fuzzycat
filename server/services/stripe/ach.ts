@@ -17,6 +17,8 @@ export async function createInstallmentPaymentIntent(params: {
   amountCents: number;
   paymentMethodId?: string;
   paymentMethodType?: 'card' | 'us_bank_account';
+  clinicStripeAccountId: string;
+  applicationFeeCents: number;
 }): Promise<{ paymentIntentId: string; clientSecret: string; status: string }> {
   const methodType = params.paymentMethodType ?? 'us_bank_account';
 
@@ -25,6 +27,10 @@ export async function createInstallmentPaymentIntent(params: {
     currency: 'usd',
     customer: params.stripeCustomerId,
     payment_method_types: [methodType],
+    application_fee_amount: params.applicationFeeCents,
+    transfer_data: {
+      destination: params.clinicStripeAccountId,
+    },
     ...(params.paymentMethodId && {
       payment_method: params.paymentMethodId,
       confirm: true,

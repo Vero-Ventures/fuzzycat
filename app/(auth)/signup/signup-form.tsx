@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
-import { Captcha } from '@/components/shared/captcha';
+import { useRef, useState } from 'react';
+import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
+import { PasswordInput } from '@/components/ui/password-input';
 import { signUpClinic, signUpOwner } from './actions';
 
 type Tab = 'owner' | 'clinic';
@@ -12,16 +13,8 @@ export function SignupForm() {
   const [tab, setTab] = useState<Tab>('owner');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState<string | null>(null);
-
-  const handleCaptchaVerify = useCallback((token: string) => {
-    setCaptchaToken(token);
-  }, []);
-
-  const handleCaptchaError = useCallback(() => {
-    setCaptchaToken(null);
-  }, []);
+  const captchaRef = useRef<CaptchaHandle>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,9 +23,13 @@ export function SignupForm() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      if (captchaToken) {
-        formData.set('captchaToken', captchaToken);
+
+      // Execute Turnstile challenge at submit time (deferred PoW)
+      const token = await captchaRef.current?.execute();
+      if (token) {
+        formData.set('captchaToken', token);
       }
+
       const result = tab === 'owner' ? await signUpOwner(formData) : await signUpClinic(formData);
 
       if (result.error) {
@@ -153,20 +150,19 @@ export function SignupForm() {
           <label htmlFor="password" className="block text-sm font-medium text-foreground">
             Password
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             required
             minLength={8}
             autoComplete="new-password"
-            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="mt-1"
           />
         </div>
 
         {tab === 'owner' ? <OwnerFields /> : <ClinicFields />}
 
-        <Captcha onVerify={handleCaptchaVerify} onError={handleCaptchaError} className="my-2" />
+        <Captcha ref={captchaRef} className="my-2" />
 
         <button
           type="submit"

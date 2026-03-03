@@ -8,9 +8,8 @@ const mockGetClinicEarnings = mock();
 mock.module('@/server/services/payout', () => ({
   getClinicPayoutHistory: mockGetClinicPayoutHistory,
   getClinicEarnings: mockGetClinicEarnings,
-  processClinicPayout: mock(),
-  processPendingPayouts: mock(),
   calculatePayoutBreakdown: mock(),
+  calculateApplicationFee: mock(),
 }));
 
 const mockValidateApiKey = mock();

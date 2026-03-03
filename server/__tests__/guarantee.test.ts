@@ -52,20 +52,20 @@ afterEach(() => {
 
 describe('calculateContribution', () => {
   it('calculates 1% of total with fee', () => {
-    // $1,200 bill + 6% fee = $1,272.00 = 127,200 cents
-    // 1% of 127,200 = 1,272 cents
-    const totalWithFeeCents = 127_200;
+    // $1,200 bill + 8% fee = $1,296.00 = 129,600 cents
+    // 1% of 129,600 = 1,296 cents
+    const totalWithFeeCents = 129_600;
     const result = calculateContribution(totalWithFeeCents);
     expect(result).toBe(percentOfCents(totalWithFeeCents, PLATFORM_RESERVE_RATE));
-    expect(result).toBe(1272);
+    expect(result).toBe(1296);
   });
 
   it('calculates contribution for minimum bill ($500)', () => {
-    // $500 + 6% = $530 = 53,000 cents
-    // 1% = 530 cents
-    const totalWithFeeCents = 53_000;
+    // $500 + 8% = $540 = 54,000 cents
+    // 1% = 540 cents
+    const totalWithFeeCents = 54_000;
     const result = calculateContribution(totalWithFeeCents);
-    expect(result).toBe(530);
+    expect(result).toBe(540);
   });
 
   it('returns 0 for 0 cents', () => {

@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { CLINIC_SHARE_RATE } from '@/lib/constants';
-import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -12,13 +10,10 @@ const mockAccountsCreate = mock(() => Promise.resolve({ id: 'acct_clinic_123' })
 const mockAccountLinksCreate = mock(() =>
   Promise.resolve({ url: 'https://connect.stripe.com/setup/e/acct_clinic_123' }),
 );
-const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_transfer_789' }));
-
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     accounts: { create: mockAccountsCreate },
     accountLinks: { create: mockAccountLinksCreate },
-    transfers: { create: mockTransfersCreate },
   }),
 }));
 
@@ -30,7 +25,6 @@ const mockUpdateSet = mock();
 const mockUpdateWhere = mock();
 const mockUpdate = mock();
 const mockInsertValues = mock();
-const mockInsertReturning = mock();
 const mockInsert = mock();
 
 const mockTransaction = mock(async (fn: (tx: unknown) => Promise<unknown>) => {
@@ -49,7 +43,7 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-const { createConnectAccount, createOnboardingLink, transferToClinic } = await import(
+const { createConnectAccount, createOnboardingLink } = await import(
   '@/server/services/stripe/connect'
 );
 
@@ -138,91 +132,5 @@ describe('createOnboardingLink', () => {
       return_url: 'https://app.example.com/clinic/settings',
       refresh_url: 'https://app.example.com/clinic/settings/refresh',
     });
-  });
-});
-
-describe('transferToClinic', () => {
-  const defaultParams = {
-    paymentId: 'pay-3',
-    planId: 'plan-1',
-    clinicId: 'clinic-1',
-    clinicStripeAccountId: 'acct_clinic_123',
-    transferAmountCents: 15_900,
-  };
-
-  beforeEach(() => {
-    mockUpdateWhere.mockResolvedValue([]);
-    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
-    mockUpdate.mockReturnValue({ set: mockUpdateSet });
-
-    mockInsertReturning.mockResolvedValue([{ id: 'payout-1' }]);
-    mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
-    mockInsert.mockReturnValue({ values: mockInsertValues });
-  });
-
-  afterEach(() => {
-    mockTransfersCreate.mockClear();
-    mockUpdate.mockClear();
-    mockUpdateSet.mockClear();
-    mockUpdateWhere.mockClear();
-    mockInsert.mockClear();
-    mockInsertValues.mockClear();
-    mockInsertReturning.mockClear();
-  });
-
-  it('creates a transfer with correct destination and amount', async () => {
-    const result = await transferToClinic(defaultParams);
-
-    expect(result.transferId).toBe('tr_transfer_789');
-    expect(mockTransfersCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        amount: 15_900,
-        currency: 'usd',
-        destination: 'acct_clinic_123',
-      }),
-      { idempotencyKey: `transfer_${defaultParams.paymentId}` },
-    );
-  });
-
-  it('creates a payout record with clinic share calculation', async () => {
-    await transferToClinic(defaultParams);
-
-    const expectedClinicShare = percentOfCents(15_900, CLINIC_SHARE_RATE);
-
-    // The first insert call is for the payout record (has returning)
-    // The second insert call is for the audit log
-    const firstInsertCall = mockInsertValues.mock.calls[0][0];
-    expect(firstInsertCall).toEqual(
-      expect.objectContaining({
-        clinicId: 'clinic-1',
-        planId: 'plan-1',
-        paymentId: 'pay-3',
-        amountCents: 15_900,
-        clinicShareCents: expectedClinicShare,
-        stripeTransferId: 'tr_transfer_789',
-        status: 'succeeded',
-      }),
-    );
-  });
-
-  it('returns the payout record ID', async () => {
-    const result = await transferToClinic(defaultParams);
-
-    expect(result.payoutRecord.id).toBe('payout-1');
-  });
-
-  it('creates an audit log entry for the payout', async () => {
-    await transferToClinic(defaultParams);
-
-    // Second insert call is the audit log
-    const auditInsertCall = mockInsertValues.mock.calls[1][0];
-    expect(auditInsertCall).toEqual(
-      expect.objectContaining({
-        entityType: 'payout',
-        entityId: 'payout-1',
-        action: 'created',
-        actorType: 'system',
-      }),
-    );
   });
 });

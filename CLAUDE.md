@@ -1,13 +1,13 @@
 # FuzzyCat
 
-Payment plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). 6% platform fee to owner, 3% revenue share to clinic.
+Payment plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). 8% platform fee to owner, 3% revenue share to clinic.
 
 **Not a lender.** No credit checks, no interest, no loan origination. FuzzyCat does **not** guarantee clinic payment — clinics are responsible for collecting from defaulting owners.
 
 ## Key Business Rules
 
 - **Bill range**: $500–$25,000. Enforced in `lib/constants.ts` and enrollment router Zod schema.
-- **Fee structure**: 6% platform fee to pet owner, 3% revenue share to clinic, 1% platform reserve
+- **Fee structure**: 8% platform fee to pet owner, 3% revenue share to clinic, 1% platform reserve
 - **Deposit**: 25% of total (incl. fee), charged immediately via debit card (not ACH)
 - **Installments**: remaining 75% split into 6 biweekly ACH debits
 - **Default handling**: 3 failed retries → plan "defaulted" → clinic notified, responsible for collection. Retries are payday-aligned (next Friday, 1st, or 15th at least 2 days out).
@@ -25,7 +25,6 @@ Payment plan platform for veterinary clinics. Pet owners split vet bills into bi
 | ORM | Drizzle ORM (`server/db/schema.ts`) |
 | Database | PostgreSQL via Supabase (separate dev + production instances) |
 | Payments | Stripe Checkout (deposits), Stripe ACH (installments), Stripe Connect (payouts) |
-| Bank Verification | Plaid Link + Balance |
 | Auth | Supabase Auth (role-based: owner, clinic, admin) |
 | Linting | Biome (not ESLint/Prettier) |
 | Testing | Bun test runner (not Jest/Vitest), Playwright E2E |
@@ -57,15 +56,15 @@ bunx drizzle-kit generate        # Generate SQL migrations
 - **ILIKE escaping**: Always use `escapeIlike()` when interpolating user input into SQL ILIKE patterns.
 - **Naming**: `camelCase` variables/functions, `PascalCase` components/types, `SCREAMING_SNAKE` env vars.
 - **Bun test runner**: Always `bun run test` (not bare `bun test`, which picks up `node_modules`).
-- **Error handling**: All Stripe/Plaid calls in try/catch. Never expose internals to users.
+- **Error handling**: All Stripe calls in try/catch. Never expose internals to users.
 - **Audit trail** (NON-NEGOTIABLE): Every payment state change must log to `audit_log` with timestamp, actor, previous state, and new state.
 
 ## Security
 
-- **PCI SAQ A**: Servers never touch card data. Use Stripe Checkout and Plaid Link (both hosted). Never store PAN, CVV, bank account numbers, or routing numbers.
+- **PCI SAQ A**: Servers never touch card data. Use Stripe Checkout (hosted). Never store PAN, CVV, bank account numbers, or routing numbers.
 - **Authorization**: All tRPC procedures guarded by `assertClinicOwnership()` or `assertPlanAccess()`.
 - **CSP**: `'self' 'unsafe-inline' https:` for scripts via middleware. Nonce-based `strict-dynamic` was removed because Next.js SPA navigation injects inline scripts without nonces.
-- **Webhook verification**: Plaid via JWT validation, Stripe via signature verification. Stripe webhooks return 200 even on handler errors (prevents retry storms).
+- **Webhook verification**: Stripe via signature verification. Stripe webhooks return 200 even on handler errors (prevents retry storms).
 - **MFA**: Feature-flagged via `ENABLE_MFA`. Enforced at middleware for clinic/admin routes.
 - **Stripe Connect**: Validate `stripeAccountId` non-null before Connect API calls. Account creation uses `db.transaction()` with conditional UPDATE for race safety.
 
@@ -95,7 +94,7 @@ bunx drizzle-kit generate        # Generate SQL migrations
 ```
 ENROLLMENT:
   1. Owner enters vet bill → system calculates 6% fee, 25% deposit, 6 installments
-  2. Owner connects bank (Plaid) OR enters debit card (Stripe Checkout)
+  2. Owner enters debit card (Stripe Checkout) for deposit, connects bank for ACH installments
   3. Deposit charged immediately → plan becomes "active"
   4. Remaining 75% split into 6 biweekly ACH debits
 

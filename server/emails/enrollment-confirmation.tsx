@@ -64,7 +64,7 @@ export function EnrollmentConfirmation({
         <Text style={tableRow}>Enrollment date: {formatDate(enrollmentDate)}</Text>
         <Hr style={{ borderColor: '#e5e7eb', margin: '8px 0' }} />
         <Text style={tableRow}>Veterinary bill: {formatCents(totalBillCents)}</Text>
-        <Text style={tableRow}>Platform fee (6%): {formatCents(feeCents)}</Text>
+        <Text style={tableRow}>Platform fee (8%): {formatCents(feeCents)}</Text>
         <Text style={tableRowBold}>Total: {formatCents(totalWithFeeCents)}</Text>
         <Hr style={{ borderColor: '#e5e7eb', margin: '8px 0' }} />
         <Text style={tableRow}>Deposit (25%): {formatCents(depositCents)}</Text>
@@ -97,7 +97,7 @@ export function EnrollmentConfirmation({
       </Text>
 
       <Text style={muted}>
-        Disclosure: FuzzyCat charges a flat 6% platform fee on the original veterinary bill amount.
+        Disclosure: FuzzyCat charges a flat 8% platform fee on the original veterinary bill amount.
         This fee is included in your total above. No additional interest or hidden charges will be
         applied. FuzzyCat is a payment facilitation platform, not a lender.
       </Text>

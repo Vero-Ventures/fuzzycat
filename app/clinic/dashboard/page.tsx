@@ -2,6 +2,7 @@ import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { createServerHelpers } from '@/lib/trpc/server';
 import { DashboardContent } from './_components/dashboard-content';
+import { FoundingClinicBanner } from './_components/founding-clinic-banner';
 import { InitiateEnrollmentButton } from './_components/initiate-enrollment-button';
 import { RevenueTable } from './_components/revenue-table';
 
@@ -28,6 +29,10 @@ export default async function ClinicDashboardPage() {
             </p>
           </div>
           <InitiateEnrollmentButton />
+        </div>
+
+        <div className="mt-4">
+          <FoundingClinicBanner />
         </div>
 
         <DashboardContent />

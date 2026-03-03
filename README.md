@@ -6,7 +6,7 @@ Flexible payment plans for veterinary clinics. Pet owners split vet bills into b
 
 1. **Clinic enrolls pet owner** with vet bill amount ($500–$25,000)
 2. **Owner pays 25% deposit** via debit card (Stripe Checkout)
-3. **Remaining 75%** splits into 6 biweekly ACH installments (Plaid-verified bank account)
+3. **Remaining 75%** splits into 6 biweekly ACH installments via Stripe
 4. **Clinics receive payouts** after each successful installment via Stripe Connect
 
 Competitive platform fee for owners. Revenue share for participating clinics.
@@ -17,7 +17,7 @@ FuzzyCat is **not a lender** — no credit checks, no interest, no loan originat
 
 ### For Pet Owners
 - Split vet bills into manageable biweekly payments
-- Secure bank verification via Plaid Link
+- Secure payment processing via Stripe
 - Real-time payment tracking and history
 - Automated email/SMS reminders
 
@@ -42,7 +42,6 @@ FuzzyCat is **not a lender** — no credit checks, no interest, no loan originat
 | ORM | Drizzle ORM (`server/db/schema.ts`) |
 | Database | PostgreSQL via Supabase |
 | Payments | Stripe Checkout (deposits), Stripe ACH (installments), Stripe Connect (payouts) |
-| Bank Verification | Plaid Link + Balance |
 | Auth | Supabase Auth (role-based: owner, clinic, admin) |
 | Linting | Biome |
 | Testing | Bun test runner + Playwright E2E |
@@ -57,7 +56,7 @@ FuzzyCat is **not a lender** — no credit checks, no interest, no loan originat
 - [Bun](https://bun.sh/) v1.1+
 - PostgreSQL database (via [Supabase](https://supabase.com/))
 - [Stripe](https://stripe.com/) account (test mode)
-- [Plaid](https://plaid.com/) account (sandbox)
+
 
 ### Installation
 
@@ -77,7 +76,6 @@ Fill in your credentials — see `.env.example` for all required and optional va
 
 - **Supabase**: Project URL, anon key, service role key, database URL
 - **Stripe**: Secret key, publishable key, webhook secret
-- **Plaid**: Client ID, secret, environment (`sandbox` for development)
 - **Resend**: API key for transactional email
 - **Twilio**: Account SID, auth token, phone number for SMS
 
@@ -104,15 +102,15 @@ app/                     # Next.js App Router
   clinic/                # Clinic portal (dashboard, clients, reports, payouts)
   admin/                 # Admin portal (dashboard, plans, payments, settings)
   api/                   # API routes
-    webhooks/            #   Stripe + Plaid + Sentry webhooks
+    webhooks/            #   Stripe + Sentry webhooks
     cron/                #   Scheduled jobs (collect-payments, process-payouts)
     health/              #   Health check endpoint
     trpc/                #   tRPC handler
 components/              # Shared UI components (shadcn/ui based)
-lib/                     # Shared utilities (env, auth, stripe, plaid, logger)
+lib/                     # Shared utilities (env, auth, stripe, logger)
 server/
   db/                    # Drizzle ORM schema and database connection
-  routers/               # tRPC routers (enrollment, payment, payout, plan, plaid)
+  routers/               # tRPC routers (enrollment, payment, payout, plan)
   services/              # Business logic (enrollment, payment, collection, payout, audit)
   trpc.ts                # tRPC context, procedures, and middleware
 drizzle/                 # Generated SQL migrations
@@ -144,7 +142,7 @@ scripts/                 # Utility scripts (seed, admin creation, QA, E2E setup)
 bun run test             # Run all unit tests
 ```
 
-Tests use Bun's built-in test runner with `mock.module()` for dependency mocking. External services (Stripe, Plaid, Supabase) are fully mocked — no real API calls in tests.
+Tests use Bun's built-in test runner with `mock.module()` for dependency mocking. External services (Stripe, Supabase) are fully mocked — no real API calls in tests.
 
 ### E2E Tests
 
@@ -161,7 +159,7 @@ Deployed on **Vercel** with **Supabase** for database and auth.
 
 1. Connect repository to Vercel
 2. Set all environment variables from `.env.example` in Vercel dashboard
-3. Configure Stripe and Plaid webhooks to point to your Vercel deployment
+3. Configure Stripe webhooks to point to your Vercel deployment
 4. Set up Vercel Cron for scheduled payment collection and payout processing
 
 ## License

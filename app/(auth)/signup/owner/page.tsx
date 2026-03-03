@@ -2,28 +2,23 @@
 
 import { Star } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { signUpOwner } from '@/app/(auth)/signup/actions';
-import { Captcha } from '@/components/shared/captcha';
+import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function OwnerSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState<string | null>(null);
-
-  const handleCaptchaVerify = useCallback((token: string) => {
-    setCaptchaToken(token);
-  }, []);
-
-  const handleCaptchaError = useCallback(() => {
-    setCaptchaToken(null);
-  }, []);
+  const captchaRef = useRef<CaptchaHandle>(null);
+  const referralCode = searchParams.get('ref') ?? '';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,8 +27,11 @@ export default function OwnerSignupPage() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      if (captchaToken) {
-        formData.set('captchaToken', captchaToken);
+
+      // Execute Turnstile challenge at submit time (deferred PoW)
+      const token = await captchaRef.current?.execute();
+      if (token) {
+        formData.set('captchaToken', token);
       }
       const result = await signUpOwner(formData);
 
@@ -171,10 +169,9 @@ export default function OwnerSignupPage() {
                 </div>
                 <div>
                   <Label htmlFor="password">Password</Label>
-                  <Input
+                  <PasswordInput
                     id="password"
                     name="password"
-                    type="password"
                     required
                     minLength={8}
                     autoComplete="new-password"
@@ -182,11 +179,9 @@ export default function OwnerSignupPage() {
                   />
                 </div>
 
-                <Captcha
-                  onVerify={handleCaptchaVerify}
-                  onError={handleCaptchaError}
-                  className="my-2"
-                />
+                {referralCode && <input type="hidden" name="referralCode" value={referralCode} />}
+
+                <Captcha ref={captchaRef} className="my-2" />
 
                 <Button type="submit" disabled={loading} className="w-full">
                   {loading ? 'Creating account...' : 'Create Account'}

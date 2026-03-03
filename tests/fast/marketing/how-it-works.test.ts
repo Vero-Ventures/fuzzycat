@@ -24,7 +24,7 @@ describe('How It Works /how-it-works', () => {
   test('what you pay section', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Flat 6% platform fee');
+    expect(text).toContain('Flat 8% platform fee');
     expect(text).toContain('25% deposit up front');
     expect(text).toContain('6 biweekly installments');
     expect(text).toContain('No credit check');
@@ -54,30 +54,11 @@ describe('How It Works /how-it-works', () => {
     expect(text).toContain('Track all plans');
   });
 
-  test('FAQ questions (9)', async () => {
-    const { $ } = await fetchPage('/how-it-works');
-    const text = $('body').text();
-    const faqQuestions = [
-      'What is FuzzyCat?',
-      'Do you run a credit check?',
-      'What fees do I pay?',
-      'Is there a minimum bill amount?',
-      'What payment methods are accepted?',
-      'What happens if I miss a payment?',
-      'What does it cost the clinic?',
-      'What if a pet owner defaults?',
-      'Which clinics accept FuzzyCat?',
-    ];
-    for (const q of faqQuestions) {
-      expect(text).toContain(q);
-    }
-  });
-
   test('bottom CTAs with hrefs', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
     expect(text).toContain('Ready to get started?');
-    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup');
-    expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup');
+    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup/owner');
+    expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup/clinic');
   });
 });

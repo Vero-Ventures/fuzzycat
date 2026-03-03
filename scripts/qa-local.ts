@@ -236,8 +236,6 @@ async function main() {
   if (ownerPage) {
     const ownerPages = [
       ['/owner/payments', 'Payments'],
-      ['/owner/plans', 'Plans'],
-      ['/owner/enroll', 'Enroll'],
       ['/owner/settings', 'Settings'],
     ];
 
@@ -245,30 +243,11 @@ async function main() {
       await checkPage(ownerPage, url, `Owner: ${name}`);
     }
 
-    // ── Debit Card Button Test ──
-    console.log('\n── Debit Card ──');
-    try {
-      await ownerPage.goto(`${BASE}/owner/enroll`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000,
-      });
-      await ownerPage.waitForTimeout(2000);
-
-      const debitBtn = ownerPage.locator('text=Debit Card').first();
-      if (await debitBtn.isVisible({ timeout: 5000 })) {
-        record('Debit Card button', 'PASS', 'Visible and clickable');
-      } else {
-        record('Debit Card button', 'PASS', 'Not visible (enrollment step mismatch — OK)');
-      }
-    } catch (err) {
-      record('Debit Card button', 'FAIL', String(err).slice(0, 120));
-    }
-
     // ── Owner SPA CSP ──
     console.log('\n── Owner SPA CSP ──');
     await checkSpaNavCsp(
       ownerPage,
-      ['/owner/payments', '/owner/plans', '/owner/enroll', '/owner/settings', '/owner/payments'],
+      ['/owner/payments', '/owner/settings', '/owner/payments'],
       'Owner',
     );
 

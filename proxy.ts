@@ -31,7 +31,7 @@ function buildCspDirectives(scriptSrc: string, sentryDsn?: string): string {
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    "font-src 'self'",
+    "font-src 'self' https://fonts.scalar.com",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.posthog.com https://*.i.posthog.com https://*.ingest.us.sentry.io https://*.sentry-cdn.com",
     'frame-src https://js.stripe.com https://challenges.cloudflare.com https://connect-js.stripe.com',
     "worker-src 'self' blob:",

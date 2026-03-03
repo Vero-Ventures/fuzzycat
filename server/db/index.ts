@@ -7,7 +7,7 @@ function createDb() {
   const { DATABASE_URL } = serverEnv();
   const client = postgres(DATABASE_URL, {
     prepare: false,
-    max: 20,
+    max: 1,
     idle_timeout: 20,
     connect_timeout: 10,
   });

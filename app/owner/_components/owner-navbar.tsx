@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Plus, Settings } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from '@/app/(auth)/signout/actions';
 import { TopNavbar } from '@/components/shared/top-navbar';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/owner/payments' },
-  { label: 'My Plans', href: '/owner/plans' },
+  { label: 'Referrals', href: '/owner/referrals' },
 ];
 
 export function OwnerNavbar() {
@@ -19,12 +19,6 @@ export function OwnerNavbar() {
       navItems={NAV_ITEMS}
       rightSlot={
         <div className="flex items-center gap-2">
-          <Link href="/owner/enroll">
-            <Button size="sm" className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Create Plan
-            </Button>
-          </Link>
           <ThemeToggle />
           <Link
             href="/owner/settings"

@@ -16,6 +16,8 @@ export async function createDepositCheckoutSession(params: {
   depositCents: number;
   successUrl: string;
   cancelUrl: string;
+  clinicStripeAccountId: string;
+  applicationFeeCents: number;
 }): Promise<{ sessionId: string; sessionUrl: string }> {
   const session = await stripe().checkout.sessions.create({
     mode: 'payment',
@@ -23,6 +25,10 @@ export async function createDepositCheckoutSession(params: {
     customer: params.stripeCustomerId,
     payment_intent_data: {
       setup_future_usage: 'off_session',
+      application_fee_amount: params.applicationFeeCents,
+      transfer_data: {
+        destination: params.clinicStripeAccountId,
+      },
     },
     line_items: [
       {

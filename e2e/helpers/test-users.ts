@@ -36,8 +36,6 @@ export const PUBLIC_ROUTES = [
 /** Routes that require authentication and redirect to /login when unauthenticated. */
 export const PROTECTED_ROUTES = [
   '/owner/payments',
-  '/owner/enroll',
-  '/owner/enroll/success',
   '/owner/settings',
   '/clinic/dashboard',
   '/clinic/onboarding',
@@ -51,7 +49,7 @@ export const PROTECTED_ROUTES = [
 ] as const;
 
 /** Owner portal routes. */
-export const OWNER_ROUTES = ['/owner/payments', '/owner/enroll', '/owner/settings'] as const;
+export const OWNER_ROUTES = ['/owner/payments', '/owner/settings'] as const;
 
 /** Clinic portal routes. */
 export const CLINIC_ROUTES = [

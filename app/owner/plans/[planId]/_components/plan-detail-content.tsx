@@ -58,8 +58,8 @@ export function PlanDetailContent({ planId }: { planId: string }) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/owner/plans" className="hover:text-foreground">
-          My Plans
+        <Link href="/owner/payments" className="hover:text-foreground">
+          Dashboard
         </Link>
         <ChevronRight className="h-4 w-4" />
         <span className="text-foreground">Plan Details</span>

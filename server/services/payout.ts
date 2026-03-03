@@ -1,11 +1,13 @@
 import { and, desc, eq, sql, sum } from 'drizzle-orm';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
-import { logger } from '@/lib/logger';
-import { stripe } from '@/lib/stripe';
+import {
+  CLINIC_SHARE_RATE,
+  DEFAULT_CLINIC_SHARE_BPS,
+  PLATFORM_FEE_RATE,
+  PLATFORM_RESERVE_RATE,
+} from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { auditLog, clinics, payments, payouts } from '@/server/db/schema';
-import { transferToClinic } from '@/server/services/stripe/connect';
+import { payouts } from '@/server/db/schema';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -16,16 +18,10 @@ export interface PayoutBreakdown {
   platformFeeCents: number;
   /** Risk pool contribution deducted from the payment, in cents. */
   riskPoolCents: number;
-  /** The 3% clinic revenue share bonus (platform administration compensation), in cents. */
+  /** The clinic revenue share bonus (platform administration compensation), in cents. */
   clinicShareCents: number;
   /** Net amount transferred to the clinic's Stripe Connect account, in cents. */
   transferAmountCents: number;
-}
-
-export interface PayoutResult {
-  payoutId: string;
-  stripeTransferId: string;
-  breakdown: PayoutBreakdown;
 }
 
 export interface ClinicPayoutSummary {
@@ -46,28 +42,14 @@ export interface ClinicEarnings {
   completedPayoutCount: number;
 }
 
-export interface ProcessedPayoutResult {
-  payoutId: string;
-  status: 'succeeded' | 'failed';
-  stripeTransferId?: string;
-  error?: string;
-}
-
-export interface ProcessPendingPayoutsResult {
-  processed: number;
-  succeeded: number;
-  failed: number;
-  results: ProcessedPayoutResult[];
-}
-
 // ── Payout calculation ───────────────────────────────────────────────
 
 /**
  * Calculate the payout breakdown for a given payment amount.
  *
- * The payment amount from the pet owner includes the 6% platform fee.
+ * The payment amount from the pet owner includes the 8% platform fee.
  * From each payment, FuzzyCat retains:
- *   - Platform fee portion (proportional share of the 6% fee)
+ *   - Platform fee portion (proportional share of the 8% fee)
  *   - Risk pool contribution (1% of the original bill portion)
  *
  * The clinic receives:
@@ -76,19 +58,22 @@ export interface ProcessPendingPayoutsResult {
  *
  * All arithmetic uses integer cents — no floating point.
  */
-export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBreakdown {
+export function calculatePayoutBreakdown(
+  paymentAmountCents: number,
+  clinicShareRate = CLINIC_SHARE_RATE,
+): PayoutBreakdown {
   if (paymentAmountCents <= 0 || !Number.isFinite(paymentAmountCents)) {
     throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
   }
 
-  // The payment amount includes the 6% fee. Reverse-calculate the original bill portion.
+  // The payment amount includes the 8% fee. Reverse-calculate the original bill portion.
   // paymentAmount = billPortion + feePortion
   // paymentAmount = billPortion * (1 + PLATFORM_FEE_RATE)
   // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)
   const billPortionCents = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
   const platformFeeCents = paymentAmountCents - billPortionCents;
   const riskPoolCents = percentOfCents(billPortionCents, PLATFORM_RESERVE_RATE);
-  const clinicShareCents = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
+  const clinicShareCents = percentOfCents(paymentAmountCents, clinicShareRate);
 
   // Transfer = bill portion - risk pool + clinic share
   const transferAmountCents = billPortionCents - riskPoolCents + clinicShareCents;
@@ -102,248 +87,37 @@ export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBrea
   };
 }
 
-// ── Core payout processing ───────────────────────────────────────────
+/**
+ * Calculate the application_fee_amount for a Stripe destination charge.
+ * This is the amount FuzzyCat retains when Stripe atomically splits the payment.
+ *
+ * applicationFee = paymentAmount - transferToClinic
+ *                = platformFee + riskPool - clinicShare
+ */
+export function calculateApplicationFee(
+  paymentAmountCents: number,
+  clinicShareRate = CLINIC_SHARE_RATE,
+): number {
+  const breakdown = calculatePayoutBreakdown(paymentAmountCents, clinicShareRate);
+  return paymentAmountCents - breakdown.transferAmountCents;
+}
+
+// ── Revenue share resolution ────────────────────────────────────────
 
 /**
- * Process a clinic payout after a successful payment.
- *
- * This function:
- *   1. Validates the payment exists, is succeeded, and belongs to an active plan
- *   2. Verifies the clinic has a Stripe Connect account
- *   3. Checks that no duplicate payout exists for this payment
- *   4. Calculates the payout breakdown (platform fee, risk pool, clinic share)
- *   5. Initiates a Stripe Connect transfer to the clinic
- *   6. Logs all state changes to the audit trail
- *
- * All database operations run inside a transaction for atomicity.
+ * Determine the effective revenue share rate for a clinic.
+ * Founding clinics with an active (non-expired) enhanced period use their
+ * stored `revenueShareBps`; everyone else falls back to the default 3%.
  */
-export async function processClinicPayout(paymentId: string): Promise<PayoutResult> {
-  // ── Step 1: Load and validate the payment ──────────────────────────
-
-  const payment = await db.query.payments.findFirst({
-    where: eq(payments.id, paymentId),
-    with: {
-      plan: {
-        with: {
-          clinic: true,
-        },
-      },
-    },
-  });
-
-  if (!payment) {
-    throw new Error(`Payment not found: ${paymentId}`);
+export function getEffectiveShareRate(clinic: {
+  revenueShareBps: number;
+  foundingClinic: boolean;
+  foundingExpiresAt: Date | null;
+}): number {
+  if (clinic.foundingClinic && clinic.foundingExpiresAt && clinic.foundingExpiresAt > new Date()) {
+    return clinic.revenueShareBps / 10_000;
   }
-
-  if (payment.status !== 'succeeded') {
-    throw new Error(`Payment ${paymentId} is not succeeded (status: ${payment.status})`);
-  }
-
-  if (!payment.plan) {
-    throw new Error(`Payment ${paymentId} has no associated plan`);
-  }
-
-  const plan = payment.plan;
-
-  if (plan.status !== 'active' && plan.status !== 'deposit_paid') {
-    throw new Error(`Plan ${plan.id} is not in a payable state (status: ${plan.status})`);
-  }
-
-  if (!plan.clinic) {
-    throw new Error(`Plan ${plan.id} has no associated clinic`);
-  }
-
-  const clinic = plan.clinic;
-
-  if (!clinic.stripeAccountId) {
-    throw new Error(`Clinic ${clinic.id} does not have a Stripe Connect account`);
-  }
-
-  // ── Step 2: Check for duplicate payout ─────────────────────────────
-
-  const existingPayout = await db.query.payouts.findFirst({
-    where: eq(payouts.paymentId, paymentId),
-  });
-
-  if (existingPayout) {
-    throw new Error(`Payout already exists for payment ${paymentId}: ${existingPayout.id}`);
-  }
-
-  // ── Step 3: Calculate breakdown ────────────────────────────────────
-
-  const breakdown = calculatePayoutBreakdown(payment.amountCents);
-
-  // ── Step 4: Execute transfer via Stripe Connect ────────────────────
-
-  const { transferId, payoutRecord } = await transferToClinic({
-    paymentId,
-    planId: plan.id,
-    clinicId: clinic.id,
-    clinicStripeAccountId: clinic.stripeAccountId,
-    transferAmountCents: breakdown.transferAmountCents,
-  });
-
-  return {
-    payoutId: payoutRecord.id,
-    stripeTransferId: transferId,
-    breakdown,
-  };
-}
-
-// ── Background worker ────────────────────────────────────────────────
-
-interface PendingPayoutRow {
-  id: string;
-  clinicId: string | null;
-  planId: string | null;
-  paymentId: string | null;
-  amountCents: number;
-  clinicShareCents: number;
-}
-
-async function executeSinglePayout(payout: PendingPayoutRow): Promise<ProcessedPayoutResult> {
-  if (!payout.clinicId) {
-    throw new Error(`Payout ${payout.id} has no clinic ID`);
-  }
-
-  const [clinic] = await db
-    .select({ stripeAccountId: clinics.stripeAccountId })
-    .from(clinics)
-    .where(eq(clinics.id, payout.clinicId))
-    .limit(1);
-
-  if (!clinic?.stripeAccountId) {
-    throw new Error(`Clinic ${payout.clinicId} has no Stripe Connect account`);
-  }
-
-  const transfer = await stripe().transfers.create(
-    {
-      amount: payout.amountCents,
-      currency: 'usd',
-      destination: clinic.stripeAccountId,
-      metadata: {
-        payoutId: payout.id,
-        clinicId: payout.clinicId,
-        ...(payout.paymentId && { paymentId: payout.paymentId }),
-        ...(payout.planId && { planId: payout.planId }),
-      },
-    },
-    { idempotencyKey: `payout_${payout.id}` },
-  );
-
-  try {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(payouts)
-        .set({ stripeTransferId: transfer.id, status: 'succeeded' })
-        .where(eq(payouts.id, payout.id));
-
-      await tx.insert(auditLog).values({
-        entityType: 'payout',
-        entityId: payout.id,
-        action: 'status_changed',
-        oldValue: JSON.stringify({ status: 'pending' }),
-        newValue: JSON.stringify({ status: 'succeeded', stripeTransferId: transfer.id }),
-        actorType: 'system',
-      });
-    });
-  } catch (dbErr) {
-    logger.error(
-      'CRITICAL: Stripe transfer succeeded but DB update failed — manual reconciliation required',
-      {
-        payoutId: payout.id,
-        stripeTransferId: transfer.id,
-        error: dbErr instanceof Error ? dbErr.message : String(dbErr),
-      },
-    );
-    throw dbErr;
-  }
-
-  return { payoutId: payout.id, status: 'succeeded', stripeTransferId: transfer.id };
-}
-
-async function markPayoutFailed(payoutId: string, errorMessage: string): Promise<void> {
-  try {
-    await db.transaction(async (tx) => {
-      await tx.update(payouts).set({ status: 'failed' }).where(eq(payouts.id, payoutId));
-
-      await tx.insert(auditLog).values({
-        entityType: 'payout',
-        entityId: payoutId,
-        action: 'status_changed',
-        oldValue: JSON.stringify({ status: 'pending' }),
-        newValue: JSON.stringify({ status: 'failed', error: errorMessage }),
-        actorType: 'system',
-      });
-    });
-  } catch (auditErr) {
-    logger.error('Failed to update payout status after error', {
-      payoutId,
-      error: auditErr instanceof Error ? auditErr.message : String(auditErr),
-    });
-  }
-}
-
-/**
- * Process all pending payouts by initiating Stripe Connect transfers.
- *
- * For each pending payout:
- *   1. Looks up the clinic's Stripe Connect account
- *   2. Initiates a Stripe transfer with an idempotency key (payout ID)
- *   3. Updates the payout status to succeeded or failed
- *   4. Logs all state changes to the audit trail
- *
- * Each payout is processed independently — a failure in one does not
- * affect others. Uses Stripe idempotency keys to prevent duplicate transfers.
- */
-export async function processPendingPayouts(): Promise<ProcessPendingPayoutsResult> {
-  const pendingPayouts = await db
-    .select({
-      id: payouts.id,
-      clinicId: payouts.clinicId,
-      planId: payouts.planId,
-      paymentId: payouts.paymentId,
-      amountCents: payouts.amountCents,
-      clinicShareCents: payouts.clinicShareCents,
-    })
-    .from(payouts)
-    .where(eq(payouts.status, 'pending'));
-
-  // Process payouts in batches of 5 to avoid Stripe rate limits and DB pool exhaustion
-  const BATCH_SIZE = 5;
-  const results: ProcessedPayoutResult[] = [];
-
-  for (let i = 0; i < pendingPayouts.length; i += BATCH_SIZE) {
-    const batch = pendingPayouts.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map(async (payout): Promise<ProcessedPayoutResult> => {
-        try {
-          return await executeSinglePayout(payout);
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          logger.error('Failed to process payout', {
-            payoutId: payout.id,
-            clinicId: payout.clinicId,
-            error: errorMessage,
-          });
-          await markPayoutFailed(payout.id, errorMessage);
-          return { payoutId: payout.id, status: 'failed', error: errorMessage };
-        }
-      }),
-    );
-    results.push(...batchResults);
-  }
-
-  const succeeded = results.filter((r) => r.status === 'succeeded').length;
-  const failed = results.filter((r) => r.status === 'failed').length;
-
-  logger.info('Pending payouts processing complete', {
-    processed: results.length,
-    succeeded,
-    failed,
-  });
-
-  return { processed: results.length, succeeded, failed, results };
+  return DEFAULT_CLINIC_SHARE_BPS / 10_000;
 }
 
 // ── Query functions ──────────────────────────────────────────────────

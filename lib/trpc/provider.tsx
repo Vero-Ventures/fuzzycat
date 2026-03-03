@@ -2,13 +2,18 @@
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import superjson from 'superjson';
-import { SentryUserSync } from '@/components/sentry-user-sync';
 import { PostHogProvider } from '@/lib/posthog/provider';
 import type { AppRouter } from '@/server/routers';
 import { TRPCProvider } from './client';
 import { getQueryClient } from './query-client';
+
+const SentryUserSync = dynamic(
+  () => import('@/components/sentry-user-sync').then((m) => m.SentryUserSync),
+  { ssr: false },
+);
 
 function getBaseUrl() {
   if (typeof window !== 'undefined') return '';

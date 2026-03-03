@@ -49,6 +49,8 @@ describe('createDepositCheckoutSession', () => {
     depositCents: 31_800,
     successUrl: 'https://app.example.com/success',
     cancelUrl: 'https://app.example.com/cancel',
+    clinicStripeAccountId: 'acct_clinic_1',
+    applicationFeeCents: 1146,
   };
 
   beforeEach(() => {
@@ -80,13 +82,16 @@ describe('createDepositCheckoutSession', () => {
         mode: 'payment',
         payment_method_types: ['card'],
         customer: 'cus_123',
+        payment_intent_data: expect.objectContaining({
+          application_fee_amount: 1146,
+          transfer_data: { destination: 'acct_clinic_1' },
+        }),
         metadata: { paymentId: 'pay-1', planId: 'plan-1' },
         success_url: 'https://app.example.com/success',
         cancel_url: 'https://app.example.com/cancel',
       }),
     );
 
-    // eslint-disable-next-line -- mock.calls is typed as empty tuple by default
     const callArgs = mockCheckoutSessionsCreate.mock.calls[0] as unknown as [
       Record<string, unknown>,
     ];

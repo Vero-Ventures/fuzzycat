@@ -3,13 +3,14 @@
 // payment records. All financial operations are wrapped in db.transaction().
 
 import { and, eq, inArray } from 'drizzle-orm';
-import { MIN_BILL_CENTS, PLATFORM_RESERVE_RATE } from '@/lib/constants';
+import { DEPOSIT_RATE, MIN_BILL_CENTS, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
 import { clinics, owners, payments, plans, riskPool, softCollections } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
+import { getReferralDiscount } from '@/server/services/owner-referral';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -160,33 +161,65 @@ export async function createEnrollment(
       ownerId = newOwner.id;
     }
 
-    // 2. Create plan record (status: 'pending')
+    // 2. Check for referral discount (reduces platform fee, FuzzyCat absorbs as CAC)
+    const referralDiscountCents = await getReferralDiscount(ownerId);
+    const adjustedFeeCents = Math.max(0, schedule.feeCents - referralDiscountCents);
+    const feeReduction = schedule.feeCents - adjustedFeeCents;
+    const adjustedTotalWithFeeCents = schedule.totalWithFeeCents - feeReduction;
+    const adjustedDepositCents = percentOfCents(adjustedTotalWithFeeCents, DEPOSIT_RATE);
+    const adjustedRemainingCents = adjustedTotalWithFeeCents - adjustedDepositCents;
+    const adjustedInstallmentCents = Math.floor(adjustedRemainingCents / schedule.numInstallments);
+
+    // 3. Create plan record (status: 'pending')
     const [plan] = await tx
       .insert(plans)
       .values({
         ownerId,
         clinicId,
         totalBillCents: schedule.totalBillCents,
-        feeCents: schedule.feeCents,
-        totalWithFeeCents: schedule.totalWithFeeCents,
-        depositCents: schedule.depositCents,
-        remainingCents: schedule.remainingCents,
-        installmentCents: schedule.installmentCents,
+        feeCents: adjustedFeeCents,
+        totalWithFeeCents: adjustedTotalWithFeeCents,
+        depositCents: adjustedDepositCents,
+        remainingCents: adjustedRemainingCents,
+        installmentCents: adjustedInstallmentCents,
         numInstallments: schedule.numInstallments,
+        referralDiscountCents: feeReduction > 0 ? feeReduction : 0,
         status: 'pending',
         nextPaymentAt: schedule.payments[0].scheduledAt,
       })
       .returning({ id: plans.id });
 
-    // 3. Create all 7 payment records (1 deposit + 6 installments)
-    const paymentValues = schedule.payments.map((p) => ({
-      planId: plan.id,
-      type: p.type as 'deposit' | 'installment',
-      sequenceNum: p.sequenceNum,
-      amountCents: p.amountCents,
-      status: 'pending' as const,
-      scheduledAt: p.scheduledAt,
-    }));
+    // 4. Create all 7 payment records (1 deposit + 6 installments)
+    const paymentValues =
+      feeReduction > 0
+        ? schedule.payments.map((p, index) => {
+            let amountCents: number;
+            if (p.type === 'deposit') {
+              amountCents = adjustedDepositCents;
+            } else if (index === schedule.payments.length - 1) {
+              // Last installment absorbs rounding remainder
+              amountCents =
+                adjustedRemainingCents - adjustedInstallmentCents * (schedule.numInstallments - 1);
+            } else {
+              amountCents = adjustedInstallmentCents;
+            }
+            return {
+              planId: plan.id,
+              type: p.type as 'deposit' | 'installment',
+              sequenceNum: p.sequenceNum,
+              amountCents,
+              status: 'pending' as const,
+              scheduledAt: p.scheduledAt,
+            };
+          })
+        : schedule.payments.map((p) => ({
+            planId: plan.id,
+            type: p.type as 'deposit' | 'installment',
+            sequenceNum: p.sequenceNum,
+            amountCents: p.amountCents,
+            status: 'pending' as const,
+            scheduledAt: p.scheduledAt,
+          }));
 
     const insertedPayments = await tx
       .insert(payments)
@@ -195,14 +228,14 @@ export async function createEnrollment(
 
     const paymentIds = insertedPayments.map((p) => p.id);
 
-    // 4. Create risk pool contribution record
+    // 5. Create risk pool contribution record
     await tx.insert(riskPool).values({
       planId: plan.id,
       contributionCents: riskPoolContributionCents,
       type: 'contribution',
     });
 
-    // 5. Audit log entries
+    // 6. Audit log entries
     // Log plan creation
     await logAuditEvent(
       {

@@ -79,9 +79,11 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
   };
   mockTxSelectLimit.mockReturnValue([]);
   mockTxSelectWhere.mockReturnValue({ limit: mockTxSelectLimit });
+  const leftJoinResult: Record<string, unknown> = { where: mockTxSelectWhere };
+  leftJoinResult.leftJoin = () => leftJoinResult;
   mockTxSelectFrom.mockReturnValue({
     where: mockTxSelectWhere,
-    leftJoin: () => ({ where: mockTxSelectWhere }),
+    leftJoin: () => leftJoinResult,
   });
   mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
 
@@ -120,6 +122,9 @@ mock.module('@/server/db/schema', () => ({
   clinics: {
     id: 'clinics.id',
     stripeAccountId: 'clinics.stripe_account_id',
+    revenueShareBps: 'clinics.revenue_share_bps',
+    foundingClinic: 'clinics.founding_clinic',
+    foundingExpiresAt: 'clinics.founding_expires_at',
   },
   plans: {
     id: 'plans.id',
@@ -274,7 +279,13 @@ describe('processDeposit', () => {
 
   it('throws when plan is not in pending status', async () => {
     mockSelectLimit.mockResolvedValueOnce([
-      { id: 'plan-1', ownerId: 'owner-1', depositCents: 26_500, status: 'active' },
+      {
+        id: 'plan-1',
+        ownerId: 'owner-1',
+        clinicId: 'clinic-1',
+        depositCents: 26_500,
+        status: 'active',
+      },
     ]);
 
     await expect(
@@ -286,13 +297,42 @@ describe('processDeposit', () => {
     ).rejects.toThrow('not in pending status');
   });
 
-  it('throws when deposit payment is not found', async () => {
-    // First select: plan found
+  it('throws when clinic has no Stripe Connect account', async () => {
     mockSelectLimit
       .mockResolvedValueOnce([
-        { id: 'plan-1', ownerId: 'owner-1', depositCents: 26_500, status: 'pending' },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          depositCents: 26_500,
+          status: 'pending',
+        },
       ])
-      // Second select: deposit payment not found
+      .mockResolvedValueOnce([{ stripeAccountId: null }]);
+
+    await expect(
+      processDeposit({
+        planId: 'plan-1',
+        successUrl: 'https://app.example.com/success',
+        cancelUrl: 'https://app.example.com/cancel',
+      }),
+    ).rejects.toThrow('does not have a Stripe Connect account');
+  });
+
+  it('throws when deposit payment is not found', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          depositCents: 26_500,
+          status: 'pending',
+        },
+      ])
+      // Clinic found
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
+      // Deposit payment not found
       .mockResolvedValueOnce([]);
 
     await expect(
@@ -307,8 +347,15 @@ describe('processDeposit', () => {
   it('throws when owner has no Stripe customer ID', async () => {
     mockSelectLimit
       .mockResolvedValueOnce([
-        { id: 'plan-1', ownerId: 'owner-1', depositCents: 26_500, status: 'pending' },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          depositCents: 26_500,
+          status: 'pending',
+        },
       ])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([{ id: 'pay-1', status: 'pending' }])
       .mockResolvedValueOnce([{ stripeCustomerId: null }]);
 
@@ -324,8 +371,15 @@ describe('processDeposit', () => {
   it('creates a checkout session for valid deposit', async () => {
     mockSelectLimit
       .mockResolvedValueOnce([
-        { id: 'plan-1', ownerId: 'owner-1', depositCents: 26_500, status: 'pending' },
+        {
+          id: 'plan-1',
+          ownerId: 'owner-1',
+          clinicId: 'clinic-1',
+          depositCents: 26_500,
+          status: 'pending',
+        },
       ])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([{ id: 'pay-1', status: 'pending' }])
       .mockResolvedValueOnce([{ stripeCustomerId: 'cus_123' }]);
 
@@ -397,9 +451,28 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'pending' }]);
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'pending' }]);
 
     await expect(processInstallment({ paymentId: 'pay-1' })).rejects.toThrow('is not active');
+  });
+
+  it('throws when clinic has no Stripe Connect account', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-1',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: null }]);
+
+    await expect(processInstallment({ paymentId: 'pay-1' })).rejects.toThrow(
+      'does not have a Stripe Connect account',
+    );
   });
 
   it('creates an ACH payment intent for valid installment', async () => {
@@ -413,7 +486,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -422,8 +496,6 @@ describe('processInstallment', () => {
           stripeAchPaymentMethodId: 'pm_ach_saved',
         },
       ]);
-
-    // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processInstallment({ paymentId: 'pay-2' });
 
@@ -443,7 +515,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -452,8 +525,6 @@ describe('processInstallment', () => {
           stripeAchPaymentMethodId: 'pm_ach_saved',
         },
       ]);
-
-    // Insert chain for audit log is already handled in beforeEach via setupInsertChain()
 
     const result = await processInstallment({ paymentId: 'pay-3' });
 
@@ -471,7 +542,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -501,7 +573,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -531,7 +604,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -560,7 +634,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -586,7 +661,8 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -1038,7 +1114,7 @@ describe('handlePaymentSuccess — payout idempotency', () => {
     const insertCalls = mockTxInsertValues.mock.calls;
     const payoutInsert = insertCalls.find((call: unknown[]) => {
       const arg = call[0] as Record<string, unknown>;
-      return 'clinicId' in arg && 'transferAmountCents' in arg;
+      return 'clinicId' in arg && 'amountCents' in arg && 'clinicShareCents' in arg;
     });
     expect(payoutInsert).toBeUndefined();
   });
@@ -1269,7 +1345,8 @@ describe('processInstallment — no payment method preference', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -1313,7 +1390,8 @@ describe('processInstallment — payment method validation', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',
@@ -1344,7 +1422,8 @@ describe('processInstallment — payment method validation', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', status: 'active' }])
+      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
           stripeCustomerId: 'cus_456',

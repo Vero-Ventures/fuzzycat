@@ -2,28 +2,23 @@
 
 import { BadgeCheck, HandCoins, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { signUpClinic } from '@/app/(auth)/signup/actions';
-import { Captcha } from '@/components/shared/captcha';
+import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export default function ClinicSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  const handleCaptchaVerify = useCallback((token: string) => {
-    setCaptchaToken(token);
-  }, []);
-
-  const handleCaptchaError = useCallback(() => {
-    setCaptchaToken(null);
-  }, []);
+  const captchaRef = useRef<CaptchaHandle>(null);
+  const referralCode = searchParams.get('ref') ?? '';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,8 +31,11 @@ export default function ClinicSignupPage() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      if (captchaToken) {
-        formData.set('captchaToken', captchaToken);
+
+      // Execute Turnstile challenge at submit time (deferred PoW)
+      const token = await captchaRef.current?.execute();
+      if (token) {
+        formData.set('captchaToken', token);
       }
       const result = await signUpClinic(formData);
 
@@ -146,13 +144,28 @@ export default function ClinicSignupPage() {
               <Label htmlFor="password" className="uppercase text-xs font-semibold tracking-wide">
                 Password
               </Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 required
                 minLength={8}
                 autoComplete="new-password"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="referralCode"
+                className="uppercase text-xs font-semibold tracking-wide"
+              >
+                Referral Code (optional)
+              </Label>
+              <Input
+                id="referralCode"
+                name="referralCode"
+                type="text"
+                defaultValue={referralCode}
+                placeholder="FC-CLINIC-XXXX"
                 className="mt-1.5"
               />
             </div>
@@ -175,7 +188,7 @@ export default function ClinicSignupPage() {
               </span>
             </label>
 
-            <Captcha onVerify={handleCaptchaVerify} onError={handleCaptchaError} className="my-2" />
+            <Captcha ref={captchaRef} className="my-2" />
 
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Registering...' : 'Register Clinic'}

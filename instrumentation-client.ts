@@ -8,32 +8,28 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 });
 
-// Lazy-load replay and feedback integrations to reduce initial bundle size.
-// Replay (~50kB) and feedback (~20kB) are loaded asynchronously after init,
-// which keeps the critical JS bundle well under budget. Both integrations
-// are low-priority for initial page load — replay only samples 10% of
-// sessions and feedback is rarely interacted with.
+// Lazy-load the replay integration to reduce initial bundle size.
+// Deferred to requestIdleCallback so the main thread stays free during
+// page load, improving INP on mobile.
+//
+// NOTE: feedbackIntegration was removed because lazyLoadIntegration
+// fetches from sentry-cdn.com and the feedback script uses eval()
+// internally, which our CSP blocks. Can be re-added when Sentry
+// ships a CSP-compatible version.
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  Sentry.lazyLoadIntegration('replayIntegration').then((replayIntegration) => {
-    Sentry.addIntegration(replayIntegration());
-  });
+  const loadIntegrations = () => {
+    Sentry.lazyLoadIntegration('replayIntegration')
+      .then((replayIntegration) => {
+        Sentry.addIntegration(replayIntegration());
+      })
+      .catch(() => {});
+  };
 
-  Sentry.lazyLoadIntegration('feedbackIntegration').then((feedbackIntegration) => {
-    Sentry.addIntegration(
-      feedbackIntegration({
-        colorScheme: 'system',
-        autoInject: true,
-        enableScreenshot: true,
-        showBranding: false,
-        triggerLabel: 'Feedback',
-        formTitle: 'Send us feedback',
-        submitButtonLabel: 'Send feedback',
-        messagePlaceholder: "What's on your mind? Bug reports, suggestions, anything.",
-        isEmailRequired: false,
-        isNameRequired: false,
-      }),
-    );
-  });
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(loadIntegrations);
+  } else {
+    setTimeout(loadIntegrations, 1000);
+  }
 }
 
 export { captureRouterTransitionStart as onRouterTransitionStart } from '@sentry/nextjs';

@@ -3,56 +3,22 @@ import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/l
 import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
-// Instead of mocking @/server/services/stripe/connect (which leaks into
-// connect.test.ts due to Bun's global mock.module scope), we mock the
-// underlying dependencies: @/lib/stripe and @/server/db. This lets
-// transferToClinic run its real logic against mocked Stripe + DB.
-
-const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_payout_789' }));
-
-mock.module('@/lib/stripe', () => ({
-  stripe: () => ({
-    accounts: { create: mock() },
-    accountLinks: { create: mock() },
-    transfers: { create: mockTransfersCreate },
-  }),
-}));
 
 import { schemaMock } from './stripe/_mock-schema';
 
 mock.module('@/server/db/schema', () => schemaMock);
 
-// ── DB mock: superset of all methods used by payout.ts + connect.ts ──
-
-const mockFindFirstPayments = mock();
-const mockFindFirstPayouts = mock();
-
 const mockSelect = mock();
-const mockUpdate = mock();
-const mockInsert = mock();
-
-const mockTransaction = mock(async (fn: (tx: unknown) => Promise<unknown>) => {
-  const tx = { update: mockUpdate, insert: mockInsert };
-  return fn(tx);
-});
 
 mock.module('@/server/db', () => ({
   db: {
-    query: {
-      payments: { findFirst: mockFindFirstPayments },
-      payouts: { findFirst: mockFindFirstPayouts },
-    },
     select: mockSelect,
-    update: mockUpdate,
-    insert: mockInsert,
-    transaction: mockTransaction,
   },
 }));
 
 const {
   calculatePayoutBreakdown,
   calculateApplicationFee,
-  processClinicPayout,
   getClinicPayoutHistory,
   getClinicEarnings,
 } = await import('@/server/services/payout');
@@ -202,228 +168,6 @@ describe('calculateApplicationFee', () => {
     expect(() => calculateApplicationFee(0)).toThrow(RangeError);
     expect(() => calculateApplicationFee(-100)).toThrow(RangeError);
     expect(() => calculateApplicationFee(Number.NaN)).toThrow(RangeError);
-  });
-});
-
-// ── processClinicPayout tests ────────────────────────────────────────
-
-describe('processClinicPayout', () => {
-  const validPayment = {
-    id: 'pay-1',
-    planId: 'plan-1',
-    type: 'installment' as const,
-    sequenceNum: 1,
-    amountCents: 15_900,
-    status: 'succeeded' as const,
-    stripePaymentIntentId: 'pi_123',
-    failureReason: null,
-    retryCount: 0,
-    scheduledAt: new Date(),
-    processedAt: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    plan: {
-      id: 'plan-1',
-      ownerId: 'owner-1',
-      clinicId: 'clinic-1',
-      totalBillCents: 120_000,
-      feeCents: 7_200,
-      totalWithFeeCents: 127_200,
-      depositCents: 31_800,
-      remainingCents: 95_400,
-      installmentCents: 15_900,
-      numInstallments: 6,
-      status: 'active' as const,
-      depositPaidAt: new Date(),
-      nextPaymentAt: new Date(),
-      completedAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      clinic: {
-        id: 'clinic-1',
-        authId: null,
-        name: 'Happy Paws Vet',
-        phone: '555-0100',
-        email: 'clinic@example.com',
-        addressLine1: '123 Main St',
-        addressCity: 'San Francisco',
-        addressState: 'CA',
-        addressZip: '94102',
-        stripeAccountId: 'acct_clinic_123',
-        status: 'active' as const,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    },
-  };
-
-  beforeEach(() => {
-    mockFindFirstPayments.mockResolvedValue(validPayment);
-    mockFindFirstPayouts.mockResolvedValue(null); // No existing payout
-    mockTransfersCreate.mockResolvedValue({ id: 'tr_payout_789' });
-
-    // Mock insert chain for transferToClinic (called by processClinicPayout):
-    //   1st call: db.insert(payouts).values(...).returning() -> payout record
-    //   2nd call: db.insert(auditLog).values(...) -> void
-    let insertCallCount = 0;
-    mockInsert.mockImplementation(() => {
-      insertCallCount++;
-      const callNum = insertCallCount;
-      if (callNum === 1) {
-        // Payout record insert with returning()
-        return {
-          values: mock(() => ({
-            returning: mock(() => Promise.resolve([{ id: 'payout-mock-1' }])),
-          })),
-        };
-      }
-      // Audit log insert without returning()
-      return {
-        values: mock(() => Promise.resolve([])),
-      };
-    });
-  });
-
-  afterEach(() => {
-    mockFindFirstPayments.mockClear();
-    mockFindFirstPayouts.mockClear();
-    mockTransfersCreate.mockClear();
-    mockInsert.mockClear();
-  });
-
-  it('processes a payout for a succeeded payment', async () => {
-    const result = await processClinicPayout('pay-1');
-
-    expect(result.payoutId).toBe('payout-mock-1');
-    expect(result.stripeTransferId).toBe('tr_payout_789');
-    expect(result.breakdown.paymentAmountCents).toBe(15_900);
-  });
-
-  it('calls transferToClinic with correct parameters via Stripe', async () => {
-    await processClinicPayout('pay-1');
-
-    const breakdown = calculatePayoutBreakdown(15_900);
-
-    // Verify the Stripe transfer was called with the right amount and destination
-    expect(mockTransfersCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        amount: breakdown.transferAmountCents,
-        currency: 'usd',
-        destination: 'acct_clinic_123',
-        metadata: expect.objectContaining({
-          paymentId: 'pay-1',
-          planId: 'plan-1',
-          clinicId: 'clinic-1',
-        }),
-      }),
-      { idempotencyKey: 'transfer_pay-1' },
-    );
-  });
-
-  it('returns the correct payout breakdown', async () => {
-    const result = await processClinicPayout('pay-1');
-
-    expect(result.breakdown.paymentAmountCents).toBe(15_900);
-    expect(result.breakdown.clinicShareCents).toBe(percentOfCents(15_900, CLINIC_SHARE_RATE));
-    expect(result.breakdown.platformFeeCents).toBeGreaterThan(0);
-    expect(result.breakdown.riskPoolCents).toBeGreaterThan(0);
-    expect(result.breakdown.transferAmountCents).toBeGreaterThan(0);
-  });
-
-  it('throws when payment is not found', async () => {
-    mockFindFirstPayments.mockResolvedValue(null);
-
-    await expect(processClinicPayout('pay-nonexistent')).rejects.toThrow(
-      'Payment not found: pay-nonexistent',
-    );
-  });
-
-  it('throws when payment is not succeeded', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      status: 'pending',
-    });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Payment pay-1 is not succeeded (status: pending)',
-    );
-  });
-
-  it('throws when payment has no plan', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      plan: null,
-    });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Payment pay-1 has no associated plan',
-    );
-  });
-
-  it('throws when plan is not in a payable state', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      plan: {
-        ...validPayment.plan,
-        status: 'cancelled',
-      },
-    });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Plan plan-1 is not in a payable state (status: cancelled)',
-    );
-  });
-
-  it('allows payout for deposit_paid plan status', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      plan: {
-        ...validPayment.plan,
-        status: 'deposit_paid',
-      },
-    });
-
-    const result = await processClinicPayout('pay-1');
-    expect(result.payoutId).toBe('payout-mock-1');
-  });
-
-  it('throws when clinic has no Stripe Connect account', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      plan: {
-        ...validPayment.plan,
-        clinic: {
-          ...validPayment.plan.clinic,
-          stripeAccountId: null,
-        },
-      },
-    });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Clinic clinic-1 does not have a Stripe Connect account',
-    );
-  });
-
-  it('throws when a payout already exists for the payment', async () => {
-    mockFindFirstPayouts.mockResolvedValue({ id: 'existing-payout-1' });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Payout already exists for payment pay-1: existing-payout-1',
-    );
-  });
-
-  it('throws when plan has no clinic', async () => {
-    mockFindFirstPayments.mockResolvedValue({
-      ...validPayment,
-      plan: {
-        ...validPayment.plan,
-        clinic: null,
-      },
-    });
-
-    await expect(processClinicPayout('pay-1')).rejects.toThrow(
-      'Plan plan-1 has no associated clinic',
-    );
   });
 });
 

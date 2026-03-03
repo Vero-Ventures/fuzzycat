@@ -1,29 +1,8 @@
-import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import {
-  getClinicEarnings,
-  getClinicPayoutHistory,
-  processClinicPayout,
-} from '@/server/services/payout';
-import { adminProcedure, clinicProcedure, router } from '@/server/trpc';
+import { getClinicEarnings, getClinicPayoutHistory } from '@/server/services/payout';
+import { clinicProcedure, router } from '@/server/trpc';
 
 export const payoutRouter = router({
-  /**
-   * Process a payout for a specific payment.
-   * Admin-only: triggered by the system after a successful payment,
-   * or manually by an admin for recovery scenarios.
-   */
-  process: adminProcedure
-    .input(z.object({ paymentId: z.string().uuid() }))
-    .mutation(async ({ input }) => {
-      try {
-        return await processClinicPayout(input.paymentId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Payout processing failed';
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message });
-      }
-    }),
-
   /**
    * Get paginated payout history for the authenticated clinic.
    */

@@ -31,7 +31,7 @@ export const FOUNDING_CLINIC_LIMIT = 50;
 export const FOUNDING_CLINIC_SHARE_BPS = 500;
 
 /** Duration of enhanced revenue share for founding clinics (months). */
-export const FOUNDING_CLINIC_DURATION_MONTHS = 12;
+export const FOUNDING_CLINIC_DURATION_MONTHS = 3;
 
 /** Default clinic revenue share in basis points (3%). */
 export const DEFAULT_CLINIC_SHARE_BPS = 300;

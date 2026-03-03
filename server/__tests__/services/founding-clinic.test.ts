@@ -12,6 +12,13 @@ mock.module('@/lib/logger', () => ({
   },
 }));
 
+// Feature flag mock — default to enabled so existing tests pass
+const mockServerEnv = mock(() => ({ ENABLE_FOUNDING_CLINIC: 'true' }) as Record<string, string>);
+mock.module('@/lib/env', () => ({
+  serverEnv: mockServerEnv,
+  _resetEnvCache: () => {},
+}));
+
 // DB mock chain (for non-transaction queries)
 const mockSelectLimit = mock();
 const mockSelectWhere = mock();
@@ -178,6 +185,7 @@ describe('founding-clinic service', () => {
       mockSelect.mockReturnValue({ from: mockSelectFrom });
 
       const status = await getFoundingClinicStatus('clinic-1');
+      expect(status.enabled).toBe(true);
       expect(status.isFoundingClinic).toBe(true);
       expect(status.expiresAt).toEqual(expiresAt);
       expect(status.spotsRemaining).toBe(FOUNDING_CLINIC_LIMIT - 10);
@@ -196,9 +204,42 @@ describe('founding-clinic service', () => {
       mockSelect.mockReturnValue({ from: mockSelectFrom });
 
       const status = await getFoundingClinicStatus('clinic-unknown');
+      expect(status.enabled).toBe(true);
       expect(status.isFoundingClinic).toBe(false);
       expect(status.expiresAt).toBeNull();
       expect(status.spotsRemaining).toBe(FOUNDING_CLINIC_LIMIT - 5);
+    });
+
+    it('returns disabled status when feature flag is off', async () => {
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
+      mockSelectWhere.mockReturnValue({
+        limit: () => [{ foundingClinic: false, foundingExpiresAt: null }],
+      });
+      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
+      mockSelect.mockReturnValue({ from: mockSelectFrom });
+
+      const status = await getFoundingClinicStatus('clinic-1');
+      expect(status.enabled).toBe(false);
+      expect(status.spotsRemaining).toBe(0);
+      // Restore default
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
+    });
+
+    it('still shows founding badge when disabled but clinic was already enrolled', async () => {
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
+      const expiresAt = new Date('2027-01-01');
+      mockSelectWhere.mockReturnValue({
+        limit: () => [{ foundingClinic: true, foundingExpiresAt: expiresAt }],
+      });
+      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
+      mockSelect.mockReturnValue({ from: mockSelectFrom });
+
+      const status = await getFoundingClinicStatus('clinic-1');
+      expect(status.enabled).toBe(false);
+      expect(status.isFoundingClinic).toBe(true);
+      expect(status.expiresAt).toEqual(expiresAt);
+      // Restore default
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     });
   });
 
@@ -259,6 +300,17 @@ describe('founding-clinic service', () => {
       const result = await enrollAsFoundingClinic('clinic-1');
       expect(result.success).toBe(false);
       expect(result.error).toBe('Founding Clinic program is full');
+    });
+
+    it('rejects enrollment when feature flag is off', async () => {
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: '' });
+
+      const result = await enrollAsFoundingClinic('clinic-1');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Founding Clinic program is not currently available');
+      expect(mockTransaction).not.toHaveBeenCalled();
+      // Restore default
+      mockServerEnv.mockReturnValue({ ENABLE_FOUNDING_CLINIC: 'true' });
     });
 
     it('updates clinic with founding status on success', async () => {

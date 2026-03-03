@@ -58,7 +58,7 @@ describe('How It Works /how-it-works', () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
     expect(text).toContain('Ready to get started?');
-    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup');
-    expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup');
+    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup/owner');
+    expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup/clinic');
   });
 });

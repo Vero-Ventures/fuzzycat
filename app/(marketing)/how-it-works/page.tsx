@@ -255,7 +255,7 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="mt-8 text-center">
-            <Link href="/signup">
+            <Link href="/signup/clinic">
               <Button size="lg">
                 Become a Partner Clinic
                 <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -273,13 +273,13 @@ export default function HowItWorksPage() {
             Sign up in minutes. See your full payment schedule before you commit.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/signup">
+            <Link href="/signup/owner">
               <Button size="lg" className="w-full sm:w-auto">
                 Sign Up as Pet Owner
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/signup">
+            <Link href="/signup/clinic">
               <Button variant="outline" size="lg" className="w-full sm:w-auto">
                 Register Your Clinic
               </Button>

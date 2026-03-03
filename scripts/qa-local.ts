@@ -236,7 +236,6 @@ async function main() {
   if (ownerPage) {
     const ownerPages = [
       ['/owner/payments', 'Payments'],
-      ['/owner/plans', 'Plans'],
       ['/owner/settings', 'Settings'],
     ];
 
@@ -248,7 +247,7 @@ async function main() {
     console.log('\n── Owner SPA CSP ──');
     await checkSpaNavCsp(
       ownerPage,
-      ['/owner/payments', '/owner/plans', '/owner/settings', '/owner/payments'],
+      ['/owner/payments', '/owner/settings', '/owner/payments'],
       'Owner',
     );
 

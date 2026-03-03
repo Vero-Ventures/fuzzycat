@@ -7,10 +7,7 @@ import { TopNavbar } from '@/components/shared/top-navbar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/owner/payments' },
-  { label: 'My Plans', href: '/owner/plans' },
-];
+const NAV_ITEMS = [{ label: 'Dashboard', href: '/owner/payments' }];
 
 export function OwnerNavbar() {
   return (

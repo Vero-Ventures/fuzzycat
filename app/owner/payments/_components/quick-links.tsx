@@ -1,14 +1,8 @@
-import { CreditCard, HelpCircle, Settings } from 'lucide-react';
+import { HelpCircle, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const LINKS = [
-  {
-    label: 'My Plans',
-    href: '/owner/plans',
-    icon: CreditCard,
-    description: 'View all your plans',
-  },
   {
     label: 'Settings',
     href: '/owner/settings',

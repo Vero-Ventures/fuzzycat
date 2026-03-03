@@ -2,6 +2,8 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 import superjson from 'superjson';
 import { getUserRole, type UserRole, VALID_ROLES } from '@/lib/auth';
+import { serverEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
@@ -57,13 +59,69 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 export const createCallerFactory = t.createCallerFactory;
 
+// ── tRPC rate limiting (per userId) ──────────────────────────────────
+// 30 requests per 60s sliding window per authenticated user.
+// Falls open when Redis unavailable.
+
+type SimpleRateLimiter = {
+  limit: (id: string) => Promise<{ success: boolean }>;
+};
+
+let trpcRateLimiter: SimpleRateLimiter | null = null;
+let trpcRateLimiterInitialized = false;
+
+async function getTrpcRateLimiter(): Promise<SimpleRateLimiter | null> {
+  if (trpcRateLimiterInitialized) return trpcRateLimiter;
+  trpcRateLimiterInitialized = true;
+
+  try {
+    const env = serverEnv();
+    const url = env.UPSTASH_REDIS_REST_URL;
+    const token = env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) return null;
+
+    const { Ratelimit } = await import('@upstash/ratelimit');
+    const { Redis } = await import('@upstash/redis');
+    trpcRateLimiter = new Ratelimit({
+      redis: new Redis({ url, token }),
+      limiter: Ratelimit.slidingWindow(30, '60 s'),
+      prefix: 'trpc',
+    });
+    return trpcRateLimiter;
+  } catch {
+    logger.warn('tRPC rate limiter init failed, falling back to unlimited');
+    return null;
+  }
+}
+
 /**
  * Protected procedure — throws UNAUTHORIZED if no session.
+ * Rate-limited to 30 requests per 60s per user (fail-open).
  */
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.session) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Not authenticated' });
   }
+
+  // Rate limit per user (fail-open)
+  try {
+    const limiter = await getTrpcRateLimiter();
+    if (limiter) {
+      const result = await limiter.limit(ctx.session.userId);
+      if (!result.success) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: 'Rate limit exceeded. Please try again shortly.',
+        });
+      }
+    }
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    logger.error('tRPC rate limit check failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
   return next({ ctx: { ...ctx, session: ctx.session } });
 });
 

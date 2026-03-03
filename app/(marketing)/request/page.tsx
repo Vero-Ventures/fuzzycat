@@ -14,6 +14,7 @@ const US_STATES = [
   'AK',
   'AZ',
   'AR',
+  'CA',
   'CO',
   'CT',
   'DE',

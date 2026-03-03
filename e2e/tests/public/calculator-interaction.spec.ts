@@ -12,14 +12,14 @@ test.describe('Payment Calculator — Interactions', () => {
     await billInput.clear();
     await billInput.fill('1000');
 
-    // Platform fee: 6% of $1000 = $60
-    await expect(page.getByText(/\$60/).first()).toBeVisible({ timeout: 3000 });
+    // Platform fee: 8% of $1000 = $80
+    await expect(page.getByText(/\$80/).first()).toBeVisible({ timeout: 3000 });
 
-    // Total: $1060
-    await expect(page.getByText(/\$1,060|\$1060/).first()).toBeVisible({ timeout: 3000 });
+    // Total: $1080
+    await expect(page.getByText(/\$1,080|\$1080/).first()).toBeVisible({ timeout: 3000 });
 
-    // Deposit: 25% of $1060 = $265
-    await expect(page.getByText(/\$265/).first()).toBeVisible({ timeout: 3000 });
+    // Deposit: 25% of $1080 = $270
+    await expect(page.getByText(/\$270/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('$500 minimum bill shows valid schedule', async ({ page }) => {

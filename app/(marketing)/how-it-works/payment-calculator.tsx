@@ -53,7 +53,7 @@ export function PaymentCalculator() {
           <>
             <div className="grid grid-cols-2 gap-4">
               <SummaryItem label="Vet bill" value={formatCents(schedule.totalBillCents)} />
-              <SummaryItem label="Platform fee (6%)" value={formatCents(schedule.feeCents)} />
+              <SummaryItem label="Platform fee (8%)" value={formatCents(schedule.feeCents)} />
               <SummaryItem
                 label="Total cost"
                 value={formatCents(schedule.totalWithFeeCents)}

@@ -50,8 +50,8 @@ test.describe('Clinic Enrollment — Form Interactions', () => {
     await expect(page.getByText(/payment plan preview/i)).toBeVisible({ timeout: 5000 });
 
     // Preview should show fee breakdown
-    // 6% platform fee on $1,200 = $72
-    await expect(page.getByText(/platform fee.*6%/i)).toBeVisible({ timeout: 3000 });
+    // 8% platform fee on $1,200 = $96
+    await expect(page.getByText(/platform fee.*8%/i)).toBeVisible({ timeout: 3000 });
 
     // Total with fee
     await expect(page.getByText(/total with fee/i)).toBeVisible({ timeout: 3000 });

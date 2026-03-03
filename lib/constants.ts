@@ -1,8 +1,8 @@
 // ── FuzzyCat business constants ──────────────────────────────────────
-// All rates are decimals (e.g., 0.06 = 6%). Monetary values in cents.
+// All rates are decimals (e.g., 0.08 = 8%). Monetary values in cents.
 
-/** Platform fee charged to pet owners (6% of bill). */
-export const PLATFORM_FEE_RATE = 0.06;
+/** Platform fee charged to pet owners (8% of bill). */
+export const PLATFORM_FEE_RATE = 0.08;
 
 /** Upfront deposit as a fraction of total (bill + fee). */
 export const DEPOSIT_RATE = 0.25;

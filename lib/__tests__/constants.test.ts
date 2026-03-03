@@ -9,8 +9,8 @@ import {
 } from '@/lib/constants';
 
 describe('business constants', () => {
-  it('platform fee rate is 6%', () => {
-    expect(PLATFORM_FEE_RATE).toBe(0.06);
+  it('platform fee rate is 8%', () => {
+    expect(PLATFORM_FEE_RATE).toBe(0.08);
   });
 
   it('deposit rate is 25%', () => {
@@ -34,13 +34,13 @@ describe('business constants', () => {
   });
 
   it('platform fee + clinic share + reserve < platform fee (FuzzyCat retains margin)', () => {
-    // FuzzyCat charges 6% to owner, pays 3% to clinic, allocates 1% to platform reserve
-    // Remaining ~2% is gross margin before processing costs
+    // FuzzyCat charges 8% to owner, pays 3% to clinic, allocates 1% to platform reserve
+    // Remaining ~4% is gross margin before processing costs
     expect(CLINIC_SHARE_RATE + PLATFORM_RESERVE_RATE).toBeLessThan(PLATFORM_FEE_RATE);
   });
 
   it('deposit + installments cover the full amount', () => {
-    // For a $1,200 bill: fee=$72, total=$1,272, deposit=$318, remaining=$954, 6 installments of $159
+    // For a $1,200 bill: fee=$96, total=$1,296, deposit=$324, remaining=$972, 6 installments of $162
     const billCents = 120_000;
     const feeCents = Math.round(billCents * PLATFORM_FEE_RATE);
     const totalWithFeeCents = billCents + feeCents;

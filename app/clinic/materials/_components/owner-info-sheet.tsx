@@ -35,20 +35,20 @@ export function OwnerInfoSheet({ clinicName }: OwnerInfoSheetProps) {
               <span className="font-medium">$2,000</span>
             </div>
             <div className="flex justify-between text-gray-500">
-              <span>Platform fee (6%)</span>
-              <span>$120</span>
+              <span>Platform fee (8%)</span>
+              <span>$160</span>
             </div>
             <div className="mt-1 border-t pt-1 flex justify-between font-medium">
               <span>Total</span>
-              <span>$2,120</span>
+              <span>$2,160</span>
             </div>
             <div className="mt-2 flex justify-between text-teal-700">
               <span>Deposit (25%)</span>
-              <span className="font-medium">$530 today</span>
+              <span className="font-medium">$540 today</span>
             </div>
             <div className="flex justify-between text-teal-700">
               <span>6 biweekly payments</span>
-              <span className="font-medium">$265 each</span>
+              <span className="font-medium">$270 each</span>
             </div>
           </div>
         </div>

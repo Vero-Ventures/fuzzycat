@@ -74,7 +74,7 @@ export default function TermsOfServicePage() {
               for veterinary bills between $500 and $25,000.
             </li>
             <li>
-              <strong className="text-foreground">Platform fee:</strong> A flat 6% platform fee is
+              <strong className="text-foreground">Platform fee:</strong> A flat 8% platform fee is
               added to your bill amount. This fee is disclosed before you confirm enrollment and is
               included in your total payment amount. This is the only cost — there is no interest,
               no annual percentage rate, and no additional charges.

@@ -153,7 +153,7 @@ export default function ClinicEnrollPage() {
                   <p className="font-medium">{formatCents(schedule.totalBillCents)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total with Fee (6%)</p>
+                  <p className="text-xs text-muted-foreground">Total with Fee (8%)</p>
                   <p className="font-medium">{formatCents(schedule.totalWithFeeCents)}</p>
                 </div>
                 <div>
@@ -389,7 +389,7 @@ export default function ClinicEnrollPage() {
                 <h3 className="text-sm font-medium">Payment Plan Preview</h3>
                 <div className="grid gap-2 text-sm md:grid-cols-2">
                   <div className="flex justify-between md:flex-col">
-                    <span className="text-muted-foreground">Platform Fee (6%)</span>
+                    <span className="text-muted-foreground">Platform Fee (8%)</span>
                     <span className="font-medium">{formatCents(schedule.feeCents)}</span>
                   </div>
                   <div className="flex justify-between md:flex-col">

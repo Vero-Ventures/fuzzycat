@@ -13,7 +13,7 @@ export function QuickReferenceCard({ clinicName }: QuickReferenceCardProps) {
       <div className="mt-4 space-y-3">
         <Section title="What is FuzzyCat?">
           A payment plan that splits vet bills into 6 biweekly payments. No credit check, no
-          interest. Owners pay a small 6% platform fee.
+          interest. Owners pay a small 8% platform fee.
         </Section>
 
         <Section title="Who qualifies?">

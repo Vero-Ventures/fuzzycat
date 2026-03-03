@@ -10,9 +10,7 @@ export function AccountSafetySection() {
       'Are you sure you want to deactivate your account? This action cannot be undone.',
     );
     if (confirmed) {
-      window.alert(
-        'To deactivate your account, use the feedback button in the bottom-right corner of the page.',
-      );
+      window.alert('To deactivate your account, please contact us at support@fuzzycatapp.com.');
     }
   }
 

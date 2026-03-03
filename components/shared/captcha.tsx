@@ -40,8 +40,19 @@ export const Captcha = forwardRef<CaptchaHandle, CaptchaProps>(function Captcha(
       // Reset the widget before each execution to avoid stale/expired tokens
       turnstileRef.current?.reset();
       return new Promise<string>((resolve, reject) => {
-        resolveRef.current = resolve;
-        rejectRef.current = reject;
+        const timeout = setTimeout(() => {
+          resolveRef.current = null;
+          rejectRef.current = null;
+          reject(new Error('Captcha verification timed out. Please try again.'));
+        }, 30_000);
+        resolveRef.current = (token: string) => {
+          clearTimeout(timeout);
+          resolve(token);
+        };
+        rejectRef.current = (err: Error) => {
+          clearTimeout(timeout);
+          reject(err);
+        };
         turnstileRef.current?.execute();
       });
     },

@@ -73,35 +73,32 @@ export const clinics = pgTable(
 );
 
 // ── Pet owners ──────────────────────────────────────────────────────
-export const owners = pgTable(
-  'owners',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    authId: text('auth_id').unique(),
-    name: text('name').notNull(),
-    email: text('email').notNull().unique(),
-    phone: text('phone').notNull(),
-    addressLine1: text('address_line1'),
-    addressCity: text('address_city'),
-    addressState: text('address_state'),
-    addressZip: text('address_zip'),
-    petName: text('pet_name').notNull(),
-    stripeCustomerId: text('stripe_customer_id'),
-    // Legacy columns — kept for backward compat (Phase 1A migration)
-    stripeCardPaymentMethodId: text('stripe_card_payment_method_id'),
-    stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
-    paymentMethod: paymentMethodEnum('payment_method').notNull(),
-    // Multi-payment-method support (Phase 1A)
-    primaryPaymentMethodId: uuid('primary_payment_method_id').references(
-      (): AnyPgColumn => paymentMethods.id,
-    ),
-    secondaryPaymentMethodId: uuid('secondary_payment_method_id').references(
-      (): AnyPgColumn => paymentMethods.id,
-    ),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  },
-);
+export const owners = pgTable('owners', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  authId: text('auth_id').unique(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  phone: text('phone').notNull(),
+  addressLine1: text('address_line1'),
+  addressCity: text('address_city'),
+  addressState: text('address_state'),
+  addressZip: text('address_zip'),
+  petName: text('pet_name').notNull(),
+  stripeCustomerId: text('stripe_customer_id'),
+  // Legacy columns — kept for backward compat (Phase 1A migration)
+  stripeCardPaymentMethodId: text('stripe_card_payment_method_id'),
+  stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
+  paymentMethod: paymentMethodEnum('payment_method').notNull(),
+  // Multi-payment-method support (Phase 1A)
+  primaryPaymentMethodId: uuid('primary_payment_method_id').references(
+    (): AnyPgColumn => paymentMethods.id,
+  ),
+  secondaryPaymentMethodId: uuid('secondary_payment_method_id').references(
+    (): AnyPgColumn => paymentMethods.id,
+  ),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
 
 // ── Payment methods (multi-method support) ──────────────────────────
 export const paymentMethods = pgTable(

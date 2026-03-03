@@ -79,7 +79,6 @@ const { createApiApp } = await import('@/server/api/app');
 // ── Test data ────────────────────────────────────────────────────────
 
 const CLINIC_ID = '11111111-1111-1111-8111-111111111111';
-const PLAN_ID = '33333333-3333-3333-8333-333333333333';
 const API_KEY = 'fc_live_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1';
 
 // ── Helpers ──────────────────────────────────────────────────────────

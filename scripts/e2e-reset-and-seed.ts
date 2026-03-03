@@ -439,9 +439,6 @@ async function seedOwners(tx: Tx, ownerAuthId: string) {
       paymentMethod: 'bank_account',
       stripeCustomerId: 'cus_test_bob',
       stripeAchPaymentMethodId: 'pm_test_bob_ach',
-      plaidAccessToken: null,
-      plaidItemId: null,
-      plaidAccountId: null,
     })
     .returning({ id: owners.id });
 

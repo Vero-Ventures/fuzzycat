@@ -87,12 +87,9 @@ export const owners = pgTable(
     addressZip: text('address_zip'),
     petName: text('pet_name').notNull(),
     stripeCustomerId: text('stripe_customer_id'),
-    // Legacy columns — kept until code migration in a later phase
+    // Legacy columns — kept for backward compat (Phase 1A migration)
     stripeCardPaymentMethodId: text('stripe_card_payment_method_id'),
     stripeAchPaymentMethodId: text('stripe_ach_payment_method_id'),
-    plaidAccessToken: text('plaid_access_token'),
-    plaidItemId: text('plaid_item_id'),
-    plaidAccountId: text('plaid_account_id'),
     paymentMethod: paymentMethodEnum('payment_method').notNull(),
     // Multi-payment-method support (Phase 1A)
     primaryPaymentMethodId: uuid('primary_payment_method_id').references(
@@ -104,7 +101,6 @@ export const owners = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
-  (table) => [index('idx_owners_plaid_item').on(table.plaidItemId)],
 );
 
 // ── Payment methods (multi-method support) ──────────────────────────

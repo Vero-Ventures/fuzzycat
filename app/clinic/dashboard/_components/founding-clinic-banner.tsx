@@ -24,7 +24,7 @@ export function FoundingClinicBanner() {
 
   if (isLoading || !status) return null;
 
-  // Already enrolled — show badge
+  // Already enrolled — show badge regardless of feature flag
   if (status.isFoundingClinic) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
@@ -42,8 +42,8 @@ export function FoundingClinicBanner() {
     );
   }
 
-  // No spots left
-  if (status.spotsRemaining <= 0) return null;
+  // Feature disabled or no spots left — don't show promotional banner
+  if (!status.enabled || status.spotsRemaining <= 0) return null;
 
   // Promotional banner
   return (
@@ -54,7 +54,7 @@ export function FoundingClinicBanner() {
           <div>
             <p className="font-semibold">Become a Founding Clinic</p>
             <p className="text-sm text-muted-foreground">
-              Earn 5% revenue share (vs. standard 3%) for 12 months. Only {status.spotsRemaining}{' '}
+              Earn 5% revenue share (vs. standard 3%) for 3 months. Only {status.spotsRemaining}{' '}
               spots remaining.
             </p>
           </div>

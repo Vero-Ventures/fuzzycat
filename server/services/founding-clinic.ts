@@ -4,14 +4,23 @@ import {
   FOUNDING_CLINIC_LIMIT,
   FOUNDING_CLINIC_SHARE_BPS,
 } from '@/lib/constants';
+import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { addMonths } from '@/lib/utils/date';
 import { db } from '@/server/db';
 import { clinics } from '@/server/db/schema';
 
+// ── Feature flag ─────────────────────────────────────────────────────
+
+/** Returns true if the Founding Clinic program is enabled via ENABLE_FOUNDING_CLINIC env var. */
+export function isFoundingClinicEnabled(): boolean {
+  return serverEnv().ENABLE_FOUNDING_CLINIC === 'true';
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface FoundingClinicStatus {
+  enabled: boolean;
   isFoundingClinic: boolean;
   expiresAt: Date | null;
   spotsRemaining: number;
@@ -33,6 +42,25 @@ export async function isFoundingClinicAvailable(): Promise<boolean> {
 }
 
 export async function getFoundingClinicStatus(clinicId: string): Promise<FoundingClinicStatus> {
+  if (!isFoundingClinicEnabled()) {
+    // Still show badge for clinics already enrolled, even when program is disabled
+    const [clinic] = await db
+      .select({
+        foundingClinic: clinics.foundingClinic,
+        foundingExpiresAt: clinics.foundingExpiresAt,
+      })
+      .from(clinics)
+      .where(eq(clinics.id, clinicId))
+      .limit(1);
+
+    return {
+      enabled: false,
+      isFoundingClinic: clinic?.foundingClinic ?? false,
+      expiresAt: clinic?.foundingExpiresAt ?? null,
+      spotsRemaining: 0,
+    };
+  }
+
   const [clinic] = await db
     .select({
       foundingClinic: clinics.foundingClinic,
@@ -46,6 +74,7 @@ export async function getFoundingClinicStatus(clinicId: string): Promise<Foundin
   const spotsRemaining = Math.max(0, FOUNDING_CLINIC_LIMIT - count);
 
   return {
+    enabled: true,
     isFoundingClinic: clinic?.foundingClinic ?? false,
     expiresAt: clinic?.foundingExpiresAt ?? null,
     spotsRemaining,
@@ -57,6 +86,10 @@ export async function getFoundingClinicStatus(clinicId: string): Promise<Foundin
 export async function enrollAsFoundingClinic(
   clinicId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!isFoundingClinicEnabled()) {
+    return { success: false, error: 'Founding Clinic program is not currently available' };
+  }
+
   return await db.transaction(async (tx) => {
     // Lock and check current state
     const [clinic] = await tx

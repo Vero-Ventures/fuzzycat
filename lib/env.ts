@@ -26,6 +26,7 @@ const serverSchema = z.object({
   SENTRY_PROJECT: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   ENABLE_MFA: z.string().optional(),
+  ENABLE_FOUNDING_CLINIC: z.string().optional(),
   DISABLE_CAPTCHA: z.string().optional(),
   SENTRY_WEBHOOK_SECRET: z.string().optional(),
   GITHUB_TOKEN: z.string().optional(),

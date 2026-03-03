@@ -26,7 +26,7 @@ import {
 export const metadata: Metadata = {
   title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   description:
-    'Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment. Flexible payment plans for veterinary care.',
+    'Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat 8% fee. Clinics earn 3% on every enrollment. Flexible payment plans for veterinary care.',
   openGraph: {
     title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
     description:
@@ -105,7 +105,7 @@ export default function LandingPage() {
             <FeatureCard
               icon={<Shield className="h-6 w-6" />}
               title="No Interest"
-              description="A flat 6% fee is all you pay. No compounding interest, no surprises."
+              description={`A flat ${Math.round(PLATFORM_FEE_RATE * 100)}% fee is all you pay. No compounding interest, no surprises.`}
             />
             <FeatureCard
               icon={<Heart className="h-6 w-6" />}

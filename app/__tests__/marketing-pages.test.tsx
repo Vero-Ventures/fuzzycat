@@ -8,8 +8,8 @@ import {
 
 describe('Marketing page constants', () => {
   it('should use correct fee percentage', () => {
-    expect(PLATFORM_FEE_RATE).toBe(0.06);
-    expect(Math.round(PLATFORM_FEE_RATE * 100)).toBe(6);
+    expect(PLATFORM_FEE_RATE).toBe(0.08);
+    expect(Math.round(PLATFORM_FEE_RATE * 100)).toBe(8);
   });
 
   it('should use correct deposit percentage', () => {
@@ -36,11 +36,11 @@ describe('Payment calculator display logic', () => {
     const remainingCents = totalWithFeeCents - depositCents;
     const installmentCents = Math.floor(remainingCents / NUM_INSTALLMENTS);
 
-    expect(feeCents).toBe(7200); // $72
-    expect(totalWithFeeCents).toBe(127_200); // $1,272
-    expect(depositCents).toBe(31_800); // $318
-    expect(remainingCents).toBe(95_400); // $954
-    expect(installmentCents).toBe(15_900); // $159
+    expect(feeCents).toBe(9600); // $96
+    expect(totalWithFeeCents).toBe(129_600); // $1,296
+    expect(depositCents).toBe(32_400); // $324
+    expect(remainingCents).toBe(97_200); // $972
+    expect(installmentCents).toBe(16_200); // $162
   });
 
   it('should compute total with fee correctly for $500 bill (minimum)', () => {
@@ -49,9 +49,9 @@ describe('Payment calculator display logic', () => {
     const totalWithFeeCents = billCents + feeCents;
     const depositCents = Math.round(totalWithFeeCents * DEPOSIT_RATE);
 
-    expect(feeCents).toBe(3000); // $30
-    expect(totalWithFeeCents).toBe(53_000); // $530
-    expect(depositCents).toBe(13_250); // $132.50
+    expect(feeCents).toBe(4000); // $40
+    expect(totalWithFeeCents).toBe(54_000); // $540
+    expect(depositCents).toBe(13_500); // $135
   });
 
   it('should produce 7 total payments (1 deposit + 6 installments)', () => {

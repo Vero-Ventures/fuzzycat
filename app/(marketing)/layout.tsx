@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   },
   description:
-    'Pay your vet bill in easy biweekly installments. No credit check. Flat 6% fee. Clinics earn 3% on every enrollment.',
+    'Pay your vet bill in easy biweekly installments. No credit check. Flat 8% fee. Clinics earn 3% on every enrollment.',
 };
 
 function Header() {

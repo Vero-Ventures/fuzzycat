@@ -110,7 +110,7 @@ export default function DepositPaymentPage() {
               <span className="font-medium">{formatCents(plan.totalBillCents)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Platform Fee (6%)</span>
+              <span className="text-muted-foreground">Platform Fee (8%)</span>
               <span className="font-medium">{formatCents(plan.feeCents)}</span>
             </div>
             <div className="flex justify-between">

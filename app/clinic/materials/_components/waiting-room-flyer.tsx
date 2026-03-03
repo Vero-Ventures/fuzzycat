@@ -8,7 +8,7 @@ interface WaitingRoomFlyerProps {
 }
 
 export function WaitingRoomFlyer({ clinicName, clinicId }: WaitingRoomFlyerProps) {
-  const enrollUrl = `https://www.fuzzycatapp.com/clinic/enroll?ref=${clinicId}`;
+  const enrollUrl = `https://www.fuzzycatapp.com/enroll/${clinicId}`;
 
   return (
     <div className="print-material mx-auto max-w-md rounded-lg border bg-white p-8 text-center text-black">

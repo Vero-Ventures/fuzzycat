@@ -18,7 +18,7 @@ export interface PayoutBreakdown {
   platformFeeCents: number;
   /** Risk pool contribution deducted from the payment, in cents. */
   riskPoolCents: number;
-  /** The 3% clinic revenue share bonus (platform administration compensation), in cents. */
+  /** The clinic revenue share bonus (platform administration compensation), in cents. */
   clinicShareCents: number;
   /** Net amount transferred to the clinic's Stripe Connect account, in cents. */
   transferAmountCents: number;
@@ -47,9 +47,9 @@ export interface ClinicEarnings {
 /**
  * Calculate the payout breakdown for a given payment amount.
  *
- * The payment amount from the pet owner includes the 6% platform fee.
+ * The payment amount from the pet owner includes the 8% platform fee.
  * From each payment, FuzzyCat retains:
- *   - Platform fee portion (proportional share of the 6% fee)
+ *   - Platform fee portion (proportional share of the 8% fee)
  *   - Risk pool contribution (1% of the original bill portion)
  *
  * The clinic receives:
@@ -66,7 +66,7 @@ export function calculatePayoutBreakdown(
     throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
   }
 
-  // The payment amount includes the 6% fee. Reverse-calculate the original bill portion.
+  // The payment amount includes the 8% fee. Reverse-calculate the original bill portion.
   // paymentAmount = billPortion + feePortion
   // paymentAmount = billPortion * (1 + PLATFORM_FEE_RATE)
   // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)

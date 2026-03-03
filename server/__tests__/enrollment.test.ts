@@ -420,10 +420,10 @@ describe('createEnrollment', () => {
 
     await createEnrollment(CLINIC_ID, VALID_OWNER_DATA, 120_000, ACTOR_ID, ENROLLMENT_DATE);
 
-    // $1,200 bill -> 6% fee = $72 -> total = $1,272 -> 1% risk pool = $12.72 = 1272 cents
+    // $1,200 bill -> 8% fee = $96 -> total = $1,296 -> 1% risk pool = $12.96 = 1296 cents
     // The risk pool insert is the 4th insert (after owner, plan, payments)
     const riskPoolInsert = insertedValues[3] as { contributionCents: number; type: string };
-    expect(riskPoolInsert.contributionCents).toBe(1_272);
+    expect(riskPoolInsert.contributionCents).toBe(1_296);
     expect(riskPoolInsert.type).toBe('contribution');
   });
 

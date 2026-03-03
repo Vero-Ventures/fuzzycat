@@ -1,5 +1,5 @@
 // ── Payment schedule calculator ──────────────────────────────────────
-// 6% fee, 25% deposit, 6 biweekly installments over 12 weeks.
+// 8% fee, 25% deposit, 6 biweekly installments over 12 weeks.
 // $500 minimum bill validation.
 
 import { DEPOSIT_RATE, MIN_BILL_CENTS, NUM_INSTALLMENTS, PLATFORM_FEE_RATE } from '@/lib/constants';

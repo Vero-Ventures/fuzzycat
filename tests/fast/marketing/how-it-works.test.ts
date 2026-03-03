@@ -24,7 +24,7 @@ describe('How It Works /how-it-works', () => {
   test('what you pay section', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Flat 6% platform fee');
+    expect(text).toContain('Flat 8% platform fee');
     expect(text).toContain('25% deposit up front');
     expect(text).toContain('6 biweekly installments');
     expect(text).toContain('No credit check');

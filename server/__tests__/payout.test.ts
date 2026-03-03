@@ -27,11 +27,11 @@ const {
 
 describe('calculatePayoutBreakdown', () => {
   it('correctly splits a $1,200 bill installment payment', () => {
-    // A payment from a $1,200 bill with 6% fee:
-    // Total with fee: $1,272.00 = 127,200 cents
-    // Deposit (25%): $318.00 = 31,800 cents
-    // Remaining: $954.00 = 95,400 cents
-    // Each installment: $159.00 = 15,900 cents
+    // A payment from a $1,200 bill with 8% fee:
+    // Total with fee: $1,296.00 = 129,600 cents
+    // Deposit (25%): $324.00 = 32,400 cents
+    // Remaining: $972.00 = 97,200 cents
+    // Each installment: $162.00 = 16,200 cents
     const paymentAmountCents = 15_900;
     const breakdown = calculatePayoutBreakdown(paymentAmountCents);
 
@@ -118,8 +118,8 @@ describe('calculatePayoutBreakdown', () => {
   });
 
   it('handles minimum bill installment ($500 bill)', () => {
-    // $500 bill + 6% = $530 total, 25% deposit = $132.50 = 13,250 cents
-    // Remaining = $397.50 = 39,750 cents, installment = $66.25 = 6,625 cents
+    // $500 bill + 8% = $540 total, 25% deposit = $135.00 = 13,500 cents
+    // Remaining = $405.00 = 40,500 cents, installment = $67.50 = 6,750 cents
     const paymentAmountCents = 6_625;
     const breakdown = calculatePayoutBreakdown(paymentAmountCents);
 
@@ -131,13 +131,13 @@ describe('calculatePayoutBreakdown', () => {
   });
 
   it('handles large bill amounts ($10,000 bill)', () => {
-    // $10,000 + 6% = $10,600, deposit 25% = $2,650 = 265,000 cents
+    // $10,000 + 8% = $10,800, deposit 25% = $2,700 = 270,000 cents
     const paymentAmountCents = 265_000;
     const breakdown = calculatePayoutBreakdown(paymentAmountCents);
 
     expect(breakdown.paymentAmountCents).toBe(265_000);
     expect(breakdown.transferAmountCents).toBeGreaterThan(0);
-    // Platform fee should be roughly 6/106 of the payment
+    // Platform fee should be roughly 8/108 of the payment
     expect(breakdown.platformFeeCents).toBeGreaterThan(0);
   });
 });

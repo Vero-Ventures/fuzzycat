@@ -142,6 +142,13 @@ export function PlanCard({ plan }: PlanCardProps) {
         </Button>
 
         {expanded && <PaymentHistoryTable planId={plan.id} />}
+
+        <Link
+          href={`/owner/plans/${plan.id}`}
+          className="block text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          View Full Plan Details
+        </Link>
       </CardContent>
     </Card>
   );

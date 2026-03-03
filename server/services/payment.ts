@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
@@ -32,6 +32,7 @@ export async function processDeposit(params: {
     .select({
       id: plans.id,
       ownerId: plans.ownerId,
+      clinicId: plans.clinicId,
       depositCents: plans.depositCents,
       status: plans.status,
     })
@@ -49,6 +50,21 @@ export async function processDeposit(params: {
 
   if (!plan.ownerId) {
     throw new Error(`Plan ${params.planId} has no owner`);
+  }
+
+  if (!plan.clinicId) {
+    throw new Error(`Plan ${params.planId} has no clinic`);
+  }
+
+  // Fetch the clinic's Stripe Connect account for destination charges
+  const [clinic] = await db
+    .select({ stripeAccountId: clinics.stripeAccountId })
+    .from(clinics)
+    .where(eq(clinics.id, plan.clinicId))
+    .limit(1);
+
+  if (!clinic?.stripeAccountId) {
+    throw new Error(`Clinic for plan ${params.planId} does not have a Stripe Connect account`);
   }
 
   // Verify the caller owns this plan (IDOR protection)
@@ -208,9 +224,9 @@ export async function processInstallment(params: {
     throw new Error(`Payment ${params.paymentId} has no associated plan`);
   }
 
-  // Fetch plan to get owner
+  // Fetch plan to get owner and clinic
   const [plan] = await db
-    .select({ ownerId: plans.ownerId, status: plans.status })
+    .select({ ownerId: plans.ownerId, clinicId: plans.clinicId, status: plans.status })
     .from(plans)
     .where(eq(plans.id, payment.planId))
     .limit(1);
@@ -225,6 +241,23 @@ export async function processInstallment(params: {
 
   if (!plan.ownerId) {
     throw new Error(`Plan for payment ${params.paymentId} has no owner`);
+  }
+
+  if (!plan.clinicId) {
+    throw new Error(`Plan for payment ${params.paymentId} has no clinic`);
+  }
+
+  // Fetch the clinic's Stripe Connect account for destination charges
+  const [clinic] = await db
+    .select({ stripeAccountId: clinics.stripeAccountId })
+    .from(clinics)
+    .where(eq(clinics.id, plan.clinicId))
+    .limit(1);
+
+  if (!clinic?.stripeAccountId) {
+    throw new Error(
+      `Clinic for payment ${params.paymentId} does not have a Stripe Connect account`,
+    );
   }
 
   // Fetch owner's Stripe customer ID and payment method preference

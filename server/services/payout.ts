@@ -102,6 +102,18 @@ export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBrea
   };
 }
 
+/**
+ * Calculate the application_fee_amount for a Stripe destination charge.
+ * This is the amount FuzzyCat retains when Stripe atomically splits the payment.
+ *
+ * applicationFee = paymentAmount - transferToClinic
+ *                = platformFee + riskPool - clinicShare
+ */
+export function calculateApplicationFee(paymentAmountCents: number): number {
+  const breakdown = calculatePayoutBreakdown(paymentAmountCents);
+  return paymentAmountCents - breakdown.transferAmountCents;
+}
+
 // ── Core payout processing ───────────────────────────────────────────
 
 /**

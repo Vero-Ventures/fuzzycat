@@ -49,8 +49,13 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-const { calculatePayoutBreakdown, processClinicPayout, getClinicPayoutHistory, getClinicEarnings } =
-  await import('@/server/services/payout');
+const {
+  calculatePayoutBreakdown,
+  calculateApplicationFee,
+  processClinicPayout,
+  getClinicPayoutHistory,
+  getClinicEarnings,
+} = await import('@/server/services/payout');
 
 // ── calculatePayoutBreakdown tests ───────────────────────────────────
 
@@ -168,6 +173,35 @@ describe('calculatePayoutBreakdown', () => {
     expect(breakdown.transferAmountCents).toBeGreaterThan(0);
     // Platform fee should be roughly 6/106 of the payment
     expect(breakdown.platformFeeCents).toBeGreaterThan(0);
+  });
+});
+
+// ── calculateApplicationFee tests ────────────────────────────────────
+
+describe('calculateApplicationFee', () => {
+  it('satisfies applicationFee + transferAmount = paymentAmount', () => {
+    const paymentAmountCents = 15_900;
+    const fee = calculateApplicationFee(paymentAmountCents);
+    const breakdown = calculatePayoutBreakdown(paymentAmountCents);
+    expect(fee + breakdown.transferAmountCents).toBe(paymentAmountCents);
+  });
+
+  it('returns integer cents', () => {
+    expect(Number.isInteger(calculateApplicationFee(12_345))).toBe(true);
+    expect(Number.isInteger(calculateApplicationFee(15_900))).toBe(true);
+    expect(Number.isInteger(calculateApplicationFee(265_000))).toBe(true);
+  });
+
+  it('is positive for all valid payment amounts', () => {
+    expect(calculateApplicationFee(6_625)).toBeGreaterThan(0);
+    expect(calculateApplicationFee(15_900)).toBeGreaterThan(0);
+    expect(calculateApplicationFee(265_000)).toBeGreaterThan(0);
+  });
+
+  it('delegates validation to calculatePayoutBreakdown', () => {
+    expect(() => calculateApplicationFee(0)).toThrow(RangeError);
+    expect(() => calculateApplicationFee(-100)).toThrow(RangeError);
+    expect(() => calculateApplicationFee(Number.NaN)).toThrow(RangeError);
   });
 });
 

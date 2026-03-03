@@ -5,6 +5,8 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { and, eq } from 'drizzle-orm';
 import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
+import { serverEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { ApiError, ErrorCodes } from '@/server/api/middleware/error-handler';
 import { requirePermission } from '@/server/api/middleware/permissions';
 import type { ApiVariables } from '@/server/api/types';
@@ -17,25 +19,68 @@ import {
 } from '@/server/services/enrollment';
 
 // ── Enrollment velocity limiter ──────────────────────────────────────
-// Prevents rapid-fire enrollment creation. Max 10 enrollments per clinic
-// per hour via the API. This is an in-memory check (resets on restart).
+// Max 10 enrollments per clinic per hour. Uses Upstash Redis when available,
+// falls back to in-memory for local dev.
 
 const ENROLLMENT_RATE_LIMIT = 10;
 const ENROLLMENT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-const enrollmentWindows = new Map<string, { count: number; resetAt: number }>();
+type VelocityLimiter = {
+  limit: (id: string) => Promise<{ success: boolean }>;
+};
 
-function checkEnrollmentVelocity(clinicId: string): boolean {
-  const now = Date.now();
-  const entry = enrollmentWindows.get(clinicId);
+class InMemoryVelocityLimiter implements VelocityLimiter {
+  private windows = new Map<string, { count: number; resetAt: number }>();
 
-  if (!entry || now >= entry.resetAt) {
-    enrollmentWindows.set(clinicId, { count: 1, resetAt: now + ENROLLMENT_WINDOW_MS });
-    return true;
+  async limit(id: string): Promise<{ success: boolean }> {
+    const now = Date.now();
+    const entry = this.windows.get(id);
+    if (!entry || now >= entry.resetAt) {
+      this.windows.set(id, { count: 1, resetAt: now + ENROLLMENT_WINDOW_MS });
+      return { success: true };
+    }
+    entry.count++;
+    return { success: entry.count <= ENROLLMENT_RATE_LIMIT };
   }
+}
 
-  entry.count++;
-  return entry.count <= ENROLLMENT_RATE_LIMIT;
+let velocityLimiter: VelocityLimiter | null = null;
+
+async function getVelocityLimiter(): Promise<VelocityLimiter> {
+  if (velocityLimiter) return velocityLimiter;
+  try {
+    const env = serverEnv();
+    const url = env.UPSTASH_REDIS_REST_URL;
+    const token = env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) {
+      velocityLimiter = new InMemoryVelocityLimiter();
+      return velocityLimiter;
+    }
+    const { Ratelimit } = await import('@upstash/ratelimit');
+    const { Redis } = await import('@upstash/redis');
+    velocityLimiter = new Ratelimit({
+      redis: new Redis({ url, token }),
+      limiter: Ratelimit.slidingWindow(ENROLLMENT_RATE_LIMIT, '3600 s'),
+      prefix: 'enrollment_velocity',
+    });
+    return velocityLimiter;
+  } catch {
+    velocityLimiter = new InMemoryVelocityLimiter();
+    return velocityLimiter;
+  }
+}
+
+async function checkEnrollmentVelocity(clinicId: string): Promise<boolean> {
+  try {
+    const limiter = await getVelocityLimiter();
+    const result = await limiter.limit(clinicId);
+    return result.success;
+  } catch (error) {
+    logger.error('Enrollment velocity check failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return true; // fail open
+  }
 }
 
 // ── Schemas ──────────────────────────────────────────────────────────
@@ -236,7 +281,7 @@ enrollmentRoutes.openapi(createEnrollmentRoute, async (c) => {
   }
 
   // Velocity check — prevent rapid-fire enrollment creation
-  if (!checkEnrollmentVelocity(clinicId)) {
+  if (!(await checkEnrollmentVelocity(clinicId))) {
     throw new ApiError(
       429,
       ErrorCodes.RATE_LIMITED,

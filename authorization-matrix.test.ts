@@ -324,7 +324,6 @@ const PROCEDURES: ProcSpec[] = [
   { path: 'payment.escalateToDefault', base: 'admin' },
   { path: 'payment.getPlansForEscalation', base: 'admin' },
   // payout
-  { path: 'payout.process', base: 'admin' },
   { path: 'payout.history', base: 'clinic' },
   { path: 'payout.earnings', base: 'clinic' },
   // owner

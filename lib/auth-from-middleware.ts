@@ -1,7 +1,5 @@
 import { headers } from 'next/headers';
-import type { UserRole } from '@/lib/auth';
-
-const VALID_ROLES = new Set<string>(['owner', 'clinic', 'admin']);
+import { type UserRole, VALID_ROLES } from '@/lib/auth';
 
 /**
  * Reads auth information injected by middleware via request headers.

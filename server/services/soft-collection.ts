@@ -10,6 +10,7 @@
 import { and, eq, inArray, lte } from 'drizzle-orm';
 import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { addDays } from '@/lib/utils/date';
 import { db } from '@/server/db';
 import { owners, plans, softCollections } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
@@ -52,13 +53,6 @@ interface PlanOwnerInfo {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
-
-/** Add days to a date and return a new Date. */
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
 
 /** Get the next stage in the escalation sequence. */
 function getNextStage(currentStage: SoftCollectionStage): SoftCollectionStage | null {

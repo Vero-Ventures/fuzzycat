@@ -164,7 +164,9 @@ describe('signUpOwner', () => {
   });
 
   it('returns duplicate email error when error message contains "duplicate key"', async () => {
-    mockInsertReturning.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+    mockInsertReturning.mockRejectedValue(
+      new Error('duplicate key value violates unique constraint'),
+    );
 
     const result = await signUpOwner(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
@@ -259,7 +261,9 @@ describe('signUpClinic', () => {
   });
 
   it('returns duplicate email error when error message contains "duplicate key"', async () => {
-    mockInsertReturning.mockRejectedValue(new Error('duplicate key value violates unique constraint'));
+    mockInsertReturning.mockRejectedValue(
+      new Error('duplicate key value violates unique constraint'),
+    );
 
     const result = await signUpClinic(makeClinicFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');

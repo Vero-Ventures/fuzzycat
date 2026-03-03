@@ -43,20 +43,10 @@ export async function isFoundingClinicAvailable(): Promise<boolean> {
 
 export async function getFoundingClinicStatus(clinicId: string): Promise<FoundingClinicStatus> {
   if (!isFoundingClinicEnabled()) {
-    // Still show badge for clinics already enrolled, even when program is disabled
-    const [clinic] = await db
-      .select({
-        foundingClinic: clinics.foundingClinic,
-        foundingExpiresAt: clinics.foundingExpiresAt,
-      })
-      .from(clinics)
-      .where(eq(clinics.id, clinicId))
-      .limit(1);
-
     return {
       enabled: false,
-      isFoundingClinic: clinic?.foundingClinic ?? false,
-      expiresAt: clinic?.foundingExpiresAt ?? null,
+      isFoundingClinic: false,
+      expiresAt: null,
       spotsRemaining: 0,
     };
   }

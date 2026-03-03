@@ -28,6 +28,7 @@
     "test:e2e:prod": "playwright test --project=production-public --project=production-auth",
     "test:e2e:mobile": "playwright test --project=mobile --project=mobile-portal",
     "test:e2e:visual": "playwright test --project=visual",
+    "test:e2e:email": "playwright test --project=email",
     "e2e:setup-users": "bun run scripts/e2e-create-test-users.ts",
     "e2e:populate-data": "bun run scripts/e2e-populate-data.ts",
     "e2e:reset": "bun run scripts/e2e-reset-and-seed.ts",

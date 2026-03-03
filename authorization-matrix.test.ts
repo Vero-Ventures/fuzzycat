@@ -198,13 +198,7 @@ mock.module('@/server/services/audit', () => ({
   getAuditLogByType: mock(() => Promise.resolve([])),
 }));
 mock.module('@/server/services/email', () => ({
-  sendEnrollmentConfirmation: mock(),
-  sendPaymentReminder: mock(),
-  sendPaymentSuccess: mock(),
-  sendPaymentFailed: mock(),
-  sendPlanCompleted: mock(),
   sendClinicWelcome: mock(),
-  sendClinicPayoutNotification: mock(),
   sendSoftCollectionDay1: mock(),
   sendSoftCollectionDay7: mock(),
   sendSoftCollectionDay14: mock(),

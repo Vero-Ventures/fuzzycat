@@ -121,6 +121,12 @@ export default defineConfig({
       testDir: './e2e/tests/edge-cases',
       use: { ...devices['Desktop Chrome'] },
     },
+    // ── Email tests (requires local Supabase + Mailpit) ────────────
+    {
+      name: 'email',
+      testDir: './e2e/tests/email',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // ── Production: public pages ──────────────────────────────────────
     {
       name: 'production-public',

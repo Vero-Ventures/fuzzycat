@@ -1,4 +1,4 @@
-import { Code2, FileJson } from 'lucide-react';
+import { BookOpen, Code2, FileJson } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,27 @@ export default function ApiDocsPage() {
               <code className="rounded bg-muted px-1.5 py-0.5 text-sm">Authorization: Bearer</code>{' '}
               header.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <BookOpen className="h-6 w-6" />
+            </div>
+            <CardTitle className="text-center text-xl">Interactive API Reference</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p className="text-muted-foreground">
+              Browse the full API reference with request/response examples, try endpoints directly
+              in your browser, and generate client code in any language.
+            </p>
+            <Link href="/api/v1/docs">
+              <Button>
+                <BookOpen className="mr-2 h-4 w-4" />
+                Open API Reference
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 

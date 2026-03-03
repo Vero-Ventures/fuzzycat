@@ -1,5 +1,10 @@
 import { and, desc, eq, sql, sum } from 'drizzle-orm';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
+import {
+  CLINIC_SHARE_RATE,
+  DEFAULT_CLINIC_SHARE_BPS,
+  PLATFORM_FEE_RATE,
+  PLATFORM_RESERVE_RATE,
+} from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { payouts } from '@/server/db/schema';
@@ -53,7 +58,10 @@ export interface ClinicEarnings {
  *
  * All arithmetic uses integer cents — no floating point.
  */
-export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBreakdown {
+export function calculatePayoutBreakdown(
+  paymentAmountCents: number,
+  clinicShareRate = CLINIC_SHARE_RATE,
+): PayoutBreakdown {
   if (paymentAmountCents <= 0 || !Number.isFinite(paymentAmountCents)) {
     throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
   }
@@ -65,7 +73,7 @@ export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBrea
   const billPortionCents = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
   const platformFeeCents = paymentAmountCents - billPortionCents;
   const riskPoolCents = percentOfCents(billPortionCents, PLATFORM_RESERVE_RATE);
-  const clinicShareCents = percentOfCents(paymentAmountCents, CLINIC_SHARE_RATE);
+  const clinicShareCents = percentOfCents(paymentAmountCents, clinicShareRate);
 
   // Transfer = bill portion - risk pool + clinic share
   const transferAmountCents = billPortionCents - riskPoolCents + clinicShareCents;
@@ -86,9 +94,30 @@ export function calculatePayoutBreakdown(paymentAmountCents: number): PayoutBrea
  * applicationFee = paymentAmount - transferToClinic
  *                = platformFee + riskPool - clinicShare
  */
-export function calculateApplicationFee(paymentAmountCents: number): number {
-  const breakdown = calculatePayoutBreakdown(paymentAmountCents);
+export function calculateApplicationFee(
+  paymentAmountCents: number,
+  clinicShareRate = CLINIC_SHARE_RATE,
+): number {
+  const breakdown = calculatePayoutBreakdown(paymentAmountCents, clinicShareRate);
   return paymentAmountCents - breakdown.transferAmountCents;
+}
+
+// ── Revenue share resolution ────────────────────────────────────────
+
+/**
+ * Determine the effective revenue share rate for a clinic.
+ * Founding clinics with an active (non-expired) enhanced period use their
+ * stored `revenueShareBps`; everyone else falls back to the default 3%.
+ */
+export function getEffectiveShareRate(clinic: {
+  revenueShareBps: number;
+  foundingClinic: boolean;
+  foundingExpiresAt: Date | null;
+}): number {
+  if (clinic.foundingClinic && clinic.foundingExpiresAt && clinic.foundingExpiresAt > new Date()) {
+    return clinic.revenueShareBps / 10_000;
+  }
+  return DEFAULT_CLINIC_SHARE_BPS / 10_000;
 }
 
 // ── Query functions ──────────────────────────────────────────────────

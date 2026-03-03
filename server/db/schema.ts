@@ -50,6 +50,7 @@ export const webhookDeliveryStatusEnum = pgEnum('webhook_delivery_status', [
   'succeeded',
   'failed',
 ]);
+export const referralStatusEnum = pgEnum('referral_status', ['pending', 'converted', 'expired']);
 
 // ── Veterinary clinics ──────────────────────────────────────────────
 export const clinics = pgTable(
@@ -66,6 +67,10 @@ export const clinics = pgTable(
     addressZip: text('address_zip').notNull(),
     stripeAccountId: text('stripe_account_id').unique(),
     status: clinicStatusEnum('status').notNull().default('pending'),
+    revenueShareBps: integer('revenue_share_bps').notNull().default(300),
+    foundingClinic: boolean('founding_clinic').notNull().default(false),
+    foundingExpiresAt: timestamp('founding_expires_at', { withTimezone: true }),
+    referralCode: text('referral_code').unique(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
@@ -157,6 +162,8 @@ export const plans = pgTable(
     installmentCents: integer('installment_cents').notNull(),
     numInstallments: integer('num_installments').notNull().default(6),
     status: planStatusEnum('status').notNull().default('pending'),
+    referralDiscountCents: integer('referral_discount_cents').default(0),
+    ownerReferralId: uuid('owner_referral_id'),
     depositPaidAt: timestamp('deposit_paid_at', { withTimezone: true }),
     nextPaymentAt: timestamp('next_payment_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -373,6 +380,64 @@ export const webhookDeliveries = pgTable(
   ],
 );
 
+// ── Clinic requests (pet owner waitlist) ──────────────────────────────
+export const clinicRequests = pgTable(
+  'clinic_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerEmail: text('owner_email').notNull(),
+    ownerName: text('owner_name'),
+    clinicName: text('clinic_name').notNull(),
+    clinicCity: text('clinic_city'),
+    clinicState: text('clinic_state'),
+    clinicZip: text('clinic_zip'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [index('idx_clinic_requests_email').on(table.ownerEmail)],
+);
+
+// ── Clinic referrals (clinic-to-clinic) ──────────────────────────────
+export const clinicReferrals = pgTable(
+  'clinic_referrals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    referrerClinicId: uuid('referrer_clinic_id')
+      .references(() => clinics.id)
+      .notNull(),
+    referredClinicId: uuid('referred_clinic_id').references(() => clinics.id),
+    referredEmail: text('referred_email').notNull(),
+    referralCode: text('referral_code').notNull(),
+    status: referralStatusEnum('status').notNull().default('pending'),
+    convertedAt: timestamp('converted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index('idx_clinic_referrals_referrer').on(table.referrerClinicId),
+    index('idx_clinic_referrals_code').on(table.referralCode),
+  ],
+);
+
+// ── Owner referrals (pet owner-to-owner) ─────────────────────────────
+export const ownerReferrals = pgTable(
+  'owner_referrals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    referrerOwnerId: uuid('referrer_owner_id')
+      .references(() => owners.id)
+      .notNull(),
+    referredOwnerId: uuid('referred_owner_id').references(() => owners.id),
+    referralCode: text('referral_code').notNull().unique(),
+    status: referralStatusEnum('status').notNull().default('pending'),
+    creditApplied: boolean('credit_applied').notNull().default(false),
+    convertedAt: timestamp('converted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    index('idx_owner_referrals_referrer').on(table.referrerOwnerId),
+    index('idx_owner_referrals_code').on(table.referralCode),
+  ],
+);
+
 // ── Relations (for db.query API — no SQL impact) ────────────────────
 
 export const clinicsRelations = relations(clinics, ({ many }) => ({
@@ -380,12 +445,14 @@ export const clinicsRelations = relations(clinics, ({ many }) => ({
   payouts: many(payouts),
   apiKeys: many(apiKeys),
   webhookEndpoints: many(webhookEndpoints),
+  clinicReferrals: many(clinicReferrals),
 }));
 
 export const ownersRelations = relations(owners, ({ many }) => ({
   plans: many(plans),
   pets: many(pets),
   paymentMethods: many(paymentMethods),
+  ownerReferrals: many(ownerReferrals),
 }));
 
 export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
@@ -440,5 +507,19 @@ export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one })
   endpoint: one(webhookEndpoints, {
     fields: [webhookDeliveries.endpointId],
     references: [webhookEndpoints.id],
+  }),
+}));
+
+export const clinicReferralsRelations = relations(clinicReferrals, ({ one }) => ({
+  referrerClinic: one(clinics, {
+    fields: [clinicReferrals.referrerClinicId],
+    references: [clinics.id],
+  }),
+}));
+
+export const ownerReferralsRelations = relations(ownerReferrals, ({ one }) => ({
+  referrerOwner: one(owners, {
+    fields: [ownerReferrals.referrerOwnerId],
+    references: [owners.id],
   }),
 }));

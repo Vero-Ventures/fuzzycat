@@ -111,6 +111,25 @@ export const schemaMock = {
     completedAt: 'webhook_deliveries.completed_at',
   },
   webhookDeliveryStatusEnum: {},
+  referralStatusEnum: {},
+  clinicRequests: {
+    id: 'clinic_requests.id',
+    ownerEmail: 'clinic_requests.owner_email',
+    clinicName: 'clinic_requests.clinic_name',
+  },
+  clinicReferrals: {
+    id: 'clinic_referrals.id',
+    referrerClinicId: 'clinic_referrals.referrer_clinic_id',
+    referralCode: 'clinic_referrals.referral_code',
+    status: 'clinic_referrals.status',
+  },
+  ownerReferrals: {
+    id: 'owner_referrals.id',
+    referrerOwnerId: 'owner_referrals.referrer_owner_id',
+    referralCode: 'owner_referrals.referral_code',
+    status: 'owner_referrals.status',
+    creditApplied: 'owner_referrals.credit_applied',
+  },
   paymentMethodsRelations: {},
   clinicsRelations: {},
   ownersRelations: {},
@@ -123,4 +142,6 @@ export const schemaMock = {
   apiKeysRelations: {},
   webhookEndpointsRelations: {},
   webhookDeliveriesRelations: {},
+  clinicReferralsRelations: {},
+  ownerReferralsRelations: {},
 };

@@ -79,9 +79,11 @@ const mockTransaction = mock(async (fn: (tx: Record<string, unknown>) => Promise
   };
   mockTxSelectLimit.mockReturnValue([]);
   mockTxSelectWhere.mockReturnValue({ limit: mockTxSelectLimit });
+  const leftJoinResult: Record<string, unknown> = { where: mockTxSelectWhere };
+  leftJoinResult.leftJoin = () => leftJoinResult;
   mockTxSelectFrom.mockReturnValue({
     where: mockTxSelectWhere,
-    leftJoin: () => ({ where: mockTxSelectWhere }),
+    leftJoin: () => leftJoinResult,
   });
   mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
 
@@ -120,6 +122,9 @@ mock.module('@/server/db/schema', () => ({
   clinics: {
     id: 'clinics.id',
     stripeAccountId: 'clinics.stripe_account_id',
+    revenueShareBps: 'clinics.revenue_share_bps',
+    foundingClinic: 'clinics.founding_clinic',
+    foundingExpiresAt: 'clinics.founding_expires_at',
   },
   plans: {
     id: 'plans.id',

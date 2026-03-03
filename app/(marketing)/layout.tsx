@@ -105,6 +105,11 @@ function Footer() {
                   Support
                 </Link>
               </li>
+              <li>
+                <Link href="/request" className="transition-colors hover:text-foreground">
+                  Request FuzzyCat at Your Clinic
+                </Link>
+              </li>
             </ul>
           </div>
           <div>

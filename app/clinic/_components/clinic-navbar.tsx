@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
 const NAV_ITEMS = [
+  { label: 'Getting Started', href: '/clinic/getting-started' },
   { label: 'Dashboard', href: '/clinic/dashboard' },
   { label: 'Clients', href: '/clinic/clients' },
   { label: 'Payouts', href: '/clinic/payouts' },

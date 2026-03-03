@@ -7,7 +7,11 @@ import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
-import { calculateApplicationFee, calculatePayoutBreakdown } from '@/server/services/payout';
+import {
+  calculateApplicationFee,
+  calculatePayoutBreakdown,
+  getEffectiveShareRate,
+} from '@/server/services/payout';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
 
@@ -57,9 +61,14 @@ export async function processDeposit(params: {
     throw new Error(`Plan ${params.planId} has no clinic`);
   }
 
-  // Fetch the clinic's Stripe Connect account for destination charges
+  // Fetch the clinic's Stripe Connect account and revenue share info
   const [clinic] = await db
-    .select({ stripeAccountId: clinics.stripeAccountId })
+    .select({
+      stripeAccountId: clinics.stripeAccountId,
+      revenueShareBps: clinics.revenueShareBps,
+      foundingClinic: clinics.foundingClinic,
+      foundingExpiresAt: clinics.foundingExpiresAt,
+    })
     .from(clinics)
     .where(eq(clinics.id, plan.clinicId))
     .limit(1);
@@ -103,6 +112,8 @@ export async function processDeposit(params: {
     throw new Error(`Owner ${plan.ownerId} does not have a Stripe customer ID`);
   }
 
+  const clinicShareRate = getEffectiveShareRate(clinic);
+
   return createDepositCheckoutSession({
     paymentId: depositPayment.id,
     planId: params.planId,
@@ -111,7 +122,7 @@ export async function processDeposit(params: {
     successUrl: params.successUrl,
     cancelUrl: params.cancelUrl,
     clinicStripeAccountId: clinic.stripeAccountId,
-    applicationFeeCents: calculateApplicationFee(plan.depositCents),
+    applicationFeeCents: calculateApplicationFee(plan.depositCents, clinicShareRate),
   });
 }
 
@@ -250,9 +261,14 @@ export async function processInstallment(params: {
     throw new Error(`Plan for payment ${params.paymentId} has no clinic`);
   }
 
-  // Fetch the clinic's Stripe Connect account for destination charges
+  // Fetch the clinic's Stripe Connect account and revenue share info
   const [clinic] = await db
-    .select({ stripeAccountId: clinics.stripeAccountId })
+    .select({
+      stripeAccountId: clinics.stripeAccountId,
+      revenueShareBps: clinics.revenueShareBps,
+      foundingClinic: clinics.foundingClinic,
+      foundingExpiresAt: clinics.foundingExpiresAt,
+    })
     .from(clinics)
     .where(eq(clinics.id, plan.clinicId))
     .limit(1);
@@ -301,6 +317,8 @@ export async function processInstallment(params: {
     }
   }
 
+  const clinicShareRate = getEffectiveShareRate(clinic);
+
   return createInstallmentPaymentIntent({
     paymentId: params.paymentId,
     planId: payment.planId,
@@ -309,7 +327,7 @@ export async function processInstallment(params: {
     paymentMethodId: resolved.paymentMethodId,
     paymentMethodType: resolved.paymentMethodType,
     clinicStripeAccountId: clinic.stripeAccountId,
-    applicationFeeCents: calculateApplicationFee(payment.amountCents),
+    applicationFeeCents: calculateApplicationFee(payment.amountCents, clinicShareRate),
   });
 }
 
@@ -438,6 +456,7 @@ async function recordDestinationPayout(
     planId: string;
     paymentId: string;
     amountCents: number;
+    clinicShareRate?: number;
   },
 ): Promise<void> {
   // Check for existing payout to avoid duplicates (idempotency)
@@ -455,7 +474,7 @@ async function recordDestinationPayout(
     return;
   }
 
-  const breakdown = calculatePayoutBreakdown(params.amountCents);
+  const breakdown = calculatePayoutBreakdown(params.amountCents, params.clinicShareRate);
 
   // Record as succeeded — Stripe already transferred the funds via destination charge
   const [payoutRecord] = await tx
@@ -561,9 +580,13 @@ export async function handlePaymentSuccess(
         status: plans.status,
         totalBillCents: plans.totalBillCents,
         stripeCustomerId: owners.stripeCustomerId,
+        revenueShareBps: clinics.revenueShareBps,
+        foundingClinic: clinics.foundingClinic,
+        foundingExpiresAt: clinics.foundingExpiresAt,
       })
       .from(plans)
       .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clinics, eq(plans.clinicId, clinics.id))
       .where(eq(plans.id, payment.planId))
       .limit(1);
 
@@ -589,11 +612,17 @@ export async function handlePaymentSuccess(
     await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
 
     // Record the destination charge payout as succeeded (Stripe already split the funds)
+    const clinicShareRate = getEffectiveShareRate({
+      revenueShareBps: planRow.revenueShareBps ?? 300,
+      foundingClinic: planRow.foundingClinic ?? false,
+      foundingExpiresAt: planRow.foundingExpiresAt,
+    });
     await recordDestinationPayout(tx, {
       clinicId: planRow.clinicId,
       planId: payment.planId,
       paymentId: payment.id,
       amountCents: payment.amountCents,
+      clinicShareRate,
     });
   });
 }

@@ -2,7 +2,7 @@
 
 import { BadgeCheck, HandCoins, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { signUpClinic } from '@/app/(auth)/signup/actions';
 import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
@@ -12,10 +12,12 @@ import { Label } from '@/components/ui/label';
 
 export default function ClinicSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const referralCode = searchParams.get('ref') ?? '';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -148,6 +150,22 @@ export default function ClinicSignupPage() {
                 required
                 minLength={8}
                 autoComplete="new-password"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="referralCode"
+                className="uppercase text-xs font-semibold tracking-wide"
+              >
+                Referral Code (optional)
+              </Label>
+              <Input
+                id="referralCode"
+                name="referralCode"
+                type="text"
+                defaultValue={referralCode}
+                placeholder="FC-CLINIC-XXXX"
                 className="mt-1.5"
               />
             </div>

@@ -36,6 +36,7 @@ const ownerSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   phone: z.string().min(1, 'Phone is required.'),
   petName: z.string().min(1, 'Pet name is required.'),
+  referralCode: z.string().optional(),
 });
 
 const clinicSchema = z.object({
@@ -45,6 +46,7 @@ const clinicSchema = z.object({
   phone: z.string().min(1, 'Phone is required.'),
   addressState: z.string().length(2, 'State must be a 2-letter code.'),
   addressZip: z.string().min(5, 'ZIP code is required.'),
+  referralCode: z.string().optional(),
 });
 
 async function validateCaptcha(formData: FormData): Promise<ActionResult | null> {
@@ -110,6 +112,34 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   return { userId: data.user.id, hasSession: !!data.session, error: null };
 }
 
+/** Try to convert an owner referral code (non-blocking). */
+async function tryConvertOwnerReferral(refCode: string, ownerId: string) {
+  try {
+    const { convertOwnerReferral } = await import('@/server/services/owner-referral');
+    await convertOwnerReferral(refCode, ownerId);
+  } catch (err) {
+    logger.warn('Owner referral conversion failed (non-blocking)', {
+      referralCode: refCode,
+      ownerId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/** Try to convert a clinic referral code (non-blocking). */
+async function tryConvertClinicReferral(refCode: string, clinicId: string) {
+  try {
+    const { convertClinicReferral } = await import('@/server/services/clinic-referral');
+    await convertClinicReferral(refCode, clinicId);
+  } catch (err) {
+    logger.warn('Clinic referral conversion failed (non-blocking)', {
+      referralCode: refCode,
+      clinicId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 /** Delete the Supabase auth user when the DB insert fails to prevent orphaned accounts. */
 async function deleteAuthUser(userId: string | null) {
   if (!userId) return;
@@ -142,22 +172,27 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     return { error: parsed.error.issues.map((issue) => issue.message).join(' ') };
   }
 
-  const { email, password, name, phone, petName } = parsed.data;
+  const { email, password, name, phone, petName, referralCode: ownerRefCode } = parsed.data;
   const { userId, hasSession, error } = await signUpWithRole(email, password, 'owner');
 
   if (error) {
     return { error };
   }
 
+  let ownerId: string | undefined;
   try {
-    await db.insert(owners).values({
-      authId: userId,
-      name,
-      email,
-      phone,
-      petName,
-      paymentMethod: 'debit_card',
-    });
+    const [inserted] = await db
+      .insert(owners)
+      .values({
+        authId: userId,
+        name,
+        email,
+        phone,
+        petName,
+        paymentMethod: 'debit_card',
+      })
+      .returning({ id: owners.id });
+    ownerId = inserted?.id;
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Signup failed at DB insert', {
@@ -190,6 +225,11 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     });
   }
 
+  // Convert owner referral if a valid code was provided
+  if (ownerRefCode && ownerId) {
+    await tryConvertOwnerReferral(ownerRefCode, ownerId);
+  }
+
   return { error: null, needsEmailConfirmation: !hasSession };
 }
 
@@ -210,22 +250,28 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
     return { error: parsed.error.issues.map((issue) => issue.message).join(' ') };
   }
 
-  const { email, password, clinicName, phone, addressState, addressZip } = parsed.data;
+  const { email, password, clinicName, phone, addressState, addressZip, referralCode } =
+    parsed.data;
   const { userId, hasSession, error } = await signUpWithRole(email, password, 'clinic');
 
   if (error) {
     return { error };
   }
 
+  let clinicId: string | undefined;
   try {
-    await db.insert(clinics).values({
-      authId: userId,
-      name: clinicName,
-      email,
-      phone,
-      addressState: addressState.toUpperCase(),
-      addressZip,
-    });
+    const [inserted] = await db
+      .insert(clinics)
+      .values({
+        authId: userId,
+        name: clinicName,
+        email,
+        phone,
+        addressState: addressState.toUpperCase(),
+        addressZip,
+      })
+      .returning({ id: clinics.id });
+    clinicId = inserted?.id;
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Signup failed at DB insert', {
@@ -256,6 +302,11 @@ export async function signUpClinic(formData: FormData): Promise<ActionResult> {
       event: POSTHOG_EVENTS.CLINIC_REGISTERED,
       properties: { role: 'clinic' },
     });
+  }
+
+  // Convert clinic referral if a valid code was provided
+  if (referralCode && clinicId) {
+    await tryConvertClinicReferral(referralCode, clinicId);
   }
 
   return { error: null, needsEmailConfirmation: !hasSession };

@@ -2,7 +2,7 @@
 
 import { Star } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { signUpOwner } from '@/app/(auth)/signup/actions';
 import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
@@ -12,10 +12,12 @@ import { Label } from '@/components/ui/label';
 
 export default function OwnerSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState<string | null>(null);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const referralCode = searchParams.get('ref') ?? '';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -176,6 +178,8 @@ export default function OwnerSignupPage() {
                     className="mt-1.5"
                   />
                 </div>
+
+                {referralCode && <input type="hidden" name="referralCode" value={referralCode} />}
 
                 <Captcha ref={captchaRef} className="my-2" />
 

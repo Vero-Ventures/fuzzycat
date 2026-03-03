@@ -5,18 +5,18 @@ test.describe('How It Works — Interactions', () => {
     await page.goto('/how-it-works');
   });
 
-  test('"Become a Partner Clinic" CTA navigates to /signup', async ({ page }) => {
+  test('"Become a Partner Clinic" CTA navigates to /signup/clinic', async ({ page }) => {
     const cta = page.getByRole('link', { name: /become a partner clinic/i });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/clinic/);
   });
 
-  test('"Sign Up as Pet Owner" CTA navigates to /signup', async ({ page }) => {
+  test('"Sign Up as Pet Owner" CTA navigates to /signup/owner', async ({ page }) => {
     const cta = page.getByRole('link', { name: /sign up as pet owner/i });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup\/owner/);
   });
 
   test('clinic benefits section shows key value props', async ({ page }) => {

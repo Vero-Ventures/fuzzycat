@@ -47,6 +47,8 @@ describe('createInstallmentPaymentIntent', () => {
     planId: 'plan-1',
     stripeCustomerId: 'cus_123',
     amountCents: 15_900,
+    clinicStripeAccountId: 'acct_clinic_1',
+    applicationFeeCents: 573,
   };
 
   beforeEach(() => {
@@ -85,6 +87,8 @@ describe('createInstallmentPaymentIntent', () => {
         currency: 'usd',
         customer: 'cus_123',
         payment_method_types: ['us_bank_account'],
+        application_fee_amount: 573,
+        transfer_data: { destination: 'acct_clinic_1' },
         metadata: { paymentId: 'pay-2', planId: 'plan-1' },
       }),
     );

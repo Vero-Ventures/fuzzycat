@@ -1109,7 +1109,7 @@ describe('handlePaymentSuccess — payout idempotency', () => {
     const insertCalls = mockTxInsertValues.mock.calls;
     const payoutInsert = insertCalls.find((call: unknown[]) => {
       const arg = call[0] as Record<string, unknown>;
-      return 'clinicId' in arg && 'transferAmountCents' in arg;
+      return 'clinicId' in arg && 'amountCents' in arg && 'clinicShareCents' in arg;
     });
     expect(payoutInsert).toBeUndefined();
   });

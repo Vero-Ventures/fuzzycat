@@ -1,12 +1,13 @@
 import { and, eq } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
-import { CLINIC_SHARE_RATE, PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
+import { PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
 import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
+import { calculateApplicationFee, calculatePayoutBreakdown } from '@/server/services/payout';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
 
@@ -109,6 +110,8 @@ export async function processDeposit(params: {
     depositCents: plan.depositCents,
     successUrl: params.successUrl,
     cancelUrl: params.cancelUrl,
+    clinicStripeAccountId: clinic.stripeAccountId,
+    applicationFeeCents: calculateApplicationFee(plan.depositCents),
   });
 }
 
@@ -305,6 +308,8 @@ export async function processInstallment(params: {
     amountCents: payment.amountCents,
     paymentMethodId: resolved.paymentMethodId,
     paymentMethodType: resolved.paymentMethodType,
+    clinicStripeAccountId: clinic.stripeAccountId,
+    applicationFeeCents: calculateApplicationFee(payment.amountCents),
   });
 }
 
@@ -421,7 +426,12 @@ async function recordRiskPoolContribution(
   );
 }
 
-async function createPendingPayout(
+/**
+ * Record a payout as already succeeded via Stripe destination charges.
+ * With destination charges, Stripe atomically splits the payment at charge time,
+ * so the clinic's share is already transferred — no background worker needed.
+ */
+async function recordDestinationPayout(
   tx: DrizzleTx,
   params: {
     clinicId: string;
@@ -430,7 +440,7 @@ async function createPendingPayout(
     amountCents: number;
   },
 ): Promise<void> {
-  // Check for existing payout to avoid duplicates
+  // Check for existing payout to avoid duplicates (idempotency)
   const existingPayout = await tx
     .select({ id: payouts.id })
     .from(payouts)
@@ -445,30 +455,18 @@ async function createPendingPayout(
     return;
   }
 
-  // Calculate transfer amount: payment amount minus platform fee portion minus risk pool
-  const riskContributionCents = percentOfCents(params.amountCents, PLATFORM_RESERVE_RATE);
-  const platformRetainedCents = percentOfCents(params.amountCents, PLATFORM_FEE_RATE / 2);
-  const transferAmountCents = params.amountCents - platformRetainedCents - riskContributionCents;
-  const clinicShareCents = percentOfCents(params.amountCents, CLINIC_SHARE_RATE);
+  const breakdown = calculatePayoutBreakdown(params.amountCents);
 
-  if (transferAmountCents <= 0) {
-    logger.warn('Transfer amount is zero or negative, skipping payout', {
-      paymentId: params.paymentId,
-      transferAmountCents,
-    });
-    return;
-  }
-
-  // Create a pending payout record for the background worker to process
+  // Record as succeeded — Stripe already transferred the funds via destination charge
   const [payoutRecord] = await tx
     .insert(payouts)
     .values({
       clinicId: params.clinicId,
       planId: params.planId,
       paymentId: params.paymentId,
-      amountCents: transferAmountCents,
-      clinicShareCents,
-      status: 'pending',
+      amountCents: breakdown.transferAmountCents,
+      clinicShareCents: breakdown.clinicShareCents,
+      status: 'succeeded',
     })
     .returning();
 
@@ -478,9 +476,9 @@ async function createPendingPayout(
       entityId: payoutRecord.id,
       action: 'created',
       newValue: {
-        amountCents: transferAmountCents,
-        clinicShareCents,
-        status: 'pending',
+        amountCents: breakdown.transferAmountCents,
+        clinicShareCents: breakdown.clinicShareCents,
+        status: 'succeeded',
       },
       actorType: 'system',
     },
@@ -490,8 +488,8 @@ async function createPendingPayout(
 
 /**
  * Handle a successful payment. Updates the payment status to succeeded,
- * logs an audit entry, contributes to the risk pool, and triggers a payout
- * to the clinic via Stripe Connect.
+ * logs an audit entry, contributes to the risk pool, and records the
+ * destination charge payout (Stripe already split funds at charge time).
  *
  * For deposit payments, also activates the plan.
  * For installment payments, checks if all payments are now succeeded and
@@ -590,8 +588,8 @@ export async function handlePaymentSuccess(
     // Risk pool contribution: 1% of payment amount
     await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
 
-    // Create a pending payout record for the background worker to process
-    await createPendingPayout(tx, {
+    // Record the destination charge payout as succeeded (Stripe already split the funds)
+    await recordDestinationPayout(tx, {
       clinicId: planRow.clinicId,
       planId: payment.planId,
       paymentId: payment.id,

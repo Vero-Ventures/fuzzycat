@@ -8,28 +8,19 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 });
 
-// Dynamically import integrations from the npm package (not CDN) for code splitting.
-// This avoids the bundle-size hit of static imports and the CSP-blocked
-// lazyLoadIntegration() which fetches scripts from sentry-cdn.com.
+// Lazy-load the replay integration to reduce initial bundle size.
+// Deferred to requestIdleCallback so the main thread stays free during
+// page load, improving INP on mobile.
+//
+// NOTE: feedbackIntegration was removed because lazyLoadIntegration
+// fetches from sentry-cdn.com and the feedback script uses eval()
+// internally, which our CSP blocks. Can be re-added when Sentry
+// ships a CSP-compatible version.
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   const loadIntegrations = () => {
-    import('@sentry/browser')
-      .then(({ replayIntegration, feedbackIntegration }) => {
+    Sentry.lazyLoadIntegration('replayIntegration')
+      .then((replayIntegration) => {
         Sentry.addIntegration(replayIntegration());
-        Sentry.addIntegration(
-          feedbackIntegration({
-            colorScheme: 'system',
-            autoInject: true,
-            enableScreenshot: true,
-            showBranding: false,
-            triggerLabel: 'Feedback',
-            formTitle: 'Send us feedback',
-            submitButtonLabel: 'Send feedback',
-            messagePlaceholder: "What's on your mind? Bug reports, suggestions, anything.",
-            isEmailRequired: false,
-            isNameRequired: false,
-          }),
-        );
       })
       .catch(() => {});
   };

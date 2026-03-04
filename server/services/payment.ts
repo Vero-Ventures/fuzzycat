@@ -128,7 +128,7 @@ export async function processDeposit(params: {
 
 /**
  * Validate that a Stripe payment method still exists and is usable.
- * For card PMs uses paymentMethods.retrieve; for ACH sources uses customers.retrieveSource.
+ * Uses paymentMethods.retrieve for both card and ACH (us_bank_account) PMs.
  * Returns true if valid, false if the PM has been deleted or is invalid.
  */
 async function validatePaymentMethod(params: {
@@ -137,13 +137,8 @@ async function validatePaymentMethod(params: {
   stripeCustomerId: string;
 }): Promise<boolean> {
   try {
-    if (params.paymentMethodType === 'card') {
-      const pm = await stripe().paymentMethods.retrieve(params.paymentMethodId);
-      return pm.customer !== null;
-    }
-    // ACH: retrieve the source (legacy Source/BankAccount)
-    await stripe().customers.retrieveSource(params.stripeCustomerId, params.paymentMethodId);
-    return true;
+    const pm = await stripe().paymentMethods.retrieve(params.paymentMethodId);
+    return pm.customer !== null;
   } catch (err) {
     logger.error('Payment method validation failed', {
       paymentMethodId: params.paymentMethodId,

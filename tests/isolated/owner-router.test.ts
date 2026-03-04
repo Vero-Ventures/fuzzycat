@@ -37,12 +37,11 @@ mock.module('next/cache', () => ({
 // ── Stripe mocks ──────────────────────────────────────────────────────
 
 const mockPaymentMethodsRetrieve = mock((_id: string) =>
-  Promise.resolve({
-    card: { brand: 'visa', last4: '4242', exp_month: 12, exp_year: 2027 },
-  }),
-);
-const mockCustomersRetrieveSource = mock((_cust: string, _src: string) =>
-  Promise.resolve({ bank_name: 'Chase', last4: '1234' }),
+  Promise.resolve(
+    _id.startsWith('pm_ach')
+      ? { us_bank_account: { bank_name: 'Chase', last4: '1234' } }
+      : { card: { brand: 'visa', last4: '4242', exp_month: 12, exp_year: 2027 } },
+  ),
 );
 const mockCheckoutSessionsCreate = mock(() =>
   Promise.resolve({
@@ -65,9 +64,6 @@ const mockSetupIntentsRetrieve = mock((_id: string) =>
   }),
 );
 const mockPaymentMethodsDetach = mock((_id: string) => Promise.resolve({ id: _id }));
-const mockCustomersDeleteSource = mock((_cust: string, _src: string) =>
-  Promise.resolve({ id: _src, deleted: true }),
-);
 const mockSetupIntentsCreate = mock(() =>
   Promise.resolve({
     id: 'seti_bank_test_123',
@@ -79,10 +75,6 @@ const mockSetupIntentsCreate = mock(() =>
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     paymentMethods: { retrieve: mockPaymentMethodsRetrieve, detach: mockPaymentMethodsDetach },
-    customers: {
-      retrieveSource: mockCustomersRetrieveSource,
-      deleteSource: mockCustomersDeleteSource,
-    },
     checkout: {
       sessions: { create: mockCheckoutSessionsCreate, retrieve: mockCheckoutSessionsRetrieve },
     },
@@ -122,13 +114,11 @@ function ctx(overrides?: Record<string, unknown>): any {
 
 function clearStripeMocks() {
   mockPaymentMethodsRetrieve.mockClear();
-  mockCustomersRetrieveSource.mockClear();
   mockCheckoutSessionsCreate.mockClear();
   mockCheckoutSessionsRetrieve.mockClear();
   mockSetupIntentsRetrieve.mockClear();
   mockSetupIntentsCreate.mockClear();
   mockPaymentMethodsDetach.mockClear();
-  mockCustomersDeleteSource.mockClear();
 }
 
 // ── healthCheck ───────────────────────────────────────────────────────
@@ -249,7 +239,7 @@ describe('owner.updatePaymentMethod', () => {
       [
         {
           stripeCardPaymentMethodId: 'pm_card_saved',
-          stripeAchPaymentMethodId: 'ba_ach_123',
+          stripeAchPaymentMethodId: 'pm_ach_123',
           paymentMethod: 'bank_account',
         },
       ], // check instruments
@@ -267,7 +257,7 @@ describe('owner.updatePaymentMethod', () => {
       [
         {
           stripeCardPaymentMethodId: null,
-          stripeAchPaymentMethodId: 'ba_ach_123',
+          stripeAchPaymentMethodId: 'pm_ach_123',
           paymentMethod: 'bank_account',
         },
       ],
@@ -452,7 +442,7 @@ describe('owner.getPaymentMethodDetails', () => {
         {
           paymentMethod: 'bank_account',
           stripeCardPaymentMethodId: null,
-          stripeAchPaymentMethodId: 'ba_ach_456',
+          stripeAchPaymentMethodId: 'pm_ach_456',
           stripeCustomerId: 'cus_456',
         },
       ],
@@ -483,7 +473,6 @@ describe('owner.getPaymentMethodDetails', () => {
     expect(result.card).toBeNull();
     expect(result.bankAccount).toBeNull();
     expect(mockPaymentMethodsRetrieve).not.toHaveBeenCalled();
-    expect(mockCustomersRetrieveSource).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when owner missing', async () => {
@@ -756,7 +745,7 @@ describe('owner.removePaymentMethod', () => {
         {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: null,
-          stripeAchPaymentMethodId: 'ba_ach_123',
+          stripeAchPaymentMethodId: 'pm_ach_123',
           paymentMethod: 'bank_account',
         },
       ], // owner fetch
@@ -767,7 +756,7 @@ describe('owner.removePaymentMethod', () => {
     const caller = createOwnerCaller(ctx());
     const result = await caller.removePaymentMethod({ method: 'bank_account' });
     expect(result.success).toBe(true);
-    expect(mockCustomersDeleteSource).toHaveBeenCalledWith('cus_test', 'ba_ach_123');
+    expect(mockPaymentMethodsDetach).toHaveBeenCalledWith('pm_ach_123');
   });
 
   it('auto-switches to other method when removing active preference', async () => {
@@ -777,7 +766,7 @@ describe('owner.removePaymentMethod', () => {
         {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
-          stripeAchPaymentMethodId: 'ba_ach_456',
+          stripeAchPaymentMethodId: 'pm_ach_456',
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (card is active, bank also exists)
@@ -815,7 +804,7 @@ describe('owner.removePaymentMethod', () => {
         {
           stripeCustomerId: 'cus_test',
           stripeCardPaymentMethodId: 'pm_card_123',
-          stripeAchPaymentMethodId: 'ba_ach_456',
+          stripeAchPaymentMethodId: 'pm_ach_456',
           paymentMethod: 'debit_card',
         },
       ], // owner fetch (both methods exist)

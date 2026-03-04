@@ -35,23 +35,21 @@ async function fetchCardDetails(
 
 /** Retrieve ACH bank account details from Stripe, returning null on error. */
 async function fetchBankAccountDetails(
-  customerId: string,
   achPaymentMethodId: string,
   ownerId: string,
 ): Promise<{ bankName: string; last4: string } | null> {
   try {
-    const source = await stripe().customers.retrieveSource(customerId, achPaymentMethodId);
-    if ('bank_name' in source && 'last4' in source) {
+    const pm = await stripe().paymentMethods.retrieve(achPaymentMethodId);
+    if (pm.us_bank_account) {
       return {
-        bankName: (source as { bank_name: string }).bank_name,
-        last4: (source as { last4: string }).last4,
+        bankName: pm.us_bank_account.bank_name ?? 'Bank Account',
+        last4: pm.us_bank_account.last4 ?? '****',
       };
     }
   } catch (err) {
-    logger.error('Failed to retrieve ACH source from Stripe', {
+    logger.error('Failed to retrieve ACH payment method from Stripe', {
       ownerId,
-      customerId,
-      sourceId: achPaymentMethodId,
+      paymentMethodId: achPaymentMethodId,
       error: err,
     });
   }
@@ -81,13 +79,13 @@ async function detachStripeInstrument(
     return;
   }
 
-  if (method === 'bank_account' && owner.stripeAchPaymentMethodId && owner.stripeCustomerId) {
+  if (method === 'bank_account' && owner.stripeAchPaymentMethodId) {
     try {
-      await stripe().customers.deleteSource(owner.stripeCustomerId, owner.stripeAchPaymentMethodId);
+      await stripe().paymentMethods.detach(owner.stripeAchPaymentMethodId);
     } catch (err) {
-      logger.error('Failed to delete ACH source from Stripe', {
+      logger.error('Failed to detach ACH payment method from Stripe', {
         ownerId,
-        sourceId: owner.stripeAchPaymentMethodId,
+        paymentMethodId: owner.stripeAchPaymentMethodId,
         error: err,
       });
     }
@@ -656,14 +654,9 @@ export const ownerRouter = router({
       ? await fetchCardDetails(owner.stripeCardPaymentMethodId, ctx.ownerId)
       : null;
 
-    const bankAccount =
-      owner.stripeAchPaymentMethodId && owner.stripeCustomerId
-        ? await fetchBankAccountDetails(
-            owner.stripeCustomerId,
-            owner.stripeAchPaymentMethodId,
-            ctx.ownerId,
-          )
-        : null;
+    const bankAccount = owner.stripeAchPaymentMethodId
+      ? await fetchBankAccountDetails(owner.stripeAchPaymentMethodId, ctx.ownerId)
+      : null;
 
     return {
       currentMethod: owner.paymentMethod,

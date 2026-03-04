@@ -77,7 +77,7 @@ export default function GettingStartedPage() {
 
       <div className="mt-8 rounded-lg border bg-muted/30 p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Need help? Contact us at support@fuzzycatapp.com to reach our team.
+          Need help? Use the feedback button in the bottom-right corner of the page.
         </p>
       </div>
     </div>

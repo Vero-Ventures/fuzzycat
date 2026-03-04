@@ -94,7 +94,8 @@ export default function ApiDocsPage() {
 
       <div className="mt-10 rounded-lg border bg-muted/30 p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Need help with your integration? Contact us at support@fuzzycatapp.com to reach our team.
+          Need help with your integration? Use the feedback button in the bottom-right corner of the
+          page.
         </p>
       </div>
     </div>

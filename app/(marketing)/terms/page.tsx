@@ -116,13 +116,11 @@ export default function TermsOfServicePage() {
           </ul>
           <p className="mt-3">
             This authorization remains in effect until your payment plan is completed, cancelled, or
-            defaulted. You may revoke this authorization at any time by contacting us at{' '}
-            <a href="mailto:support@fuzzycatapp.com" className="text-primary hover:underline">
-              support@fuzzycatapp.com
-            </a>
-            . Revocation must be received at least three (3) business days before the next scheduled
-            debit. Revoking ACH authorization does not cancel your payment plan obligations — see
-            Section 8 for cancellation terms.
+            defaulted. You may revoke this authorization at any time by submitting a request through
+            the feedback button in the bottom-right corner of any page. Revocation must be received
+            at least three (3) business days before the next scheduled debit. Revoking ACH
+            authorization does not cancel your payment plan obligations — see Section 8 for
+            cancellation terms.
           </p>
           <p className="mt-3">
             If you believe an ACH debit was initiated in error, you have the right to dispute the
@@ -216,11 +214,8 @@ export default function TermsOfServicePage() {
             applicable refunds.
           </p>
           <p className="mt-3">
-            To request cancellation, contact us at{' '}
-            <a href="mailto:support@fuzzycatapp.com" className="text-primary hover:underline">
-              support@fuzzycatapp.com
-            </a>
-            .
+            To request cancellation, submit a request through the feedback button in the
+            bottom-right corner of any page.
           </p>
         </section>
 

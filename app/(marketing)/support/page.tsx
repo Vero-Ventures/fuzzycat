@@ -23,8 +23,8 @@ export default function SupportPage() {
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight">Help &amp; Support</h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Find answers to common questions below. If you need further help, contact us at
-          support@fuzzycatapp.com.
+          Find answers to common questions below. If you need further help, use the feedback button
+          in the bottom-right corner of the page.
         </p>
       </div>
 
@@ -354,12 +354,12 @@ export default function SupportPage() {
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <MessageCircle className="h-5 w-5" />
               </div>
-              <CardTitle className="text-lg">Contact Support</CardTitle>
+              <CardTitle className="text-lg">Send Feedback</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Email us at support@fuzzycatapp.com to report a problem, ask a question, or suggest
-                an improvement. Our team reviews every message.
+                Use the feedback button in the bottom-right corner of any page to report a problem,
+                ask a question, or suggest an improvement.
               </p>
             </CardContent>
           </Card>

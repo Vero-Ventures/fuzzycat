@@ -195,9 +195,8 @@ export function createApiApp() {
       version: '1.0.0',
       description: API_DESCRIPTION,
       contact: {
-        name: 'FuzzyCat Support',
-        url: 'https://www.fuzzycatapp.com',
-        email: 'support@fuzzycatapp.com',
+        name: 'FuzzyCat',
+        url: 'https://www.fuzzycatapp.com/support',
       },
     },
     servers: [{ url: '/api/v1', description: 'API v1' }],

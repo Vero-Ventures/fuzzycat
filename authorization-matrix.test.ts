@@ -199,6 +199,7 @@ mock.module('@/server/services/audit', () => ({
 }));
 mock.module('@/server/services/email', () => ({
   sendClinicWelcome: mock(),
+  sendEnrollmentInvite: mock(),
   sendSoftCollectionDay1: mock(),
   sendSoftCollectionDay7: mock(),
   sendSoftCollectionDay14: mock(),
@@ -215,6 +216,9 @@ mock.module('@/server/services/stripe/checkout', () => ({
 }));
 mock.module('@/server/services/stripe/customer', () => ({
   getOrCreateCustomer: mock(),
+}));
+mock.module('@/server/services/owner-provisioning', () => ({
+  provisionOwnerAccount: mock(() => Promise.resolve({ setupUrl: null })),
 }));
 mock.module('@/server/services/collection', () => ({
   identifyDuePayments: mock(() => Promise.resolve([])),

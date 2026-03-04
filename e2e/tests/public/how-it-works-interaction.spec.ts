@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 
 test.describe('How It Works — Interactions', () => {
   test.beforeEach(async ({ page }) => {
@@ -20,9 +21,11 @@ test.describe('How It Works — Interactions', () => {
   });
 
   test('clinic benefits section shows key value props', async ({ page }) => {
-    // "Earn 3%" — uses first() because multiple elements may contain "3%"
-    await expect(page.getByText('3%', { exact: false }).first()).toBeVisible();
-    await expect(page.getByText('Earn 3% on every enrollment')).toBeVisible();
+    // Clinic share percentage — uses first() because multiple elements may contain it
+    await expect(
+      page.getByText(`${CLINIC_SHARE_PERCENT}%`, { exact: false }).first(),
+    ).toBeVisible();
+    await expect(page.getByText(`Earn ${CLINIC_SHARE_PERCENT}% on every enrollment`)).toBeVisible();
     await expect(page.getByText('Automated payment recovery')).toBeVisible();
     await expect(page.getByText('Fast payouts')).toBeVisible();
   });

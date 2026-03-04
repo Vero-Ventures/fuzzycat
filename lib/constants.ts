@@ -13,6 +13,9 @@ export const DEPOSIT_RATE = 0.25;
 /** Revenue share paid to clinics per enrollment. */
 export const CLINIC_SHARE_RATE = 0.03;
 
+/** Clinic share as a whole-number percentage (e.g. 3). Derived from CLINIC_SHARE_RATE. */
+export const CLINIC_SHARE_PERCENT = Math.round(CLINIC_SHARE_RATE * 100);
+
 /** Fraction of each transaction allocated to the platform reserve. */
 export const PLATFORM_RESERVE_RATE = 0.01;
 

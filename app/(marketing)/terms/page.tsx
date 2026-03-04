@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Separator } from '@/components/ui/separator';
-import { FEE_PERCENT } from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -164,8 +164,8 @@ export default function TermsOfServicePage() {
               connected bank account.
             </li>
             <li>
-              You will receive a 3% platform administration compensation on each enrollment, paid as
-              part of your payout schedule.
+              You will receive a {CLINIC_SHARE_PERCENT}% platform administration compensation on
+              each enrollment, paid as part of your payout schedule.
             </li>
             <li>
               You are responsible for collecting any outstanding balance from clients whose plans

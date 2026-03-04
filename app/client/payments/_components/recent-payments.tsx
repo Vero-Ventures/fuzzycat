@@ -53,37 +53,62 @@ export function RecentPayments() {
         <CardTitle className="text-base">Recent Payments</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recentPayments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(payment.scheduledAt)}
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium capitalize">{payment.type}</span>
-                  {payment.clinicName && (
-                    <span className="text-muted-foreground"> &middot; {payment.clinicName}</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatCents(payment.amountCents)}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={payment.status} size="sm" />
-                </TableCell>
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {recentPayments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(payment.scheduledAt)}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium capitalize">{payment.type}</span>
+                    {payment.clinicName && (
+                      <span className="text-muted-foreground"> &middot; {payment.clinicName}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCents(payment.amountCents)}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={payment.status} size="sm" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile stacked cards */}
+        <div className="space-y-3 sm:hidden">
+          {recentPayments.map((payment) => (
+            <div
+              key={payment.id}
+              className="flex items-center justify-between rounded-md border p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium capitalize">{payment.type}</span>
+                  <StatusBadge status={payment.status} size="sm" />
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {formatDate(payment.scheduledAt)}
+                  {payment.clinicName && ` \u00B7 ${payment.clinicName}`}
+                </p>
+              </div>
+              <span className="ml-3 text-sm font-semibold">{formatCents(payment.amountCents)}</span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

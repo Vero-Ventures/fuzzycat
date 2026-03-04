@@ -1,4 +1,5 @@
 import { Button, Hr, Section, Text } from '@react-email/components';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { EmailLayout } from '@/server/emails/components/layout';
 import {
   heading,
@@ -45,13 +46,15 @@ export function ClinicWelcome({
           2. Clients pay 25% upfront and the rest in 6 biweekly installments
         </Text>
         <Text style={tableRow}>3. Your clinic receives payments as each installment clears</Text>
-        <Text style={tableRow}>4. Earn a 3% revenue share on every enrollment</Text>
+        <Text style={tableRow}>
+          4. Earn a {CLINIC_SHARE_PERCENT}% revenue share on every enrollment
+        </Text>
       </Section>
 
       <Section style={infoBox}>
         <Text style={{ ...paragraph, color: '#1e40af', margin: '0' }}>
-          Your clinic earns 3% on every FuzzyCat enrollment. This is paid as platform administration
-          compensation alongside each payment transfer.
+          Your clinic earns {CLINIC_SHARE_PERCENT}% on every FuzzyCat enrollment. This is paid as
+          platform administration compensation alongside each payment transfer.
         </Text>
       </Section>
 

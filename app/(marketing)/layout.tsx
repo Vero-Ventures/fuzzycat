@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { FEE_PERCENT } from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: {
     template: '%s | FuzzyCat',
     default: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   },
-  description: `Pay your vet bill in easy biweekly installments. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn 3% on every enrollment.`,
+  description: `Pay your vet bill in easy biweekly installments. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn ${CLINIC_SHARE_PERCENT}% on every enrollment.`,
 };
 
 function Header() {

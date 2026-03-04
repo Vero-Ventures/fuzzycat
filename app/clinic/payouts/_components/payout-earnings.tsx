@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock, DollarSign, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents } from '@/lib/utils/money';
 
@@ -42,15 +43,19 @@ export function PayoutEarnings() {
         </CardContent>
       </Card>
 
-      {/* 3% Revenue Share */}
+      {/* Clinic Revenue Share */}
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">3% Revenue Share</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            {CLINIC_SHARE_PERCENT}% Revenue Share
+          </CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCents(earnings.totalClinicShareCents)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Platform administration share</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Calculated on each payment amount (bill + fee)
+          </p>
         </CardContent>
       </Card>
 

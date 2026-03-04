@@ -68,7 +68,8 @@ export function PaymentHistoryTable({ planId }: PaymentHistoryTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
+      {/* Desktop table */}
+      <div className="hidden rounded-md border sm:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -105,6 +106,31 @@ export function PaymentHistoryTable({ planId }: PaymentHistoryTableProps) {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Mobile stacked layout */}
+      <div className="space-y-2 sm:hidden">
+        {data.payments.map((payment) => (
+          <div key={payment.id} className="flex items-center justify-between rounded-md border p-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium capitalize">
+                  {payment.type}
+                  {payment.sequenceNum !== null && payment.type === 'installment'
+                    ? ` #${payment.sequenceNum}`
+                    : ''}
+                </span>
+                <Badge variant={STATUS_VARIANT[payment.status] ?? 'secondary'} className="text-xs">
+                  {STATUS_LABEL[payment.status] ?? payment.status}
+                </Badge>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {formatDate(payment.processedAt ?? payment.scheduledAt)}
+              </p>
+            </div>
+            <span className="ml-3 text-sm font-semibold">{formatCents(payment.amountCents)}</span>
+          </div>
+        ))}
       </div>
 
       {/* Pagination */}

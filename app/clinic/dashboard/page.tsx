@@ -4,6 +4,7 @@ import { createServerHelpers } from '@/lib/trpc/server';
 import { DashboardContent } from './_components/dashboard-content';
 import { FoundingClinicBanner } from './_components/founding-clinic-banner';
 import { InitiateEnrollmentButton } from './_components/initiate-enrollment-button';
+import { PaymentFlowInfo } from './_components/payment-flow-info';
 import { RevenueTable } from './_components/revenue-table';
 
 export const metadata: Metadata = {
@@ -33,6 +34,10 @@ export default async function ClinicDashboardPage() {
 
         <div className="mt-4">
           <FoundingClinicBanner />
+        </div>
+
+        <div className="mt-4">
+          <PaymentFlowInfo />
         </div>
 
         <DashboardContent />

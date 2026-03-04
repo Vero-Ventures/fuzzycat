@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { FEE_PERCENT } from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Support',
@@ -184,20 +184,22 @@ export default function SupportPage() {
               <AccordionContent>
                 <p>
                   Nothing. FuzzyCat is free for veterinary clinics. The {FEE_PERCENT}% platform fee
-                  is paid entirely by the client. Clinics earn a 3% revenue share on every
-                  enrollment as platform administration compensation.
+                  is paid entirely by the client. Clinics earn a {CLINIC_SHARE_PERCENT}% revenue
+                  share on every enrollment as platform administration compensation.
                 </p>
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="clinic-revenue-share">
-              <AccordionTrigger>How does the 3% revenue share work?</AccordionTrigger>
+              <AccordionTrigger>
+                How does the {CLINIC_SHARE_PERCENT}% revenue share work?
+              </AccordionTrigger>
               <AccordionContent>
                 <p>
-                  For each enrollment, the clinic receives a 3% share of the total bill as platform
-                  administration compensation. This is paid out via Stripe Connect along with
-                  regular payment transfers. You can track your revenue share in the Payouts section
-                  of your clinic portal.
+                  For each enrollment, the clinic receives a {CLINIC_SHARE_PERCENT}% share of each
+                  payment amount (bill + fee) as platform administration compensation. This is paid
+                  out via Stripe Connect along with regular payment transfers. You can track your
+                  revenue share in the Payouts section of your clinic portal.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -287,8 +289,8 @@ export default function SupportPage() {
                 <p>
                   FuzzyCat is a payment plan platform for veterinary clinics. Pet owners split their
                   vet bill into a 25% deposit and 6 biweekly installments over 12 weeks. There is no
-                  interest, no credit check, and no loan. Clinics earn a 3% revenue share on every
-                  enrollment at zero cost.
+                  interest, no credit check, and no loan. Clinics earn a {CLINIC_SHARE_PERCENT}%
+                  revenue share on every enrollment at zero cost.
                 </p>
               </AccordionContent>
             </AccordionItem>

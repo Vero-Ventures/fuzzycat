@@ -195,33 +195,60 @@ function OwnerPaymentSchedule({ planId }: { planId: string }) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Type</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Date</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      {/* Desktop table */}
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Type</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.payments.map((payment) => (
+              <TableRow key={payment.id}>
+                <TableCell className="capitalize">
+                  {payment.type === 'installment' && payment.sequenceNum
+                    ? `Installment ${payment.sequenceNum}`
+                    : 'Deposit'}
+                </TableCell>
+                <TableCell>{formatCents(payment.amountCents)}</TableCell>
+                <TableCell>
+                  <StatusBadge status={payment.status} size="sm" />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(payment.processedAt ?? payment.scheduledAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile stacked layout */}
+      <div className="space-y-2 sm:hidden">
         {data.payments.map((payment) => (
-          <TableRow key={payment.id}>
-            <TableCell className="capitalize">
-              {payment.type === 'installment' && payment.sequenceNum
-                ? `Installment ${payment.sequenceNum}`
-                : 'Deposit'}
-            </TableCell>
-            <TableCell>{formatCents(payment.amountCents)}</TableCell>
-            <TableCell>
-              <StatusBadge status={payment.status} size="sm" />
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(payment.processedAt ?? payment.scheduledAt)}
-            </TableCell>
-          </TableRow>
+          <div key={payment.id} className="flex items-center justify-between rounded-md border p-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium capitalize">
+                  {payment.type === 'installment' && payment.sequenceNum
+                    ? `Inst. ${payment.sequenceNum}`
+                    : 'Deposit'}
+                </span>
+                <StatusBadge status={payment.status} size="sm" />
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {formatDate(payment.processedAt ?? payment.scheduledAt)}
+              </p>
+            </div>
+            <span className="ml-3 text-sm font-semibold">{formatCents(payment.amountCents)}</span>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }

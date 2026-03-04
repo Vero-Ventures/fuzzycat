@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents } from '@/lib/utils/money';
 
@@ -46,7 +47,8 @@ export function RevenueTable() {
       <CardHeader>
         <CardTitle>Monthly Revenue</CardTitle>
         <CardDescription>
-          Payout totals and your 3% platform administration share by month.
+          Payout totals and your {CLINIC_SHARE_PERCENT}% platform administration share by month. The
+          share is calculated on the full payment amount (bill + fee).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -61,7 +63,7 @@ export function RevenueTable() {
                 <TableHead>Month</TableHead>
                 <TableHead className="text-right">Payouts</TableHead>
                 <TableHead className="text-right">Total Received</TableHead>
-                <TableHead className="text-right">3% Share</TableHead>
+                <TableHead className="text-right">{CLINIC_SHARE_PERCENT}% Share</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

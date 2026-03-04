@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle2, Clock, DollarSign, FileText, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { formatCents } from '@/lib/utils/money';
 
 export interface Enrollment {
@@ -63,7 +64,9 @@ export function DashboardStats({ data }: { data: DashboardStatsData }) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCents(data.totalRevenueCents)}</div>
-          <p className="mt-1 text-xs text-muted-foreground">3% platform administration share</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {CLINIC_SHARE_PERCENT}% share on each payment (bill + fee)
+          </p>
         </CardContent>
       </Card>
 

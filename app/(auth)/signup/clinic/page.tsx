@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 
 export default function ClinicSignupPage() {
   const router = useRouter();
@@ -221,7 +222,7 @@ export default function ClinicSignupPage() {
               <p className="font-medium">The FuzzyCat solution:</p>
               <ul className="list-disc pl-4 space-y-0.5">
                 <li>Clients pay over time &mdash; no credit checks, no high interest</li>
-                <li>Your clinic earns 3% on every enrollment</li>
+                <li>Your clinic earns {CLINIC_SHARE_PERCENT}% on every enrollment</li>
                 <li>Secure, encrypted platform with no charge to clinics</li>
                 <li>Clients pay 25% down, then biweekly debits for up to 12 weeks</li>
                 <li>Higher treatment acceptance and increased revenue</li>
@@ -245,7 +246,7 @@ export default function ClinicSignupPage() {
           <div className="space-y-6">
             <FeatureCard
               icon={<HandCoins className="h-5 w-5" />}
-              title="Earn 3% revenue share"
+              title={`Earn ${CLINIC_SHARE_PERCENT}% revenue share`}
               description="The only payment plan that pays clinics instead of charging them."
             />
             <FeatureCard

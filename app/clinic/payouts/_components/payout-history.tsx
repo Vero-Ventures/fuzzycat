@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
@@ -68,7 +69,7 @@ export function PayoutHistory() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">3% Share</TableHead>
+                  <TableHead className="text-right">{CLINIC_SHARE_PERCENT}% Share</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Transfer ID</TableHead>
                 </TableRow>

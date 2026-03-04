@@ -17,12 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-  CLINIC_SHARE_RATE,
-  DEPOSIT_RATE,
-  NUM_INSTALLMENTS,
-  PLATFORM_FEE_RATE,
-} from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, DEPOSIT_RATE, FEE_PERCENT, NUM_INSTALLMENTS } from '@/lib/constants';
 import { PaymentCalculator } from './payment-calculator';
 
 export const metadata: Metadata = {
@@ -36,9 +31,9 @@ export const metadata: Metadata = {
 };
 
 export default function HowItWorksPage() {
-  const feePercent = Math.round(PLATFORM_FEE_RATE * 100);
+  const feePercent = FEE_PERCENT;
   const depositPercent = Math.round(DEPOSIT_RATE * 100);
-  const clinicSharePercent = Math.round(CLINIC_SHARE_RATE * 100);
+  const clinicSharePercent = CLINIC_SHARE_PERCENT;
 
   return (
     <>

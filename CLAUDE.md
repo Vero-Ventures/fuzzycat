@@ -93,8 +93,8 @@ bunx drizzle-kit generate        # Generate SQL migrations
 
 ```
 ENROLLMENT:
-  1. Owner enters vet bill → system calculates 6% fee, 25% deposit, 6 installments
-  2. Owner enters debit card (Stripe Checkout) for deposit, connects bank for ACH installments
+  1. Owner enters vet bill → system calculates 8% fee, 25% deposit, 6 installments
+  2. Owner connects debit card or bank account via Stripe
   3. Deposit charged immediately → plan becomes "active"
   4. Remaining 75% split into 6 biweekly ACH debits
 

@@ -172,14 +172,14 @@ export async function signUpClient(formData: FormData): Promise<ActionResult> {
     return { error: parsed.error.issues.map((issue) => issue.message).join(' ') };
   }
 
-  const { email, password, name, phone, petName, referralCode: ownerRefCode } = parsed.data;
+  const { email, password, name, phone, petName, referralCode: clientRefCode } = parsed.data;
   const { userId, hasSession, error } = await signUpWithRole(email, password, 'client');
 
   if (error) {
     return { error };
   }
 
-  let ownerId: string | undefined;
+  let clientId: string | undefined;
   try {
     const [inserted] = await db
       .insert(clients)
@@ -192,7 +192,7 @@ export async function signUpClient(formData: FormData): Promise<ActionResult> {
         paymentMethod: 'debit_card',
       })
       .returning({ id: clients.id });
-    ownerId = inserted?.id;
+    clientId = inserted?.id;
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Signup failed at DB insert', {
@@ -226,8 +226,8 @@ export async function signUpClient(formData: FormData): Promise<ActionResult> {
   }
 
   // Convert client referral if a valid code was provided
-  if (ownerRefCode && ownerId) {
-    await tryConvertClientReferral(ownerRefCode, ownerId);
+  if (clientRefCode && clientId) {
+    await tryConvertClientReferral(clientRefCode, clientId);
   }
 
   return { error: null, needsEmailConfirmation: !hasSession };

@@ -47,7 +47,7 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 }
 
 // ── Constants ───────────────────────────────────────────────────────
-const NUM_OWNERS = 50;
+const NUM_CLIENTS = 50;
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const now = new Date();
@@ -376,7 +376,7 @@ function daysAgo(days: number): Date {
   return new Date(now.getTime() - days * DAY_MS);
 }
 
-function ownerEmail(n: number): string {
+function clientEmail(n: number): string {
   return `e2e-owner-${n}@fuzzycatapp.com`;
 }
 
@@ -427,17 +427,17 @@ async function createAuthUser(email: string): Promise<string | null> {
 async function cleanPreviousDemoData(): Promise<void> {
   console.log('Cleaning previous demo data...');
 
-  const demoOwners = await db
+  const demoClients = await db
     .select({ id: clients.id })
     .from(clients)
     .where(ilike(clients.email, 'e2e-owner-%@fuzzycatapp.com'));
 
-  if (demoOwners.length > 0) {
-    const demoOwnerIds = demoOwners.map((o) => o.id);
+  if (demoClients.length > 0) {
+    const demoClientIds = demoClients.map((o) => o.id);
     const demoPlans = await db
       .select({ id: plans.id })
       .from(plans)
-      .where(inArray(plans.clientId, demoOwnerIds));
+      .where(inArray(plans.clientId, demoClientIds));
 
     if (demoPlans.length > 0) {
       const demoPlanIds = demoPlans.map((p) => p.id);
@@ -455,25 +455,25 @@ async function cleanPreviousDemoData(): Promise<void> {
       await db.delete(auditLog).where(inArray(auditLog.entityId, demoPlanIds));
       await db.delete(payments).where(inArray(payments.planId, demoPlanIds));
       await db.delete(payouts).where(inArray(payouts.planId, demoPlanIds));
-      await db.delete(plans).where(inArray(plans.clientId, demoOwnerIds));
+      await db.delete(plans).where(inArray(plans.clientId, demoClientIds));
     }
 
-    await db.delete(pets).where(inArray(pets.clientId, demoOwnerIds));
-    await db.delete(clients).where(inArray(clients.id, demoOwnerIds));
+    await db.delete(pets).where(inArray(pets.clientId, demoClientIds));
+    await db.delete(clients).where(inArray(clients.id, demoClientIds));
   }
 
   await db.delete(clinics).where(ilike(clinics.email, 'demo-%@fuzzycatapp.com'));
-  console.log(`  Cleaned ${demoOwners.length} previous demo clients.\n`);
+  console.log(`  Cleaned ${demoClients.length} previous demo clients.\n`);
 }
 
 async function createAuthAccounts(): Promise<Map<number, string>> {
   console.log('Creating Supabase auth accounts for 50 clients...');
   const authIds = new Map<number, string>();
 
-  for (let i = 1; i <= NUM_OWNERS; i++) {
-    const authId = await createAuthUser(ownerEmail(i));
+  for (let i = 1; i <= NUM_CLIENTS; i++) {
+    const authId = await createAuthUser(clientEmail(i));
     if (authId) authIds.set(i, authId);
-    if (i % 10 === 0) console.log(`  ${i}/${NUM_OWNERS} accounts processed`);
+    if (i % 10 === 0) console.log(`  ${i}/${NUM_CLIENTS} accounts processed`);
   }
 
   console.log(`  ${authIds.size} auth accounts ready.\n`);
@@ -511,19 +511,19 @@ async function insertDemoClinics(): Promise<string[]> {
   return clinicIds;
 }
 
-async function insertDemoOwners(authIds: Map<number, string>): Promise<string[]> {
+async function insertDemoClients(authIds: Map<number, string>): Promise<string[]> {
   console.log('Inserting 50 demo clients with pets...');
   const clientIds: string[] = [];
 
-  for (let i = 1; i <= NUM_OWNERS; i++) {
+  for (let i = 1; i <= NUM_CLIENTS; i++) {
     const stateIdx = i % US_STATES.length;
-    const ownerCreatedAt = daysAgo(randInt(14, 270)); // 2 weeks to 9 months ago
+    const clientCreatedAt = daysAgo(randInt(14, 270)); // 2 weeks to 9 months ago
     const [inserted] = await db
       .insert(clients)
       .values({
         authId: authIds.get(i) ?? null,
         name: `${FIRST_NAMES[i - 1]} ${LAST_NAMES[i - 1]}`,
-        email: ownerEmail(i),
+        email: clientEmail(i),
         phone: `(555) ${String(i).padStart(3, '0')}-${String(1000 + i).padStart(4, '0')}`,
         addressLine1: `${randInt(100, 9999)} ${pick(['Main', 'Oak', 'Elm', 'Park', 'First'])} St`,
         addressCity: CITIES[stateIdx],
@@ -532,19 +532,19 @@ async function insertDemoOwners(authIds: Map<number, string>): Promise<string[]>
         petName: PET_NAMES[i - 1],
         stripeCustomerId: `cus_test_demo_${i}`,
         paymentMethod: i % 3 === 0 ? 'bank_account' : 'debit_card',
-        createdAt: ownerCreatedAt,
-        updatedAt: ownerCreatedAt,
+        createdAt: clientCreatedAt,
+        updatedAt: clientCreatedAt,
       })
       .returning({ id: clients.id });
     clientIds.push(inserted.id);
-    await insertPetsForOwner(inserted.id, i);
+    await insertPetsForClient(inserted.id, i);
   }
 
   console.log(`  ${clientIds.length} clients created with pets.\n`);
   return clientIds;
 }
 
-async function insertPetsForOwner(clientId: string, ownerIndex: number): Promise<void> {
+async function insertPetsForClient(clientId: string, clientIndex: number): Promise<void> {
   const numPets = randInt(1, 3);
   for (let p = 0; p < numPets; p++) {
     const species = PET_SPECIES[randInt(0, PET_SPECIES.length - 1)];
@@ -553,7 +553,7 @@ async function insertPetsForOwner(clientId: string, ownerIndex: number): Promise
     await db.insert(pets).values({
       clientId,
       name:
-        p === 0 ? PET_NAMES[ownerIndex - 1] : PET_NAMES[(ownerIndex + p * 7) % PET_NAMES.length],
+        p === 0 ? PET_NAMES[clientIndex - 1] : PET_NAMES[(clientIndex + p * 7) % PET_NAMES.length],
       species,
       breed,
       age: randInt(1, 15),
@@ -893,7 +893,7 @@ function buildPlanAssignments(): { clientIdx: number; status: PlanStatus }[] {
 
   const assignments: { clientIdx: number; status: PlanStatus }[] = [];
   for (let i = 0; i < statusPool.length; i++) {
-    assignments.push({ clientIdx: i % NUM_OWNERS, status: statusPool[i] });
+    assignments.push({ clientIdx: i % NUM_CLIENTS, status: statusPool[i] });
   }
 
   for (let i = assignments.length - 1; i > 0; i--) {
@@ -963,7 +963,7 @@ async function main() {
   const authIds = await createAuthAccounts();
   const clinicIds = await insertDemoClinics();
   const allClinicIds = [clinicRow.id, ...clinicIds];
-  const clientIds = await insertDemoOwners(authIds);
+  const clientIds = await insertDemoClients(authIds);
   await generatePlans(clientIds, allClinicIds);
   await printSummary();
 }

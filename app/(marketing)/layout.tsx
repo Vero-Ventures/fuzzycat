@@ -65,7 +65,7 @@ function Header() {
             </Button>
           </Link>
           <Link href="/login/client">
-            <Button size="sm">Owner</Button>
+            <Button size="sm">Client</Button>
           </Link>
         </nav>
       </div>

@@ -277,7 +277,7 @@ export const adminRouter = router({
           .enum(['pending', 'processing', 'succeeded', 'failed', 'retried', 'written_off'])
           .optional(),
         clinicId: z.string().uuid().optional(),
-        ownerName: z.string().max(200).optional(),
+        clientName: z.string().max(200).optional(),
         clinicName: z.string().max(200).optional(),
         dateFrom: z.string().datetime().optional(),
         dateTo: z.string().datetime().optional(),
@@ -296,8 +296,8 @@ export const adminRouter = router({
         conditions.push(eq(plans.clinicId, input.clinicId));
       }
 
-      if (input.ownerName) {
-        conditions.push(ilike(clients.name, `%${escapeIlike(input.ownerName)}%`));
+      if (input.clientName) {
+        conditions.push(ilike(clients.name, `%${escapeIlike(input.clientName)}%`));
       }
 
       if (input.clinicName) {

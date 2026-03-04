@@ -50,7 +50,7 @@ type PaymentStatusFilter =
 export function PaymentList() {
   const trpc = useTRPC();
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
-  const [ownerName, setOwnerName] = useState('');
+  const [clientName, setClientName] = useState('');
   const [clinicName, setClinicName] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -60,7 +60,7 @@ export function PaymentList() {
   const { data, isLoading, error } = useQuery(
     trpc.admin.getPayments.queryOptions({
       status: statusFilter === 'all' ? undefined : statusFilter,
-      ownerName: ownerName || undefined,
+      clientName: clientName || undefined,
       clinicName: clinicName || undefined,
       dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
       dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
@@ -123,9 +123,9 @@ export function PaymentList() {
           <div className="flex gap-2">
             <Input
               placeholder="Filter by client name..."
-              value={ownerName}
+              value={clientName}
               onChange={(e) => {
-                setOwnerName(e.target.value);
+                setClientName(e.target.value);
                 setOffset(0);
               }}
               className="max-w-xs"

@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: {
     template: '%s | FuzzyCat',
     default: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
   },
-  description:
-    'Pay your vet bill in easy biweekly installments. No credit check. Flat 8% fee. Clinics earn 3% on every enrollment.',
+  description: `Pay your vet bill in easy biweekly installments. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn 3% on every enrollment.`,
 };
 
 function Header() {
@@ -22,6 +22,7 @@ function Header() {
           <Cat className="h-7 w-7 text-primary" />
           <span className="text-xl font-bold tracking-tight">FuzzyCat</span>
         </Link>
+        {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
           <Link
             href="/how-it-works"
@@ -36,36 +37,21 @@ function Header() {
             Support
           </Link>
           <ThemeToggle />
-          <Link href="/login/clinic">
-            <Button variant="outline" size="sm">
-              Clinic Portal
-            </Button>
-          </Link>
-          <Link href="/login/client">
-            <Button size="sm">Client Portal</Button>
+          <Link href="/login">
+            <Button size="sm">Sign In</Button>
           </Link>
         </nav>
-        <nav className="flex items-center gap-2 md:hidden">
+        {/* Mobile nav — minimal to prevent crowding */}
+        <nav className="flex items-center gap-3 md:hidden">
           <Link
             href="/how-it-works"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             How It Works
           </Link>
-          <Link
-            href="/support"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Support
-          </Link>
           <ThemeToggle />
-          <Link href="/login/clinic">
-            <Button variant="outline" size="sm">
-              Clinic
-            </Button>
-          </Link>
-          <Link href="/login/client">
-            <Button size="sm">Client</Button>
+          <Link href="/login">
+            <Button size="sm">Sign In</Button>
           </Link>
         </nav>
       </div>

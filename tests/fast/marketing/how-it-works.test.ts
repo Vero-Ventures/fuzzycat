@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { FEE_PERCENT } from '@/lib/constants';
 import { fetchPage } from '../helpers/fetch';
 
 describe('How It Works /how-it-works', () => {
@@ -24,7 +25,7 @@ describe('How It Works /how-it-works', () => {
   test('what you pay section', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Flat 8% platform fee');
+    expect(text).toContain(`Flat ${FEE_PERCENT}% platform fee`);
     expect(text).toContain('25% deposit up front');
     expect(text).toContain('6 biweekly installments');
     expect(text).toContain('No credit check');

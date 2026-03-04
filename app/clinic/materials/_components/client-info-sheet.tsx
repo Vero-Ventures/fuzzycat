@@ -1,5 +1,7 @@
 'use client';
 
+import { FEE_PERCENT } from '@/lib/constants';
+
 interface ClientInfoSheetProps {
   clinicName: string;
 }
@@ -35,7 +37,7 @@ export function ClientInfoSheet({ clinicName }: ClientInfoSheetProps) {
               <span className="font-medium">$2,000</span>
             </div>
             <div className="flex justify-between text-gray-500">
-              <span>Platform fee (8%)</span>
+              <span>Platform fee ({FEE_PERCENT}%)</span>
               <span>$160</span>
             </div>
             <div className="mt-1 border-t pt-1 flex justify-between font-medium">

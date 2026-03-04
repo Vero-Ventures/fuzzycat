@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { FEE_PERCENT } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents } from '@/lib/utils/money';
 
@@ -110,7 +111,7 @@ export default function DepositPaymentPage() {
               <span className="font-medium">{formatCents(plan.totalBillCents)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Platform Fee (8%)</span>
+              <span className="text-muted-foreground">Platform Fee ({FEE_PERCENT}%)</span>
               <span className="font-medium">{formatCents(plan.feeCents)}</span>
             </div>
             <div className="flex justify-between">

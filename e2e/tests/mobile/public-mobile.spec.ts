@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { FEE_PERCENT } from '@/lib/constants';
 
 test.describe('Public Pages — Mobile', () => {
   test('landing page hero renders on mobile', async ({ page }, testInfo) => {
@@ -36,7 +37,9 @@ test.describe('Public Pages — Mobile', () => {
     }
 
     // Pricing cards should stack
-    await expect(page.getByText(/flat 8% fee/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(new RegExp(`flat ${FEE_PERCENT}% fee`, 'i')).first()).toBeVisible({
+      timeout: 5000,
+    });
     await expect(page.getByText(/no credit check/i).first()).toBeVisible({ timeout: 3000 });
 
     await testInfo.attach('mobile-landing-pricing', {

@@ -1,12 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Eye, MoreHorizontal, Search } from 'lucide-react';
+import { AlertCircle, Eye, MoreHorizontal, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { AvatarInitials } from '@/components/shared/avatar-initials';
 import { NumberedPagination } from '@/components/shared/numbered-pagination';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -78,14 +79,14 @@ export function ClientList() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Client Plans</CardTitle>
+        <CardTitle>Clients</CardTitle>
 
         {/* Full-width search bar + filter */}
         <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by owner name or pet name..."
+              placeholder="Search by client name or pet name..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9"
@@ -122,6 +123,20 @@ export function ClientList() {
   );
 }
 
+interface ClientRow {
+  clientId: string;
+  ownerName: string | null;
+  ownerEmail: string | null;
+  planCount: number;
+  activePlanCount: number;
+  totalOutstandingCents: number;
+  totalPaidCents: number;
+  latestPlanId: string;
+  latestStatus: string;
+  nextPaymentAt: Date | null;
+  hasDefaulted: boolean;
+}
+
 function ClientListContent({
   isLoading,
   error,
@@ -137,16 +152,7 @@ function ClientListContent({
   error: unknown;
   data:
     | {
-        clients: {
-          planId: string;
-          ownerName: string | null;
-          ownerEmail: string | null;
-          petName: string | null;
-          planStatus: string;
-          totalBillCents: number;
-          totalPaidCents: number;
-          nextPaymentAt: Date | null;
-        }[];
+        clients: ClientRow[];
         pagination: { page: number; totalCount: number; totalPages: number };
       }
     | undefined;
@@ -181,17 +187,17 @@ function ClientListContent({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Pet Owner</TableHead>
-              <TableHead>Pet</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Plans</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="text-right">Total Outstanding</TableHead>
               <TableHead>Next Payment</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.clients.map((client) => (
-              <TableRow key={client.planId}>
+              <TableRow key={client.clientId}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <AvatarInitials name={client.ownerName ?? 'Unknown'} size="sm" />
@@ -201,12 +207,28 @@ function ClientListContent({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{client.petName ?? '--'}</TableCell>
                 <TableCell>
-                  <StatusBadge status={client.planStatus} size="sm" />
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-xs">
+                      {client.planCount} plan{client.planCount !== 1 ? 's' : ''}
+                    </Badge>
+                    {client.activePlanCount > 0 && (
+                      <Badge variant="default" className="text-xs">
+                        {client.activePlanCount} active
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
-                <TableCell className="text-right">
-                  {formatCents(Math.max(0, client.totalBillCents - client.totalPaidCents))}
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={client.latestStatus} size="sm" />
+                    {client.hasDefaulted && (
+                      <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatCents(client.totalOutstandingCents)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {client.nextPaymentAt ? formatDate(client.nextPaymentAt) : '--'}
@@ -221,7 +243,7 @@ function ClientListContent({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link href={`/clinic/clients/${client.planId}`}>
+                        <Link href={`/clinic/clients/${client.latestPlanId}`}>
                           <Eye className="h-4 w-4" />
                           View Details
                         </Link>
@@ -238,7 +260,7 @@ function ClientListContent({
       {data.pagination.totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
           <p className="text-sm text-muted-foreground">
-            Showing {startItem} to {endItem} of {data.pagination.totalCount}
+            Showing {startItem} to {endItem} of {data.pagination.totalCount} clients
           </p>
           <NumberedPagination
             currentPage={page}

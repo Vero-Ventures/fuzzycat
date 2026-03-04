@@ -633,33 +633,35 @@ export const clinicRouter = router({
 
       const whereClause = and(...conditions);
 
+      // Group by client — one row per unique client across all their plans
       const [clientRows, countResult] = await Promise.all([
         ctx.db
           .select({
-            planId: plans.id,
+            clientId: clients.id,
             ownerName: clients.name,
             ownerEmail: clients.email,
             ownerPhone: clients.phone,
-            petName: clients.petName,
-            totalBillCents: plans.totalBillCents,
-            totalWithFeeCents: plans.totalWithFeeCents,
-            planStatus: plans.status,
-            nextPaymentAt: plans.nextPaymentAt,
-            createdAt: plans.createdAt,
+            planCount: sql<number>`count(distinct ${plans.id})`,
+            activePlanCount: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+            totalOutstandingCents: sql<number>`coalesce(sum(${plans.totalWithFeeCents}), 0) - coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
             totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+            latestPlanId: sql<string>`(array_agg(${plans.id} order by ${plans.createdAt} desc))[1]`,
+            latestStatus: sql<string>`(array_agg(${plans.status} order by ${plans.createdAt} desc))[1]`,
+            nextPaymentAt: sql<Date | null>`min(${plans.nextPaymentAt})`,
+            hasDefaulted: sql<boolean>`bool_or(${plans.status} = 'defaulted')`,
           })
           .from(plans)
-          .leftJoin(clients, eq(plans.clientId, clients.id))
+          .innerJoin(clients, eq(plans.clientId, clients.id))
           .leftJoin(payments, eq(plans.id, payments.planId))
           .where(whereClause)
-          .groupBy(plans.id, clients.id)
-          .orderBy(desc(plans.createdAt))
+          .groupBy(clients.id)
+          .orderBy(desc(sql`max(${plans.createdAt})`))
           .limit(input.pageSize)
           .offset(offset),
         ctx.db
-          .select({ total: sql<number>`count(*)` })
+          .select({ total: sql<number>`count(distinct ${clients.id})` })
           .from(plans)
-          .leftJoin(clients, eq(plans.clientId, clients.id))
+          .innerJoin(clients, eq(plans.clientId, clients.id))
           .where(whereClause),
       ]);
 
@@ -668,8 +670,18 @@ export const clinicRouter = router({
 
       return {
         clients: clientRows.map((row) => ({
-          ...row,
+          clientId: row.clientId as string,
+          ownerName: row.ownerName,
+          ownerEmail: row.ownerEmail,
+          ownerPhone: row.ownerPhone,
+          planCount: Number(row.planCount),
+          activePlanCount: Number(row.activePlanCount),
+          totalOutstandingCents: Math.max(0, Number(row.totalOutstandingCents)),
           totalPaidCents: Number(row.totalPaidCents),
+          latestPlanId: row.latestPlanId,
+          latestStatus: row.latestStatus,
+          nextPaymentAt: row.nextPaymentAt,
+          hasDefaulted: row.hasDefaulted ?? false,
         })),
         pagination: {
           page: input.page,

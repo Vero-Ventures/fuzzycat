@@ -280,15 +280,20 @@ describe('clinic.getClients', () => {
   });
   afterEach(resetDbMocks);
 
-  it('returns paginated client list', async () => {
+  it('returns paginated client list grouped by client', async () => {
     const clientRow = {
-      planId: PLAN_ID,
+      clientId: '22222222-2222-4222-a222-222222222222',
       ownerName: 'Jane Doe',
       ownerEmail: 'jane@example.com',
-      petName: 'Whiskers',
-      totalBillCents: 120000,
-      planStatus: 'active',
+      ownerPhone: '555-1234',
+      planCount: '2',
+      activePlanCount: '1',
+      totalOutstandingCents: '72300',
       totalPaidCents: '47700',
+      latestPlanId: PLAN_ID,
+      latestStatus: 'active',
+      nextPaymentAt: null,
+      hasDefaulted: false,
     };
 
     createMockChain([
@@ -301,6 +306,7 @@ describe('clinic.getClients', () => {
     const result = await caller.getClients({ page: 1, pageSize: 20 });
     expect(result.clients).toHaveLength(1);
     expect(result.clients[0].ownerName).toBe('Jane Doe');
+    expect(result.clients[0].planCount).toBe(2);
     expect(result.pagination.totalCount).toBe(1);
   });
 

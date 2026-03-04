@@ -178,7 +178,7 @@ export default function LandingPage() {
                   <p className="mt-4 text-lg text-teal-100">
                     FuzzyCat is the only payment plan that pays clinics a {clinicSharePercent}%
                     revenue share on every enrollment. Increase treatment acceptance, earn more
-                    revenue, and never absorb default risk.
+                    revenue, and reduce default risk.
                   </p>
                 </div>
                 <div className="space-y-4">

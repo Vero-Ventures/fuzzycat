@@ -25,16 +25,13 @@ const mockCustomersUpdate = mock(() => Promise.resolve({}));
 const mockPaymentMethodsRetrieve = mock((_id: string) =>
   Promise.resolve({ id: _id, customer: 'cus_test' }),
 );
-const mockCustomersRetrieveSource = mock((_cust: string, _src: string) =>
-  Promise.resolve({ id: _src, status: 'verified' }),
-);
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
     checkout: { sessions: { create: mockCheckoutSessionsCreate } },
     paymentIntents: { create: mockPaymentIntentsCreate },
     transfers: { create: mockTransfersCreate },
-    customers: { update: mockCustomersUpdate, retrieveSource: mockCustomersRetrieveSource },
+    customers: { update: mockCustomersUpdate },
     paymentMethods: { retrieve: mockPaymentMethodsRetrieve },
   }),
 }));
@@ -247,7 +244,6 @@ function clearAllMocks() {
     mockTransfersCreate,
     mockCustomersUpdate,
     mockPaymentMethodsRetrieve,
-    mockCustomersRetrieveSource,
   ]) {
     m.mockClear();
   }

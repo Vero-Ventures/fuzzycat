@@ -124,8 +124,7 @@ mock.module('next/cache', () => ({
 
 mock.module('@/lib/stripe', () => ({
   stripe: () => ({
-    paymentMethods: { retrieve: mock() },
-    customers: { retrieveSource: mock() },
+    paymentMethods: { retrieve: mock(), detach: mock() },
     checkout: { sessions: { create: mock(), retrieve: mock() } },
     setupIntents: { retrieve: mock() },
   }),

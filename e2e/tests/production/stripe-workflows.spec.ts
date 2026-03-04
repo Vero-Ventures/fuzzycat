@@ -21,7 +21,7 @@ const E2E_PASSWORD = process.env.E2E_TEST_PASSWORD ?? TEST_PASSWORD;
 
 /** Log in via the Supabase auth API and set cookies directly — avoids
  *  form-based login flakiness and Supabase rate limits. */
-async function loginViaApi(page: import('@playwright/test').Page, role: 'owner' | 'clinic') {
+async function loginViaApi(page: import('@playwright/test').Page, role: 'client' | 'clinic') {
   const user = TEST_USERS[role];
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -69,9 +69,9 @@ async function loginViaApi(page: import('@playwright/test').Page, role: 'owner' 
   ]);
 }
 
-async function formLogin(page: import('@playwright/test').Page, role: 'owner' | 'clinic') {
+async function formLogin(page: import('@playwright/test').Page, role: 'client' | 'clinic') {
   const user = TEST_USERS[role];
-  const loginPath = role === 'owner' ? '/login/owner' : '/login/clinic';
+  const loginPath = role === 'client' ? '/login/client' : '/login/clinic';
 
   await page.goto(loginPath, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10_000 });
@@ -87,11 +87,11 @@ async function formLogin(page: import('@playwright/test').Page, role: 'owner' | 
 
 test.describe('Owner Stripe workflows', () => {
   test.beforeEach(async ({ page }) => {
-    await loginViaApi(page, 'owner');
+    await loginViaApi(page, 'client');
   });
 
   test('settings page displays saved card and bank account', async ({ page }, testInfo) => {
-    await page.goto('/owner/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/client/settings', { waitUntil: 'domcontentloaded' });
 
     // Wait for the Payment Method section to load
     await expect(page.getByText('Payment Method', { exact: true })).toBeVisible({
@@ -129,7 +129,7 @@ test.describe('Owner Stripe workflows', () => {
   });
 
   test('debit card replace redirects to Stripe Checkout', async ({ page }, testInfo) => {
-    await page.goto('/owner/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/client/settings', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByText('Payment Method', { exact: true })).toBeVisible({
       timeout: 15_000,
@@ -161,7 +161,7 @@ test.describe('Owner Stripe workflows', () => {
   });
 
   test('bank account (ACH) switch or setup works', async ({ page }, testInfo) => {
-    await page.goto('/owner/settings', { waitUntil: 'domcontentloaded' });
+    await page.goto('/client/settings', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByText('Payment Method', { exact: true })).toBeVisible({
       timeout: 15_000,

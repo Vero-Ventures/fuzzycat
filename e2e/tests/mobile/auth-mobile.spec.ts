@@ -70,11 +70,11 @@ test.describe('Auth Pages — Mobile', () => {
       await expect(clinicNameInput).toBeVisible({ timeout: 3000 });
     }
 
-    // Switch back to owner tab
-    const ownerTab = page.getByRole('tab', { name: /pet owner|owner/i });
+    // Switch back to client tab
+    const clientTab = page.getByRole('tab', { name: /pet parent|client/i });
 
-    if (await ownerTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await ownerTab.click();
+    if (await clientTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await clientTab.click();
     }
 
     // Fill form on mobile

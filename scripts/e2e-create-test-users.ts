@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Standalone script to provision E2E test users in Supabase AND create
- * corresponding identity rows in the database (clinics/owners tables).
+ * corresponding identity rows in the database (clinics/clients tables).
  *
  * Run manually: `bun run scripts/e2e-create-test-users.ts`
  *
@@ -10,12 +10,12 @@
 
 import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
-import { clinics, owners } from '@/server/db/schema';
+import { clients, clinics } from '@/server/db/schema';
 
 const USERS = [
   {
     email: process.env.E2E_OWNER_EMAIL ?? 'e2e-owner@fuzzycatapp.com',
-    role: 'owner',
+    role: 'client',
   },
   {
     email: process.env.E2E_CLINIC_EMAIL ?? 'e2e-clinic@fuzzycatapp.com',
@@ -124,9 +124,9 @@ async function ensureClinicRow(authId: string, email: string) {
 
 async function ensureOwnerRow(authId: string, email: string) {
   const [existing] = await db
-    .select({ id: owners.id })
-    .from(owners)
-    .where(eq(owners.authId, authId))
+    .select({ id: clients.id })
+    .from(clients)
+    .where(eq(clients.authId, authId))
     .limit(1);
 
   if (existing) {
@@ -135,7 +135,7 @@ async function ensureOwnerRow(authId: string, email: string) {
   }
 
   const [created] = await db
-    .insert(owners)
+    .insert(clients)
     .values({
       authId,
       name: 'E2E Test Owner',
@@ -144,7 +144,7 @@ async function ensureOwnerRow(authId: string, email: string) {
       petName: 'TestPet',
       paymentMethod: 'debit_card',
     })
-    .returning({ id: owners.id });
+    .returning({ id: clients.id });
 
   console.log(`  DB: owner row created (${created.id})`);
 }
@@ -159,7 +159,7 @@ for (const user of USERS) {
   if (authId) {
     if (user.role === 'clinic') {
       await ensureClinicRow(authId, user.email);
-    } else if (user.role === 'owner') {
+    } else if (user.role === 'client') {
       await ensureOwnerRow(authId, user.email);
     } else {
       console.log(`  DB: admin role — no identity row needed`);

@@ -27,8 +27,8 @@ mock.module('@/server/db', () => ({
 
 mock.module('@/server/db/schema', () => ({
   clinics: { id: 'clinics.id', authId: 'clinics.auth_id' },
-  owners: { id: 'owners.id', authId: 'owners.auth_id' },
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  clients: { id: 'clients.id', authId: 'clients.auth_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   petsRelations: {},
 }));
 
@@ -37,7 +37,7 @@ const {
   createCallerFactory,
   adminProcedure,
   clinicProcedure,
-  ownerProcedure,
+  clientProcedure,
   protectedProcedure,
 } = await import('@/server/trpc');
 
@@ -47,7 +47,7 @@ const {
 const testRouter = router({
   adminAction: adminProcedure.query(() => ({ ok: true })),
   clinicAction: clinicProcedure.query(() => ({ ok: true })),
-  ownerAction: ownerProcedure.query(() => ({ ok: true })),
+  clientAction: clientProcedure.query(() => ({ ok: true })),
   protectedAction: protectedProcedure.query(() => ({ ok: true })),
 });
 
@@ -83,10 +83,10 @@ function makeMfaMock(opts: { hasVerifiedTotp: boolean; currentLevel: 'aal1' | 'a
 }
 
 function makeContext(
-  role: 'admin' | 'clinic' | 'owner',
+  role: 'admin' | 'clinic' | 'client',
   supabaseMock: ReturnType<typeof makeMfaMock>,
 ) {
-  const userIdMap = { admin: ADMIN_USER_ID, clinic: CLINIC_USER_ID, owner: OWNER_USER_ID };
+  const userIdMap = { admin: ADMIN_USER_ID, clinic: CLINIC_USER_ID, client: OWNER_USER_ID };
   return {
     db: dbMock,
     session: { userId: userIdMap[role], role },
@@ -194,30 +194,30 @@ describe('MFA enforcement in tRPC procedures', () => {
       });
     });
 
-    it('owner procedure does NOT enforce MFA even when enabled', async () => {
+    it('client procedure does NOT enforce MFA even when enabled', async () => {
       createMockChain([[{ id: OWNER_ROW_ID }]]);
       const supabaseMock = makeMfaMock({ hasVerifiedTotp: false, currentLevel: 'aal1' });
-      const caller = createCaller(makeContext('owner', supabaseMock));
-      const result = await caller.ownerAction();
+      const caller = createCaller(makeContext('client', supabaseMock));
+      const result = await caller.clientAction();
       expect(result.ok).toBe(true);
-      // MFA should not be checked for owner role
+      // MFA should not be checked for client role
       expect(supabaseMock.auth.mfa.listFactors).not.toHaveBeenCalled();
     });
   });
 
   describe('role enforcement (independent of MFA)', () => {
-    it('owner cannot access admin procedures', async () => {
+    it('client cannot access admin procedures', async () => {
       const supabaseMock = makeMfaMock({ hasVerifiedTotp: false, currentLevel: 'aal1' });
-      const caller = createCaller(makeContext('owner', supabaseMock));
+      const caller = createCaller(makeContext('client', supabaseMock));
       await expect(caller.adminAction()).rejects.toMatchObject({
         code: 'FORBIDDEN',
         message: 'Insufficient permissions',
       });
     });
 
-    it('owner cannot access clinic procedures', async () => {
+    it('client cannot access clinic procedures', async () => {
       const supabaseMock = makeMfaMock({ hasVerifiedTotp: false, currentLevel: 'aal1' });
-      const caller = createCaller(makeContext('owner', supabaseMock));
+      const caller = createCaller(makeContext('client', supabaseMock));
       await expect(caller.clinicAction()).rejects.toMatchObject({
         code: 'FORBIDDEN',
         message: 'Insufficient permissions',

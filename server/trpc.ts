@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import { isMfaEnabled } from '@/lib/supabase/mfa';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
-import { clinics, owners } from '@/server/db/schema';
+import { clients, clinics } from '@/server/db/schema';
 
 export type { UserRole };
 
@@ -177,16 +177,16 @@ export const clinicProcedure = roleProcedure('clinic', 'admin').use(async ({ ctx
   return next({ ctx: { ...ctx, clinicId: clinic?.id } });
 });
 
-export const ownerProcedure = roleProcedure('owner', 'admin').use(async ({ ctx, next }) => {
+export const clientProcedure = roleProcedure('client', 'admin').use(async ({ ctx, next }) => {
   const [owner] = await ctx.db
-    .select({ id: owners.id })
-    .from(owners)
-    .where(eq(owners.authId, ctx.session.userId))
+    .select({ id: clients.id })
+    .from(clients)
+    .where(eq(clients.authId, ctx.session.userId))
     .limit(1);
 
   if (!owner && ctx.session.role !== 'admin') {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Client profile not found' });
   }
 
-  return next({ ctx: { ...ctx, ownerId: owner?.id } });
+  return next({ ctx: { ...ctx, clientId: owner?.id } });
 });

@@ -10,12 +10,12 @@ describe.skipIf(!hasAuth())('Role-based access', () => {
     test(
       'owner → /clinic/dashboard redirects',
       async () => {
-        const cookies = await getAuthCookies('owner');
+        const cookies = await getAuthCookies('client');
         const { status, redirectUrl } = await fetchPage('/clinic/dashboard', { cookies });
         expect(status).toBe(307);
         expect(redirectUrl).toBeTruthy();
         const url = new URL(redirectUrl as string, 'http://localhost:3000');
-        expect(url.pathname).toBe('/owner/payments');
+        expect(url.pathname).toBe('/client/payments');
       },
       TIMEOUT,
     );
@@ -23,12 +23,12 @@ describe.skipIf(!hasAuth())('Role-based access', () => {
     test(
       'owner → /admin/dashboard redirects',
       async () => {
-        const cookies = await getAuthCookies('owner');
+        const cookies = await getAuthCookies('client');
         const { status, redirectUrl } = await fetchPage('/admin/dashboard', { cookies });
         expect(status).toBe(307);
         expect(redirectUrl).toBeTruthy();
         const url = new URL(redirectUrl as string, 'http://localhost:3000');
-        expect(url.pathname).toBe('/owner/payments');
+        expect(url.pathname).toBe('/client/payments');
       },
       TIMEOUT,
     );
@@ -36,10 +36,10 @@ describe.skipIf(!hasAuth())('Role-based access', () => {
 
   describe('clinic cannot access other portals', () => {
     test(
-      'clinic → /owner/payments redirects',
+      'clinic → /client/payments redirects',
       async () => {
         const cookies = await getAuthCookies('clinic');
-        const { status, redirectUrl } = await fetchPage('/owner/payments', { cookies });
+        const { status, redirectUrl } = await fetchPage('/client/payments', { cookies });
         expect(status).toBe(307);
         expect(redirectUrl).toBeTruthy();
         const url = new URL(redirectUrl as string, 'http://localhost:3000');
@@ -64,14 +64,14 @@ describe.skipIf(!hasAuth())('Role-based access', () => {
 
   describe('authenticated user on auth pages redirects to home', () => {
     test(
-      'owner on /login redirects to /owner/payments',
+      'owner on /login redirects to /client/payments',
       async () => {
-        const cookies = await getAuthCookies('owner');
+        const cookies = await getAuthCookies('client');
         const { status, redirectUrl } = await fetchPage('/login', { cookies });
         expect(status).toBe(307);
         expect(redirectUrl).toBeTruthy();
         const url = new URL(redirectUrl as string, 'http://localhost:3000');
-        expect(url.pathname).toBe('/owner/payments');
+        expect(url.pathname).toBe('/client/payments');
       },
       TIMEOUT,
     );

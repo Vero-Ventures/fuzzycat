@@ -38,8 +38,24 @@ export function RecentClinics() {
 
   const updateStatus = useMutation(
     trpc.admin.updateClinicStatus.mutationOptions({
-      onSuccess: () => {
+      onMutate: async ({ clinicId, status: newStatus }) => {
+        await queryClient.cancelQueries({ queryKey: trpc.admin.getClinics.queryKey() });
+        queryClient.setQueriesData(
+          { queryKey: trpc.admin.getClinics.queryKey() },
+          (old: typeof data) => {
+            if (!old) return old;
+            return {
+              ...old,
+              clinics: old.clinics.map((c: (typeof old.clinics)[number]) =>
+                c.id === clinicId ? { ...c, status: newStatus } : c,
+              ),
+            };
+          },
+        );
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({ queryKey: trpc.admin.getClinics.queryKey() });
+        queryClient.invalidateQueries({ queryKey: trpc.admin.getPlatformStats.queryKey() });
       },
     }),
   );

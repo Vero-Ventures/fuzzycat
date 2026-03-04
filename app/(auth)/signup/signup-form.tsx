@@ -4,13 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { Captcha, type CaptchaHandle } from '@/components/shared/captcha';
 import { PasswordInput } from '@/components/ui/password-input';
-import { signUpClinic, signUpOwner } from './actions';
+import { signUpClient, signUpClinic } from './actions';
 
-type Tab = 'owner' | 'clinic';
+type Tab = 'client' | 'clinic';
 
 export function SignupForm() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('owner');
+  const [tab, setTab] = useState<Tab>('client');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function SignupForm() {
         formData.set('captchaToken', token);
       }
 
-      const result = tab === 'owner' ? await signUpOwner(formData) : await signUpClinic(formData);
+      const result = tab === 'client' ? await signUpClient(formData) : await signUpClinic(formData);
 
       if (result.error) {
         setError(result.error);
@@ -42,7 +42,7 @@ export function SignupForm() {
         return;
       }
 
-      router.push(tab === 'owner' ? '/owner/payments' : '/clinic/dashboard');
+      router.push(tab === 'client' ? '/client/payments' : '/clinic/dashboard');
       router.refresh();
     } catch {
       setError('Something went wrong. Please try again.');
@@ -98,16 +98,16 @@ export function SignupForm() {
         <button
           type="button"
           role="tab"
-          aria-selected={tab === 'owner'}
+          aria-selected={tab === 'client'}
           aria-controls="signup-panel"
-          onClick={() => setTab('owner')}
+          onClick={() => setTab('client')}
           className={`flex-1 rounded-l-md px-4 py-2 text-sm font-medium ${
-            tab === 'owner'
+            tab === 'client'
               ? 'bg-primary text-primary-foreground'
               : 'bg-background text-foreground hover:bg-muted'
           }`}
         >
-          Pet Owner
+          Pet Parent
         </button>
         <button
           type="button"
@@ -160,7 +160,7 @@ export function SignupForm() {
           />
         </div>
 
-        {tab === 'owner' ? <OwnerFields /> : <ClinicFields />}
+        {tab === 'client' ? <ClientFields /> : <ClinicFields />}
 
         <Captcha ref={captchaRef} className="my-2" />
 
@@ -176,7 +176,7 @@ export function SignupForm() {
   );
 }
 
-function OwnerFields() {
+function ClientFields() {
   return (
     <>
       <div>

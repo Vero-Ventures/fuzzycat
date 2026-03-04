@@ -181,7 +181,7 @@ function ClientListContent({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Owner</TableHead>
+              <TableHead>Pet Owner</TableHead>
               <TableHead>Pet</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Balance</TableHead>

@@ -10,7 +10,7 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { escapeIlike } from '@/lib/utils/sql';
 import { API_PERMISSIONS } from '@/server/api/types';
-import { clinics, owners, payments, payouts, pets, plans } from '@/server/db/schema';
+import { clients, clinics, payments, payouts, pets, plans } from '@/server/db/schema';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/server/services/api-key';
 import { logAuditEvent } from '@/server/services/audit';
 import { sendClinicWelcome } from '@/server/services/email';
@@ -109,7 +109,7 @@ export const clinicRouter = router({
   }),
 
   /**
-   * Search existing clients (owners) who have plans with this clinic.
+   * Search existing clients (clients) who have plans with this clinic.
    * Used by the enrollment form to pre-populate returning client info.
    */
   searchClients: clinicProcedure
@@ -117,40 +117,40 @@ export const clinicRouter = router({
     .query(async ({ ctx, input }) => {
       const searchPattern = `%${escapeIlike(input.query)}%`;
       const searchCondition = or(
-        ilike(owners.name, searchPattern),
-        ilike(owners.email, searchPattern),
+        ilike(clients.name, searchPattern),
+        ilike(clients.email, searchPattern),
       );
 
       const clientRows = await ctx.db
         .select({
-          id: owners.id,
-          name: owners.name,
-          email: owners.email,
-          phone: owners.phone,
-          petName: owners.petName,
+          id: clients.id,
+          name: clients.name,
+          email: clients.email,
+          phone: clients.phone,
+          petName: clients.petName,
         })
-        .from(owners)
-        .innerJoin(plans, eq(plans.ownerId, owners.id))
+        .from(clients)
+        .innerJoin(plans, eq(plans.clientId, clients.id))
         .where(and(eq(plans.clinicId, ctx.clinicId), searchCondition ?? sql`true`))
-        .groupBy(owners.id)
-        .orderBy(owners.name)
+        .groupBy(clients.id)
+        .orderBy(clients.name)
         .limit(10);
 
-      // Fetch pets for matched owners
+      // Fetch pets for matched clients
       const ownerIds = clientRows.map((r) => r.id);
       const petRows =
         ownerIds.length > 0
           ? await ctx.db
               .select({
                 id: pets.id,
-                ownerId: pets.ownerId,
+                ownerId: pets.clientId,
                 name: pets.name,
                 species: pets.species,
                 breed: pets.breed,
               })
               .from(pets)
               .where(
-                sql`${pets.ownerId} = ANY(${sql.raw(`ARRAY[${ownerIds.map((id) => `'${id}'`).join(',')}]::uuid[]`)})`,
+                sql`${pets.clientId} = ANY(${sql.raw(`ARRAY[${ownerIds.map((id) => `'${id}'`).join(',')}]::uuid[]`)})`,
               )
           : [];
 
@@ -162,7 +162,7 @@ export const clinicRouter = router({
 
   /**
    * Search clinics by name or city. Only returns active clinics.
-   * Available to any authenticated user (pet owners need this during enrollment).
+   * Available to any authenticated user (pet clients need this during enrollment).
    */
   search: protectedProcedure
     .input(
@@ -566,14 +566,14 @@ export const clinicRouter = router({
         ctx.db
           .select({
             id: plans.id,
-            ownerName: owners.name,
-            petName: owners.petName,
+            ownerName: clients.name,
+            petName: clients.petName,
             totalBillCents: plans.totalBillCents,
             status: plans.status,
             createdAt: plans.createdAt,
           })
           .from(plans)
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .where(eq(plans.clinicId, clinicId))
           .orderBy(desc(plans.createdAt))
           .limit(10),
@@ -594,7 +594,7 @@ export const clinicRouter = router({
   }),
 
   /**
-   * Get paginated list of pet owners (clients) with plans at this clinic.
+   * Get paginated list of pet clients (clients) with plans at this clinic.
    * Supports search by owner name or pet name, and filter by plan status.
    */
   getClients: clinicProcedure
@@ -623,8 +623,8 @@ export const clinicRouter = router({
       if (input.search) {
         const searchPattern = `%${escapeIlike(input.search)}%`;
         const searchCondition = or(
-          ilike(owners.name, searchPattern),
-          ilike(owners.petName, searchPattern),
+          ilike(clients.name, searchPattern),
+          ilike(clients.petName, searchPattern),
         );
         if (searchCondition) {
           conditions.push(searchCondition);
@@ -637,10 +637,10 @@ export const clinicRouter = router({
         ctx.db
           .select({
             planId: plans.id,
-            ownerName: owners.name,
-            ownerEmail: owners.email,
-            ownerPhone: owners.phone,
-            petName: owners.petName,
+            ownerName: clients.name,
+            ownerEmail: clients.email,
+            ownerPhone: clients.phone,
+            petName: clients.petName,
             totalBillCents: plans.totalBillCents,
             totalWithFeeCents: plans.totalWithFeeCents,
             planStatus: plans.status,
@@ -649,17 +649,17 @@ export const clinicRouter = router({
             totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
           })
           .from(plans)
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .leftJoin(payments, eq(plans.id, payments.planId))
           .where(whereClause)
-          .groupBy(plans.id, owners.id)
+          .groupBy(plans.id, clients.id)
           .orderBy(desc(plans.createdAt))
           .limit(input.pageSize)
           .offset(offset),
         ctx.db
           .select({ total: sql<number>`count(*)` })
           .from(plans)
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .where(whereClause),
       ]);
 
@@ -697,7 +697,7 @@ export const clinicRouter = router({
       // Step 1: Look up the plan to find the owner
       const [seedPlan] = await ctx.db
         .select({
-          ownerId: plans.ownerId,
+          ownerId: plans.clientId,
         })
         .from(plans)
         .where(and(eq(plans.id, input.planId), eq(plans.clinicId, clinicId)))
@@ -713,20 +713,20 @@ export const clinicRouter = router({
       // Step 2: Get owner profile
       const [owner] = await ctx.db
         .select({
-          id: owners.id,
-          name: owners.name,
-          email: owners.email,
-          phone: owners.phone,
-          petName: owners.petName,
+          id: clients.id,
+          name: clients.name,
+          email: clients.email,
+          phone: clients.phone,
+          petName: clients.petName,
         })
-        .from(owners)
-        .where(eq(owners.id, seedPlan.ownerId))
+        .from(clients)
+        .where(eq(clients.id, seedPlan.ownerId))
         .limit(1);
 
       if (!owner) {
         throw new TRPCError({
           code: 'NOT_FOUND',
-          message: 'Owner not found',
+          message: 'Client not found',
         });
       }
 
@@ -741,14 +741,14 @@ export const clinicRouter = router({
           numInstallments: plans.numInstallments,
           status: plans.status,
           createdAt: plans.createdAt,
-          petName: owners.petName,
+          petName: clients.petName,
           totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
         })
         .from(plans)
-        .leftJoin(owners, eq(plans.ownerId, owners.id))
+        .leftJoin(clients, eq(plans.clientId, clients.id))
         .leftJoin(payments, eq(plans.id, payments.planId))
-        .where(and(eq(plans.ownerId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
-        .groupBy(plans.id, owners.id)
+        .where(and(eq(plans.clientId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
+        .groupBy(plans.id, clients.id)
         .orderBy(desc(plans.createdAt));
 
       return {
@@ -795,13 +795,13 @@ export const clinicRouter = router({
           nextPaymentAt: plans.nextPaymentAt,
           completedAt: plans.completedAt,
           createdAt: plans.createdAt,
-          ownerName: owners.name,
-          ownerEmail: owners.email,
-          ownerPhone: owners.phone,
-          petName: owners.petName,
+          ownerName: clients.name,
+          ownerEmail: clients.email,
+          ownerPhone: clients.phone,
+          petName: clients.petName,
         })
         .from(plans)
-        .leftJoin(owners, eq(plans.ownerId, owners.id))
+        .leftJoin(clients, eq(plans.clientId, clients.id))
         .where(and(eq(plans.id, input.planId), eq(plans.clinicId, clinicId)))
         .limit(1);
 
@@ -1063,19 +1063,19 @@ export const clinicRouter = router({
 
     const clientRows = await ctx.db
       .select({
-        ownerName: owners.name,
-        ownerEmail: owners.email,
-        petName: owners.petName,
+        ownerName: clients.name,
+        ownerEmail: clients.email,
+        petName: clients.petName,
         planStatus: plans.status,
         totalBillCents: plans.totalBillCents,
         totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
         remainingCents: plans.remainingCents,
       })
       .from(plans)
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .leftJoin(payments, eq(plans.id, payments.planId))
       .where(eq(plans.clinicId, clinicId))
-      .groupBy(plans.id, owners.id)
+      .groupBy(plans.id, clients.id)
       .orderBy(desc(plans.createdAt))
       .limit(10000);
 
@@ -1161,19 +1161,19 @@ export const clinicRouter = router({
         status: payouts.status,
         stripeTransferId: payouts.stripeTransferId,
         createdAt: payouts.createdAt,
-        ownerName: owners.name,
-        petName: owners.petName,
+        ownerName: clients.name,
+        petName: clients.petName,
       })
       .from(payouts)
       .leftJoin(plans, eq(payouts.planId, plans.id))
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .where(eq(payouts.clinicId, clinicId))
       .orderBy(desc(payouts.createdAt))
       .limit(10000);
 
     const headers = [
       'Payout ID',
-      'Owner',
+      'Client',
       'Pet',
       'Amount',
       'Clinic Share',

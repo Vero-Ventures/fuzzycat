@@ -8,9 +8,9 @@ import { logger } from '@/lib/logger';
 import { percentOfCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
-import { clinics, owners, payments, plans, riskPool, softCollections } from '@/server/db/schema';
+import { clients, clinics, payments, plans, riskPool, softCollections } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
-import { getReferralDiscount } from '@/server/services/owner-referral';
+import { getReferralDiscount } from '@/server/services/client-referral';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export interface OwnerData {
 
 export interface CreateEnrollmentResult {
   planId: string;
-  ownerId: string;
+  clientId: string;
   paymentIds: string[];
 }
 
@@ -120,18 +120,18 @@ export async function createEnrollment(
   return await db.transaction(async (tx) => {
     // 1. Create or find owner record (lookup by email only — email has a global unique constraint)
     const [existingOwner] = await tx
-      .select({ id: owners.id })
-      .from(owners)
-      .where(eq(owners.email, ownerData.email))
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.email, ownerData.email))
       .limit(1);
 
-    let ownerId: string;
+    let clientId: string;
 
     if (existingOwner) {
-      ownerId = existingOwner.id;
+      clientId = existingOwner.id;
       // Update owner details in case they changed
       await tx
-        .update(owners)
+        .update(clients)
         .set({
           name: ownerData.name,
           phone: ownerData.phone,
@@ -142,10 +142,10 @@ export async function createEnrollment(
           addressState: ownerData.addressState,
           addressZip: ownerData.addressZip,
         })
-        .where(eq(owners.id, existingOwner.id));
+        .where(eq(clients.id, existingOwner.id));
     } else {
       const [newOwner] = await tx
-        .insert(owners)
+        .insert(clients)
         .values({
           name: ownerData.name,
           email: ownerData.email,
@@ -157,12 +157,12 @@ export async function createEnrollment(
           addressState: ownerData.addressState,
           addressZip: ownerData.addressZip,
         })
-        .returning({ id: owners.id });
-      ownerId = newOwner.id;
+        .returning({ id: clients.id });
+      clientId = newOwner.id;
     }
 
     // 2. Check for referral discount (reduces platform fee, FuzzyCat absorbs as CAC)
-    const referralDiscountCents = await getReferralDiscount(ownerId, tx);
+    const referralDiscountCents = await getReferralDiscount(clientId, tx);
     const adjustedFeeCents = Math.max(0, schedule.feeCents - referralDiscountCents);
     const feeReduction = schedule.feeCents - adjustedFeeCents;
     const adjustedTotalWithFeeCents = schedule.totalWithFeeCents - feeReduction;
@@ -174,7 +174,7 @@ export async function createEnrollment(
     const [plan] = await tx
       .insert(plans)
       .values({
-        ownerId,
+        clientId,
         clinicId,
         totalBillCents: schedule.totalBillCents,
         feeCents: adjustedFeeCents,
@@ -250,7 +250,7 @@ export async function createEnrollment(
           depositCents: schedule.depositCents,
           numInstallments: schedule.numInstallments,
           clinicId,
-          ownerId,
+          clientId,
         },
         actorType: actorId ? 'clinic' : 'system',
         actorId: actorId ?? null,
@@ -277,7 +277,7 @@ export async function createEnrollment(
 
     return {
       planId: plan.id,
-      ownerId,
+      clientId,
       paymentIds,
     };
   });
@@ -292,7 +292,7 @@ export async function getEnrollmentSummary(planId: string): Promise<EnrollmentSu
   const result = await db.query.plans.findFirst({
     where: eq(plans.id, planId),
     with: {
-      owner: true,
+      client: true,
       clinic: true,
       payments: true,
     },
@@ -302,8 +302,8 @@ export async function getEnrollmentSummary(planId: string): Promise<EnrollmentSu
     throw new Error(`Plan ${planId} not found`);
   }
 
-  if (!result.owner) {
-    throw new Error(`Plan ${planId} has no associated owner`);
+  if (!result.client) {
+    throw new Error(`Plan ${planId} has no associated client`);
   }
 
   if (!result.clinic) {
@@ -324,11 +324,11 @@ export async function getEnrollmentSummary(planId: string): Promise<EnrollmentSu
       createdAt: result.createdAt,
     },
     owner: {
-      id: result.owner.id,
-      name: result.owner.name,
-      email: result.owner.email,
-      phone: result.owner.phone,
-      petName: result.owner.petName,
+      id: result.client.id,
+      name: result.client.name,
+      email: result.client.email,
+      phone: result.client.phone,
+      petName: result.client.petName,
     },
     clinic: {
       id: result.clinic.id,
@@ -359,12 +359,12 @@ const CANCELLABLE_PAYMENT_STATUSES = ['pending', 'processing'] as const;
  *
  * @param planId - UUID of the plan to cancel
  * @param actorId - UUID of the actor cancelling (for audit log)
- * @param actorType - Type of actor ('owner' | 'clinic' | 'admin' | 'system')
+ * @param actorType - Type of actor ('client' | 'clinic' | 'admin' | 'system')
  */
 export async function cancelEnrollment(
   planId: string,
   actorId?: string,
-  actorType: 'owner' | 'clinic' | 'admin' | 'system' = 'system',
+  actorType: 'client' | 'clinic' | 'admin' | 'system' = 'system',
 ): Promise<void> {
   const [planRecord] = await db
     .select({ id: plans.id, status: plans.status })

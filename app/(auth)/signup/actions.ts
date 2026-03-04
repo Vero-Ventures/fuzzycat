@@ -10,7 +10,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/server/db';
-import { clinics, owners } from '@/server/db/schema';
+import { clients, clinics } from '@/server/db/schema';
 
 type ActionResult = { error: string | null; needsEmailConfirmation?: boolean };
 
@@ -63,7 +63,7 @@ async function validateCaptcha(formData: FormData): Promise<ActionResult | null>
   return null;
 }
 
-async function signUpWithRole(email: string, password: string, role: 'owner' | 'clinic') {
+async function signUpWithRole(email: string, password: string, role: 'client' | 'clinic') {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
 
@@ -112,13 +112,13 @@ async function signUpWithRole(email: string, password: string, role: 'owner' | '
   return { userId: data.user.id, hasSession: !!data.session, error: null };
 }
 
-/** Try to convert an owner referral code (non-blocking). */
-async function tryConvertOwnerReferral(refCode: string, ownerId: string) {
+/** Try to convert a client referral code (non-blocking). */
+async function tryConvertClientReferral(refCode: string, ownerId: string) {
   try {
-    const { convertOwnerReferral } = await import('@/server/services/owner-referral');
-    await convertOwnerReferral(refCode, ownerId);
+    const { convertClientReferral } = await import('@/server/services/client-referral');
+    await convertClientReferral(refCode, ownerId);
   } catch (err) {
-    logger.warn('Owner referral conversion failed (non-blocking)', {
+    logger.warn('Client referral conversion failed (non-blocking)', {
       referralCode: refCode,
       ownerId,
       error: err instanceof Error ? err.message : String(err),
@@ -155,7 +155,7 @@ async function deleteAuthUser(userId: string | null) {
   }
 }
 
-export async function signUpOwner(formData: FormData): Promise<ActionResult> {
+export async function signUpClient(formData: FormData): Promise<ActionResult> {
   const { success: allowed } = await checkRateLimit();
   if (!allowed) {
     return { error: 'Too many requests. Please try again later.' };
@@ -173,7 +173,7 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
   }
 
   const { email, password, name, phone, petName, referralCode: ownerRefCode } = parsed.data;
-  const { userId, hasSession, error } = await signUpWithRole(email, password, 'owner');
+  const { userId, hasSession, error } = await signUpWithRole(email, password, 'client');
 
   if (error) {
     return { error };
@@ -182,7 +182,7 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
   let ownerId: string | undefined;
   try {
     const [inserted] = await db
-      .insert(owners)
+      .insert(clients)
       .values({
         authId: userId,
         name,
@@ -191,20 +191,20 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
         petName,
         paymentMethod: 'debit_card',
       })
-      .returning({ id: owners.id });
+      .returning({ id: clients.id });
     ownerId = inserted?.id;
   } catch (error) {
     const isDuplicate = isUniqueConstraintViolation(error);
     logger.error('Signup failed at DB insert', {
       step: 'db_insert',
-      role: 'owner',
+      role: 'client',
       userId,
       email,
       errorCode: (error as { code?: string }).code,
       error: error instanceof Error ? error.message : String(error),
     });
     Sentry.captureException(error, {
-      tags: { component: 'signup', step: 'db_insert', role: 'owner' },
+      tags: { component: 'signup', step: 'db_insert', role: 'client' },
       extra: { userId, email },
     });
     await deleteAuthUser(userId);
@@ -213,7 +213,7 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     }
     return {
       error:
-        'Account setup failed due to a database error. Please try again or contact support. (REF: DB-OWNER)',
+        'Account setup failed due to a database error. Please try again or contact support. (REF: DB-CLIENT)',
     };
   }
 
@@ -221,13 +221,13 @@ export async function signUpOwner(formData: FormData): Promise<ActionResult> {
     getPostHogServer()?.capture({
       distinctId: userId,
       event: POSTHOG_EVENTS.AUTH_SIGNED_UP,
-      properties: { role: 'owner' },
+      properties: { role: 'client' },
     });
   }
 
-  // Convert owner referral if a valid code was provided
+  // Convert client referral if a valid code was provided
   if (ownerRefCode && ownerId) {
-    await tryConvertOwnerReferral(ownerRefCode, ownerId);
+    await tryConvertClientReferral(ownerRefCode, ownerId);
   }
 
   return { error: null, needsEmailConfirmation: !hasSession };

@@ -1,34 +1,43 @@
 import type { User } from '@supabase/supabase-js';
 
-export type UserRole = 'owner' | 'clinic' | 'admin';
+export type UserRole = 'client' | 'clinic' | 'admin';
 
-export const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['owner', 'clinic', 'admin']);
+export const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>(['client', 'clinic', 'admin']);
 
 /**
  * Extracts and validates the user role from Supabase app_metadata.
- * Returns 'owner' as the default if no role is set or the role is invalid.
+ * Returns 'client' as the default if no role is set or the role is invalid.
+ * Also accepts legacy 'owner' value and maps it to 'client'.
  */
 export function getUserRole(user: User): UserRole {
   const raw = user.app_metadata?.role;
+  if (raw === 'owner') return 'client';
   if (typeof raw === 'string' && VALID_ROLES.has(raw)) {
     return raw as UserRole;
   }
-  return 'owner';
+  return 'client';
 }
 
 /** Maps each role to its default authenticated landing page. */
 export const ROLE_HOME: Readonly<Record<UserRole, string>> = {
   clinic: '/clinic/dashboard',
   admin: '/admin/dashboard',
-  owner: '/owner/payments',
+  client: '/client/payments',
 };
 
 /** Maps each role to its allowed route prefixes. */
 export const ROLE_PREFIXES: Readonly<Record<UserRole, readonly string[]>> = {
   clinic: ['/clinic'],
   admin: ['/admin'],
-  owner: ['/owner'],
+  client: ['/client'],
 };
 
 /** Allowed path prefixes for post-auth redirects. */
-export const SAFE_REDIRECT_PREFIXES = ['/clinic', '/owner', '/admin', '/mfa'] as const;
+export const SAFE_REDIRECT_PREFIXES = ['/clinic', '/client', '/admin', '/mfa'] as const;
+
+/**
+ * Maps an auth role to the corresponding audit log actor type.
+ */
+export function roleToActorType(role: UserRole): 'client' | 'clinic' | 'admin' {
+  return role;
+}

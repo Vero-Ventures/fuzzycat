@@ -41,8 +41,8 @@ function Header() {
               Clinic Portal
             </Button>
           </Link>
-          <Link href="/login/owner">
-            <Button size="sm">Pet Owner Portal</Button>
+          <Link href="/login/client">
+            <Button size="sm">Client Portal</Button>
           </Link>
         </nav>
         <nav className="flex items-center gap-2 md:hidden">
@@ -64,7 +64,7 @@ function Header() {
               Clinic
             </Button>
           </Link>
-          <Link href="/login/owner">
+          <Link href="/login/client">
             <Button size="sm">Owner</Button>
           </Link>
         </nav>
@@ -88,7 +88,7 @@ function Footer() {
             </p>
           </div>
           <div>
-            <h3 className="text-sm font-semibold">Pet Owners</h3>
+            <h3 className="text-sm font-semibold">Clients</h3>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/how-it-works" className="transition-colors hover:text-foreground">
@@ -96,7 +96,7 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/signup/owner" className="transition-colors hover:text-foreground">
+                <Link href="/signup/client" className="transition-colors hover:text-foreground">
                   Sign Up
                 </Link>
               </li>

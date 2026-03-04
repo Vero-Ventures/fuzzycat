@@ -103,14 +103,14 @@ test.describe('Navigation — Admin Portal', () => {
 });
 
 test.describe('Navigation — Owner Portal', () => {
-  test.use({ storageState: 'e2e/auth-state/owner.json' });
+  test.use({ storageState: 'e2e/auth-state/client.json' });
 
   test('owner header navigation', async ({ page }) => {
     await mockExternalServices(page);
-    await setupPortalMocks(page, 'owner');
+    await setupPortalMocks(page, 'client');
     await mockAllTrpc(page);
 
-    const loaded = await gotoPortalPage(page, '/owner/payments');
+    const loaded = await gotoPortalPage(page, '/client/payments');
     if (!loaded) return;
 
     // On mobile viewports, open hamburger menu if present
@@ -120,8 +120,8 @@ test.describe('Navigation — Owner Portal', () => {
     const settingsLink = page.getByRole('link', { name: /setting/i });
     if (await settingsLink.isVisible({ timeout: 5000 }).catch(() => false)) {
       await settingsLink.click();
-      await page.waitForURL('**/owner/settings', { timeout: 10000 });
-      expect(page.url()).toContain('/owner/settings');
+      await page.waitForURL('**/client/settings', { timeout: 10000 });
+      expect(page.url()).toContain('/client/settings');
     }
   });
 });

@@ -31,7 +31,7 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Visual Baselines — Owner Portal', () => {
-  test.use({ storageState: 'e2e/auth-state/owner.json' });
+  test.use({ storageState: 'e2e/auth-state/client.json' });
 
   test('owner payments baseline', async ({ page }) => {
     await mockExternalServices(page);
@@ -40,7 +40,7 @@ test.describe('Visual Baselines — Owner Portal', () => {
     await mockTrpcQuery(page, 'owner.getPaymentHistory', ownerPaymentHistory);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/payments');
+    await gotoPortalPage(page, '/client/payments');
 
     await expect(page).toHaveScreenshot('owner-payments.png', {
       fullPage: true,
@@ -54,7 +54,7 @@ test.describe('Visual Baselines — Owner Portal', () => {
     await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
     await mockAllTrpc(page);
 
-    await gotoPortalPage(page, '/owner/settings');
+    await gotoPortalPage(page, '/client/settings');
 
     await expect(page).toHaveScreenshot('owner-settings.png', {
       fullPage: true,

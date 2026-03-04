@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getUserRole, ROLE_HOME, ROLE_PREFIXES } from '@/lib/auth';
 import { publicEnv } from '@/lib/env';
 
-const PROTECTED_PREFIXES = ['/clinic', '/owner', '/admin'];
+const PROTECTED_PREFIXES = ['/clinic', '/client', '/admin'];
 const AUTH_PAGES = ['/login', '/signup'];
 
 /**

@@ -4,14 +4,14 @@
  * Bun's mock.module is global per test run, so every test file that mocks
  * @/server/db/schema must export ALL named exports the real schema provides.
  * Otherwise, a test file that only exports `payments` will break another
- * file that needs `owners`.
+ * file that needs `clients`.
  */
 export const schemaMock = {
-  owners: {
-    id: 'owners.id',
-    stripeCustomerId: 'owners.stripe_customer_id',
-    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
-    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
+  clients: {
+    id: 'clients.id',
+    stripeCustomerId: 'clients.stripe_customer_id',
+    stripeCardPaymentMethodId: 'clients.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'clients.stripe_ach_payment_method_id',
   },
   clinics: { id: 'clinics.id' },
   plans: { id: 'plans.id', status: 'plans.status', remainingCents: 'plans.remaining_cents' },
@@ -30,7 +30,7 @@ export const schemaMock = {
   },
   pets: {
     id: 'pets.id',
-    ownerId: 'pets.owner_id',
+    clientId: 'pets.client_id',
     name: 'pets.name',
     species: 'pets.species',
     breed: 'pets.breed',
@@ -73,7 +73,7 @@ export const schemaMock = {
   },
   paymentMethods: {
     id: 'payment_methods.id',
-    ownerId: 'payment_methods.owner_id',
+    clientId: 'payment_methods.client_id',
   },
   idempotencyKeys: {
     id: 'idempotency_keys.id',
@@ -114,7 +114,7 @@ export const schemaMock = {
   referralStatusEnum: {},
   clinicRequests: {
     id: 'clinic_requests.id',
-    ownerEmail: 'clinic_requests.owner_email',
+    clientEmail: 'clinic_requests.client_email',
     clinicName: 'clinic_requests.clinic_name',
   },
   clinicReferrals: {
@@ -123,16 +123,16 @@ export const schemaMock = {
     referralCode: 'clinic_referrals.referral_code',
     status: 'clinic_referrals.status',
   },
-  ownerReferrals: {
-    id: 'owner_referrals.id',
-    referrerOwnerId: 'owner_referrals.referrer_owner_id',
-    referralCode: 'owner_referrals.referral_code',
-    status: 'owner_referrals.status',
-    creditApplied: 'owner_referrals.credit_applied',
+  clientReferrals: {
+    id: 'client_referrals.id',
+    referrerClientId: 'client_referrals.referrer_client_id',
+    referralCode: 'client_referrals.referral_code',
+    status: 'client_referrals.status',
+    creditApplied: 'client_referrals.credit_applied',
   },
   paymentMethodsRelations: {},
   clinicsRelations: {},
-  ownersRelations: {},
+  clientsRelations: {},
   petsRelations: {},
   plansRelations: {},
   paymentsRelations: {},
@@ -143,5 +143,5 @@ export const schemaMock = {
   webhookEndpointsRelations: {},
   webhookDeliveriesRelations: {},
   clinicReferralsRelations: {},
-  ownerReferralsRelations: {},
+  clientReferralsRelations: {},
 };

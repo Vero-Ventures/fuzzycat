@@ -112,7 +112,7 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
       <section className="bg-muted/50 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Why Pet Owners Choose FuzzyCat
+            Why Clients Choose FuzzyCat
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2">
             <BenefitCard
@@ -189,7 +189,7 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
             get started.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/signup/owner">
+            <Link href="/signup/client">
               <Button size="lg" className="w-full sm:w-auto">
                 Create Account
                 <ArrowRight className="ml-1.5 h-4 w-4" />

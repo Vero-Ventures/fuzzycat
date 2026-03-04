@@ -13,8 +13,8 @@ test.describe('Signup Form — Interactions', () => {
     await page.goto('/signup');
   });
 
-  test('owner signup form validates required fields', async ({ page }) => {
-    // Should default to Pet Owner tab
+  test('client signup form validates required fields', async ({ page }) => {
+    // Should default to Pet Parent tab
     const submitBtn = page.getByRole('button', { name: /create account/i });
     await expect(submitBtn).toBeVisible();
 
@@ -63,7 +63,7 @@ test.describe('Signup Form — Interactions', () => {
   });
 
   test('tab switching preserves email data', async ({ page }) => {
-    // Fill email on owner tab
+    // Fill email on clientTab
     const emailInput = page.getByRole('textbox', { name: /email/i });
     await emailInput.fill('test@example.com');
 
@@ -73,9 +73,9 @@ test.describe('Signup Form — Interactions', () => {
 
     await page.waitForTimeout(500);
 
-    // Switch back to owner tab
-    const ownerTab = page.getByRole('tab', { name: /pet owner/i });
-    await ownerTab.click();
+    // Switch back to clientTab
+    const clientTab = page.getByRole('tab', { name: /pet parent/i });
+    await clientTab.click();
 
     await page.waitForTimeout(500);
   });

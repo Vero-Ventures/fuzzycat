@@ -7,13 +7,13 @@ test.describe('Landing Page — Interactions', () => {
     await page.waitForTimeout(1000);
   });
 
-  test('"Pet Owner Portal Login" button navigates to /login/owner', async ({ page }) => {
-    const cta = page.locator('a[href="/login/owner"]', {
-      hasText: /pet owner portal login/i,
+  test('"Client Portal Login" button navigates to /login/client', async ({ page }) => {
+    const cta = page.locator('a[href="/login/client"]', {
+      hasText: /client portal login/i,
     });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/login\/owner/);
+    await expect(page).toHaveURL(/\/login\/client/);
   });
 
   test('"Clinic Portal Login" button navigates to /login/clinic', async ({ page }) => {
@@ -35,14 +35,14 @@ test.describe('Landing Page — Interactions', () => {
     await expect(page).toHaveURL(/\/signup\/clinic/);
   });
 
-  test('"Get Started" bottom CTA navigates to /signup/owner', async ({ page }) => {
-    const cta = page.locator('main a[href="/signup/owner"]', {
+  test('"Get Started" bottom CTA navigates to /signup/client', async ({ page }) => {
+    const cta = page.locator('main a[href="/signup/client"]', {
       hasText: /get started/i,
     });
     await cta.last().scrollIntoViewIfNeeded();
     await expect(cta.last()).toBeVisible();
     await cta.last().click();
-    await expect(page).toHaveURL(/\/signup\/owner/);
+    await expect(page).toHaveURL(/\/signup\/client/);
   });
 
   test('"Learn More" bottom CTA navigates to /how-it-works', async ({ page }) => {

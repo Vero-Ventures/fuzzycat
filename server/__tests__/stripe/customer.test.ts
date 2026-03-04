@@ -72,7 +72,7 @@ describe('getOrCreateCustomer', () => {
     mockLimit.mockResolvedValue([{ stripeCustomerId: 'cus_existing_456' }]);
 
     const result = await getOrCreateCustomer({
-      ownerId: 'owner-1',
+      clientId: 'client-1',
       email: 'owner@example.com',
       name: 'Jane Doe',
     });
@@ -85,7 +85,7 @@ describe('getOrCreateCustomer', () => {
     mockLimit.mockResolvedValue([{ stripeCustomerId: null }]);
 
     const result = await getOrCreateCustomer({
-      ownerId: 'owner-1',
+      clientId: 'client-1',
       email: 'owner@example.com',
       name: 'Jane Doe',
     });
@@ -94,7 +94,7 @@ describe('getOrCreateCustomer', () => {
     expect(mockCustomersCreate).toHaveBeenCalledWith({
       email: 'owner@example.com',
       name: 'Jane Doe',
-      metadata: { ownerId: 'owner-1' },
+      metadata: { clientId: 'client-1' },
     });
   });
 
@@ -102,7 +102,7 @@ describe('getOrCreateCustomer', () => {
     mockLimit.mockResolvedValue([]);
 
     const result = await getOrCreateCustomer({
-      ownerId: 'owner-1',
+      clientId: 'client-1',
       email: 'owner@example.com',
       name: 'Jane Doe',
     });
@@ -115,7 +115,7 @@ describe('getOrCreateCustomer', () => {
     mockLimit.mockResolvedValue([{ stripeCustomerId: null }]);
 
     await getOrCreateCustomer({
-      ownerId: 'owner-1',
+      clientId: 'client-1',
       email: 'owner@example.com',
       name: 'Jane Doe',
     });

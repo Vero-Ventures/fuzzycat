@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe';
 import { percentOfCents } from '@/lib/utils/money';
 import { db } from '@/server/db';
-import { clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import { clients, clinics, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import {
   calculateApplicationFee,
@@ -29,15 +29,15 @@ const MAX_RETRIES = 3;
  */
 export async function processDeposit(params: {
   planId: string;
-  ownerId?: string;
+  clientId?: string;
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ sessionId: string; sessionUrl: string }> {
-  // Fetch plan with owner info for Stripe customer
+  // Fetch plan with client info for Stripe customer
   const [plan] = await db
     .select({
       id: plans.id,
-      ownerId: plans.ownerId,
+      clientId: plans.clientId,
       clinicId: plans.clinicId,
       depositCents: plans.depositCents,
       status: plans.status,
@@ -54,8 +54,8 @@ export async function processDeposit(params: {
     throw new Error(`Plan ${params.planId} is not in pending status (current: ${plan.status})`);
   }
 
-  if (!plan.ownerId) {
-    throw new Error(`Plan ${params.planId} has no owner`);
+  if (!plan.clientId) {
+    throw new Error(`Plan ${params.planId} has no client`);
   }
 
   if (!plan.clinicId) {
@@ -79,7 +79,7 @@ export async function processDeposit(params: {
   }
 
   // Verify the caller owns this plan (IDOR protection)
-  if (params.ownerId && plan.ownerId !== params.ownerId) {
+  if (params.clientId && plan.clientId !== params.clientId) {
     throw new Error('Not authorized to initiate deposit for this plan');
   }
 
@@ -100,27 +100,27 @@ export async function processDeposit(params: {
     );
   }
 
-  // Fetch the owner's Stripe customer ID (lazy-create if missing)
-  const [owner] = await db
+  // Fetch the client's Stripe customer ID (lazy-create if missing)
+  const [client] = await db
     .select({
-      stripeCustomerId: owners.stripeCustomerId,
-      email: owners.email,
-      name: owners.name,
+      stripeCustomerId: clients.stripeCustomerId,
+      email: clients.email,
+      name: clients.name,
     })
-    .from(owners)
-    .where(eq(owners.id, plan.ownerId))
+    .from(clients)
+    .where(eq(clients.id, plan.clientId))
     .limit(1);
 
-  if (!owner) {
-    throw new Error(`Owner ${plan.ownerId} not found`);
+  if (!client) {
+    throw new Error(`Client ${plan.clientId} not found`);
   }
 
   const stripeCustomerId =
-    owner.stripeCustomerId ??
+    client.stripeCustomerId ??
     (await getOrCreateCustomer({
-      ownerId: plan.ownerId,
-      email: owner.email,
-      name: owner.name,
+      clientId: plan.clientId,
+      email: client.email,
+      name: client.name,
     }));
 
   const clinicShareRate = getEffectiveShareRate(clinic);
@@ -244,9 +244,9 @@ export async function processInstallment(params: {
     throw new Error(`Payment ${params.paymentId} has no associated plan`);
   }
 
-  // Fetch plan to get owner and clinic
+  // Fetch plan to get client and clinic
   const [plan] = await db
-    .select({ ownerId: plans.ownerId, clinicId: plans.clinicId, status: plans.status })
+    .select({ clientId: plans.clientId, clinicId: plans.clinicId, status: plans.status })
     .from(plans)
     .where(eq(plans.id, payment.planId))
     .limit(1);
@@ -259,8 +259,8 @@ export async function processInstallment(params: {
     throw new Error(`Plan for payment ${params.paymentId} is not active (status: ${plan.status})`);
   }
 
-  if (!plan.ownerId) {
-    throw new Error(`Plan for payment ${params.paymentId} has no owner`);
+  if (!plan.clientId) {
+    throw new Error(`Plan for payment ${params.paymentId} has no client`);
   }
 
   if (!plan.clinicId) {
@@ -285,31 +285,31 @@ export async function processInstallment(params: {
     );
   }
 
-  // Fetch owner's Stripe customer ID and payment method preference
-  const [owner] = await db
+  // Fetch client's Stripe customer ID and payment method preference
+  const [clientRecord] = await db
     .select({
-      stripeCustomerId: owners.stripeCustomerId,
-      paymentMethod: owners.paymentMethod,
-      stripeCardPaymentMethodId: owners.stripeCardPaymentMethodId,
-      stripeAchPaymentMethodId: owners.stripeAchPaymentMethodId,
+      stripeCustomerId: clients.stripeCustomerId,
+      paymentMethod: clients.paymentMethod,
+      stripeCardPaymentMethodId: clients.stripeCardPaymentMethodId,
+      stripeAchPaymentMethodId: clients.stripeAchPaymentMethodId,
     })
-    .from(owners)
-    .where(eq(owners.id, plan.ownerId))
+    .from(clients)
+    .where(eq(clients.id, plan.clientId))
     .limit(1);
 
-  if (!owner?.stripeCustomerId) {
-    throw new Error(`Owner for payment ${params.paymentId} has no Stripe customer ID`);
+  if (!clientRecord?.stripeCustomerId) {
+    throw new Error(`Client for payment ${params.paymentId} has no Stripe customer ID`);
   }
 
-  // Resolve the payment method: explicit override takes priority, then owner preference
-  const resolved = resolvePaymentMethod(params.paymentId, params.paymentMethodId, owner);
+  // Resolve the payment method: explicit override takes priority, then client preference
+  const resolved = resolvePaymentMethod(params.paymentId, params.paymentMethodId, clientRecord);
 
   // Validate the payment method still exists in Stripe before charging
   if (resolved.paymentMethodId && resolved.paymentMethodType) {
     const isValid = await validatePaymentMethod({
       paymentMethodId: resolved.paymentMethodId,
       paymentMethodType: resolved.paymentMethodType,
-      stripeCustomerId: owner.stripeCustomerId,
+      stripeCustomerId: clientRecord.stripeCustomerId,
     });
 
     if (!isValid) {
@@ -328,7 +328,7 @@ export async function processInstallment(params: {
   return createInstallmentPaymentIntent({
     paymentId: params.paymentId,
     planId: payment.planId,
-    stripeCustomerId: owner.stripeCustomerId,
+    stripeCustomerId: clientRecord.stripeCustomerId,
     amountCents: payment.amountCents,
     paymentMethodId: resolved.paymentMethodId,
     paymentMethodType: resolved.paymentMethodType,
@@ -399,16 +399,16 @@ async function completePlanIfAllPaid(
 
 async function saveCardPaymentMethod(
   tx: DrizzleTx,
-  ownerId: string | null,
+  clientId: string | null,
   stripePaymentMethodId: string | undefined,
   stripeCustomerId?: string | null,
 ): Promise<void> {
-  if (!stripePaymentMethodId || !ownerId) return;
+  if (!stripePaymentMethodId || !clientId) return;
 
   await tx
-    .update(owners)
+    .update(clients)
     .set({ stripeCardPaymentMethodId: stripePaymentMethodId })
-    .where(eq(owners.id, ownerId));
+    .where(eq(clients.id, clientId));
 
   if (stripeCustomerId) {
     try {
@@ -417,7 +417,7 @@ async function saveCardPaymentMethod(
       });
     } catch (error) {
       logger.error('Failed to update Stripe customer default payment method', {
-        ownerId,
+        clientId,
         stripeCustomerId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -577,21 +577,21 @@ export async function handlePaymentSuccess(
 
     if (!payment.planId) return;
 
-    // Fetch plan + owner + clinic info for payout and card storage
+    // Fetch plan + client + clinic info for payout and card storage
     const [planRow] = await tx
       .select({
         id: plans.id,
-        ownerId: plans.ownerId,
+        clientId: plans.clientId,
         clinicId: plans.clinicId,
         status: plans.status,
         totalBillCents: plans.totalBillCents,
-        stripeCustomerId: owners.stripeCustomerId,
+        stripeCustomerId: clients.stripeCustomerId,
         revenueShareBps: clinics.revenueShareBps,
         foundingClinic: clinics.foundingClinic,
         foundingExpiresAt: clinics.foundingExpiresAt,
       })
       .from(plans)
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .leftJoin(clinics, eq(plans.clinicId, clinics.id))
       .where(eq(plans.id, payment.planId))
       .limit(1);
@@ -603,7 +603,7 @@ export async function handlePaymentSuccess(
       await activatePlanForDeposit(tx, payment.planId, planRow.status);
       await saveCardPaymentMethod(
         tx,
-        planRow.ownerId,
+        planRow.clientId,
         stripePaymentMethodId,
         planRow.stripeCustomerId,
       );

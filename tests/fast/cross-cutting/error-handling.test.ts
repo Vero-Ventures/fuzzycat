@@ -14,9 +14,9 @@ describe('Error handling — 404 page', () => {
 });
 
 describe.skipIf(!hasAuth())('Error handling — Invalid portal sub-routes', () => {
-  test('/owner/nonexistent redirects or shows 404', async () => {
-    const cookies = await getAuthCookies('owner');
-    const { status, $ } = await fetchPage('/owner/nonexistent', { cookies });
+  test('/client/nonexistent redirects or shows 404', async () => {
+    const cookies = await getAuthCookies('client');
+    const { status, $ } = await fetchPage('/client/nonexistent', { cookies });
 
     const is404 = status === 404;
     const hasNotFound = $('body')

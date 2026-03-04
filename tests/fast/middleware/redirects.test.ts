@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { fetchPage } from '../helpers/fetch';
 
 const PROTECTED_ROUTES = [
-  '/owner/payments',
-  '/owner/settings',
+  '/client/payments',
+  '/client/settings',
   '/clinic/dashboard',
   '/clinic/onboarding',
   '/clinic/clients',

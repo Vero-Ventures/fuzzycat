@@ -28,10 +28,10 @@ import { PaymentCalculator } from './payment-calculator';
 export const metadata: Metadata = {
   title: 'How It Works',
   description:
-    'Learn how FuzzyCat payment plans work for pet owners and veterinary clinics. See payment examples, fee breakdowns, and frequently asked questions.',
+    'Learn how FuzzyCat payment plans work for clients and veterinary clinics. See payment examples, fee breakdowns, and frequently asked questions.',
   openGraph: {
     title: 'How It Works | FuzzyCat',
-    description: 'Learn how FuzzyCat payment plans work for pet owners and veterinary clinics.',
+    description: 'Learn how FuzzyCat payment plans work for clients and veterinary clinics.',
   },
 };
 
@@ -52,13 +52,13 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      {/* For Pet Owners */}
+      {/* For Clients */}
       <section className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-sm">
               <PawPrint className="mr-1.5 h-3.5 w-3.5" />
-              For Pet Owners
+              For Clients
             </Badge>
           </div>
           <h2 className="mt-4 text-3xl font-bold tracking-tight">
@@ -196,7 +196,7 @@ export default function HowItWorksPage() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   If a payment fails, FuzzyCat automatically retries with smart scheduling. We send
-                  friendly reminders to pet owners and keep clinics informed throughout the process.
+                  friendly reminders to clients and keep clinics informed throughout the process.
                 </p>
               </CardContent>
             </Card>
@@ -273,9 +273,9 @@ export default function HowItWorksPage() {
             Sign up in minutes. See your full payment schedule before you commit.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/signup/owner">
+            <Link href="/signup/client">
               <Button size="lg" className="w-full sm:w-auto">
-                Sign Up as Pet Owner
+                Sign Up as Client
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </Link>

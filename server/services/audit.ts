@@ -43,7 +43,7 @@ export const AUDIT_ACTIONS = [
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export type ActorType = 'system' | 'admin' | 'owner' | 'clinic';
+export type ActorType = 'system' | 'admin' | 'client' | 'clinic';
 
 export interface AuditEventParams {
   entityType: EntityType;

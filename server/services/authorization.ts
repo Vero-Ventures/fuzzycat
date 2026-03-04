@@ -6,7 +6,7 @@ import { TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 import type { UserRole } from '@/lib/auth';
 import { db } from '@/server/db';
-import { clinics, owners, plans } from '@/server/db/schema';
+import { clients, clinics, plans } from '@/server/db/schema';
 
 /** Resolve the clinic row ID for the authenticated user. */
 export async function resolveClinicId(database: typeof db, userId: string): Promise<string> {
@@ -22,18 +22,18 @@ export async function resolveClinicId(database: typeof db, userId: string): Prom
   return clinic.id;
 }
 
-/** Resolve the owner row ID for the authenticated user. */
-export async function resolveOwnerId(database: typeof db, userId: string): Promise<string> {
-  const [owner] = await database
-    .select({ id: owners.id })
-    .from(owners)
-    .where(eq(owners.authId, userId))
+/** Resolve the client row ID for the authenticated user. */
+export async function resolveClientId(database: typeof db, userId: string): Promise<string> {
+  const [client] = await database
+    .select({ id: clients.id })
+    .from(clients)
+    .where(eq(clients.authId, userId))
     .limit(1);
 
-  if (!owner) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Owner profile not found' });
+  if (!client) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Client profile not found' });
   }
-  return owner.id;
+  return client.id;
 }
 
 /**
@@ -65,9 +65,9 @@ export async function assertPlanAccess(
   userId: string,
   role: UserRole,
   planId: string,
-): Promise<{ clinicId: string | null; ownerId: string | null }> {
+): Promise<{ clinicId: string | null; clientId: string | null }> {
   const [plan] = await db
-    .select({ clinicId: plans.clinicId, ownerId: plans.ownerId })
+    .select({ clinicId: plans.clinicId, clientId: plans.clientId })
     .from(plans)
     .where(eq(plans.id, planId))
     .limit(1);
@@ -93,14 +93,14 @@ export async function assertPlanAccess(
     }
   }
 
-  if (role === 'owner') {
+  if (role === 'client') {
     const [owner] = await db
-      .select({ id: owners.id })
-      .from(owners)
-      .where(eq(owners.authId, userId))
+      .select({ id: clients.id })
+      .from(clients)
+      .where(eq(clients.authId, userId))
       .limit(1);
 
-    if (owner && owner.id === plan.ownerId) {
+    if (owner && owner.id === plan.clientId) {
       return plan;
     }
   }

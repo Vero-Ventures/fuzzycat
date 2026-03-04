@@ -100,11 +100,11 @@ mock.module('@/server/db', () => ({
 }));
 
 mock.module('@/server/db/schema', () => ({
-  owners: {
-    id: 'owners.id',
-    stripeCustomerId: 'owners.stripe_customer_id',
-    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
-    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
+  clients: {
+    id: 'clients.id',
+    stripeCustomerId: 'clients.stripe_customer_id',
+    stripeCardPaymentMethodId: 'clients.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'clients.stripe_ach_payment_method_id',
   },
   clinics: {
     id: 'clinics.id',
@@ -118,7 +118,7 @@ mock.module('@/server/db/schema', () => ({
     id: 'plans.id',
     status: 'plans.status',
     clinicId: 'plans.clinic_id',
-    ownerId: 'plans.owner_id',
+    clientId: 'plans.client_id',
     totalBillCents: 'plans.total_bill_cents',
     depositCents: 'plans.deposit_cents',
     remainingCents: 'plans.remaining_cents',
@@ -148,11 +148,11 @@ mock.module('@/server/db/schema', () => ({
   paymentTypeEnum: {},
   paymentStatusEnum: {},
   payoutStatusEnum: {},
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   riskPoolTypeEnum: {},
   actorTypeEnum: {},
   clinicsRelations: {},
-  ownersRelations: {},
+  clientsRelations: {},
   petsRelations: {},
   plansRelations: {},
   paymentsRelations: {},

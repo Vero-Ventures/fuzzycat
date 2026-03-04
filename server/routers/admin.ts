@@ -5,8 +5,8 @@ import { cachedQuery, revalidateTag } from '@/lib/cache';
 import { escapeIlike } from '@/lib/utils/sql';
 import {
   auditLog,
+  clients,
   clinics,
-  owners,
   payments,
   payouts,
   plans,
@@ -277,6 +277,8 @@ export const adminRouter = router({
           .enum(['pending', 'processing', 'succeeded', 'failed', 'retried', 'written_off'])
           .optional(),
         clinicId: z.string().uuid().optional(),
+        ownerName: z.string().max(200).optional(),
+        clinicName: z.string().max(200).optional(),
         dateFrom: z.string().datetime().optional(),
         dateTo: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(100).default(20),
@@ -292,6 +294,14 @@ export const adminRouter = router({
 
       if (input.clinicId) {
         conditions.push(eq(plans.clinicId, input.clinicId));
+      }
+
+      if (input.ownerName) {
+        conditions.push(ilike(clients.name, `%${escapeIlike(input.ownerName)}%`));
+      }
+
+      if (input.clinicName) {
+        conditions.push(ilike(clinics.name, `%${escapeIlike(input.clinicName)}%`));
       }
 
       if (input.dateFrom) {
@@ -317,14 +327,14 @@ export const adminRouter = router({
             processedAt: payments.processedAt,
             failureReason: payments.failureReason,
             planId: payments.planId,
-            ownerName: owners.name,
-            ownerEmail: owners.email,
+            ownerName: clients.name,
+            ownerEmail: clients.email,
             clinicName: clinics.name,
             clinicId: plans.clinicId,
           })
           .from(payments)
           .leftJoin(plans, eq(payments.planId, plans.id))
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .leftJoin(clinics, eq(plans.clinicId, clinics.id))
           .where(whereClause)
           .orderBy(desc(payments.scheduledAt))
@@ -334,6 +344,8 @@ export const adminRouter = router({
           .select({ total: sql<number>`count(*)` })
           .from(payments)
           .leftJoin(plans, eq(payments.planId, plans.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
+          .leftJoin(clinics, eq(plans.clinicId, clinics.id))
           .where(whereClause),
       ]);
 
@@ -470,14 +482,14 @@ export const adminRouter = router({
             remainingCents: plans.remainingCents,
             createdAt: plans.createdAt,
             updatedAt: plans.updatedAt,
-            ownerName: owners.name,
-            ownerEmail: owners.email,
-            ownerPhone: owners.phone,
-            petName: owners.petName,
+            ownerName: clients.name,
+            ownerEmail: clients.email,
+            ownerPhone: clients.phone,
+            petName: clients.petName,
             clinicName: clinics.name,
           })
           .from(plans)
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .leftJoin(clinics, eq(plans.clinicId, clinics.id))
           .where(eq(plans.status, 'defaulted'))
           .orderBy(desc(plans.updatedAt))
@@ -551,15 +563,15 @@ export const adminRouter = router({
             nextEscalationAt: softCollections.nextEscalationAt,
             notes: softCollections.notes,
             createdAt: softCollections.createdAt,
-            ownerName: owners.name,
-            ownerEmail: owners.email,
-            petName: owners.petName,
+            ownerName: clients.name,
+            ownerEmail: clients.email,
+            petName: clients.petName,
             clinicName: clinics.name,
             remainingCents: plans.remainingCents,
           })
           .from(softCollections)
           .leftJoin(plans, eq(softCollections.planId, plans.id))
-          .leftJoin(owners, eq(plans.ownerId, owners.id))
+          .leftJoin(clients, eq(plans.clientId, clients.id))
           .leftJoin(clinics, eq(plans.clinicId, clinics.id))
           .where(whereClause)
           .orderBy(desc(softCollections.createdAt))

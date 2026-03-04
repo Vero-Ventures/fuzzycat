@@ -125,16 +125,16 @@ describe('assertPlanAccess', () => {
   });
 
   it('allows admin users to access any plan', async () => {
-    setupSelectChainSequence([[{ clinicId: CLINIC_ID, ownerId: OWNER_ID }]]);
+    setupSelectChainSequence([[{ clinicId: CLINIC_ID, clientId: OWNER_ID }]]);
 
     const result = await assertPlanAccess(USER_ID, 'admin', PLAN_ID);
     expect(result.clinicId).toBe(CLINIC_ID);
-    expect(result.ownerId).toBe(OWNER_ID);
+    expect(result.clientId).toBe(OWNER_ID);
   });
 
   it('allows clinic user when their clinic matches the plan clinicId', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [{ id: CLINIC_ID }], // clinic authId lookup
     ]);
 
@@ -144,7 +144,7 @@ describe('assertPlanAccess', () => {
 
   it('throws FORBIDDEN for clinic user when clinic does not match plan', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [{ id: OTHER_CLINIC_ID }], // clinic authId lookup — different clinic
     ]);
 
@@ -159,7 +159,7 @@ describe('assertPlanAccess', () => {
 
   it('throws FORBIDDEN for clinic user with no clinic record', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [], // no clinic found for authId
     ]);
 
@@ -172,24 +172,24 @@ describe('assertPlanAccess', () => {
     }
   });
 
-  it('allows owner user when their owner record matches the plan ownerId', async () => {
+  it('allows owner user when their owner record matches the plan clientId', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [{ id: OWNER_ID }], // owner authId lookup
     ]);
 
-    const result = await assertPlanAccess(USER_ID, 'owner', PLAN_ID);
-    expect(result.ownerId).toBe(OWNER_ID);
+    const result = await assertPlanAccess(USER_ID, 'client', PLAN_ID);
+    expect(result.clientId).toBe(OWNER_ID);
   });
 
   it('throws FORBIDDEN for owner user when owner does not match plan', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [{ id: OTHER_OWNER_ID }], // different owner
     ]);
 
     try {
-      await assertPlanAccess(USER_ID, 'owner', PLAN_ID);
+      await assertPlanAccess(USER_ID, 'client', PLAN_ID);
       expect.unreachable('Should have thrown');
     } catch (error) {
       expect(error).toBeInstanceOf(TRPCError);
@@ -199,12 +199,12 @@ describe('assertPlanAccess', () => {
 
   it('throws FORBIDDEN for owner user with no owner record', async () => {
     setupSelectChainSequence([
-      [{ clinicId: CLINIC_ID, ownerId: OWNER_ID }], // plan lookup
+      [{ clinicId: CLINIC_ID, clientId: OWNER_ID }], // plan lookup
       [], // no owner found for authId
     ]);
 
     try {
-      await assertPlanAccess(USER_ID, 'owner', PLAN_ID);
+      await assertPlanAccess(USER_ID, 'client', PLAN_ID);
       expect.unreachable('Should have thrown');
     } catch (error) {
       expect(error).toBeInstanceOf(TRPCError);
@@ -220,7 +220,7 @@ describe('assertPlanAccess', () => {
           limit: () => {
             selectCallCount++;
             // Only the plan lookup
-            return Promise.resolve([{ clinicId: CLINIC_ID, ownerId: OWNER_ID }]);
+            return Promise.resolve([{ clinicId: CLINIC_ID, clientId: OWNER_ID }]);
           },
         }),
       }),

@@ -17,7 +17,7 @@ describe('Landing page /', () => {
   test('hero CTAs link to correct pages', async () => {
     const { $ } = await fetchPage('/');
     expect($('a:contains("Clinic Portal Login")').attr('href')).toBe('/login/clinic');
-    expect($('a:contains("Pet Owner Portal Login")').attr('href')).toBe('/login/owner');
+    expect($('a:contains("Client Portal Login")').attr('href')).toBe('/login/client');
   });
 
   test('three "how it works" steps', async () => {
@@ -59,13 +59,13 @@ describe('Landing page /', () => {
     expect(hrefs).toContain('/');
     expect(hrefs).toContain('/how-it-works');
     expect(hrefs).toContain('/login/clinic');
-    expect(hrefs).toContain('/login/owner');
+    expect(hrefs).toContain('/login/client');
   });
 
   test('footer sections and copyright', async () => {
     const { $ } = await fetchPage('/');
     const footerText = $('footer').text();
-    expect(footerText).toContain('Pet Owners');
+    expect(footerText).toContain('Clients');
     expect(footerText).toContain('Veterinary Clinics');
     expect(footerText).toContain('FuzzyCat. All rights reserved');
     expect(footerText).toContain('Not a lender');

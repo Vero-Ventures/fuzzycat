@@ -24,7 +24,7 @@ import {
 } from '@/lib/constants';
 import { db } from '@/server/db';
 import type * as schema from '@/server/db/schema';
-import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import { auditLog, clients, clinics, payments, payouts, plans, riskPool } from '@/server/db/schema';
 
 type Tx = PgTransaction<
   PostgresJsQueryResultHKT,
@@ -59,7 +59,7 @@ function weeksAgo(weeks: number): Date {
 async function createPlanWithPayments(
   tx: Tx,
   opts: {
-    ownerId: string;
+    clientId: string;
     clinicId: string;
     billCents: number;
     status: 'pending' | 'active' | 'completed';
@@ -73,7 +73,7 @@ async function createPlanWithPayments(
   const [planRecord] = await tx
     .insert(plans)
     .values({
-      ownerId: opts.ownerId,
+      clientId: opts.clientId,
       clinicId: opts.clinicId,
       totalBillCents: opts.billCents,
       ...calc,
@@ -262,9 +262,9 @@ async function main() {
   }
 
   const [owner] = await db
-    .select({ id: owners.id, name: owners.name })
-    .from(owners)
-    .where(eq(owners.email, OWNER_EMAIL))
+    .select({ id: clients.id, name: clients.name })
+    .from(clients)
+    .where(eq(clients.email, OWNER_EMAIL))
     .limit(1);
 
   if (!owner) {
@@ -278,7 +278,7 @@ async function main() {
   const existingPlans = await db
     .select({ id: plans.id })
     .from(plans)
-    .where(eq(plans.ownerId, owner.id))
+    .where(eq(plans.clientId, owner.id))
     .limit(1);
 
   if (existingPlans.length > 0) {
@@ -292,7 +292,7 @@ async function main() {
   await db.transaction(async (tx) => {
     console.log('Creating Plan 1: $1,200 active plan...');
     await createPlanWithPayments(tx, {
-      ownerId: owner.id,
+      clientId: owner.id,
       clinicId: clinic.id,
       billCents: 120_000,
       status: 'active',
@@ -302,7 +302,7 @@ async function main() {
 
     console.log('\nCreating Plan 2: $2,500 completed plan...');
     await createPlanWithPayments(tx, {
-      ownerId: owner.id,
+      clientId: owner.id,
       clinicId: clinic.id,
       billCents: 250_000,
       status: 'completed',
@@ -312,7 +312,7 @@ async function main() {
 
     console.log('\nCreating Plan 3: $750 pending plan...');
     await createPlanWithPayments(tx, {
-      ownerId: owner.id,
+      clientId: owner.id,
       clinicId: clinic.id,
       billCents: 75_000,
       status: 'pending',

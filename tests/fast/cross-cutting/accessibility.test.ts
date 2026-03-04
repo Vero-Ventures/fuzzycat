@@ -95,9 +95,9 @@ describe.skipIf(!hasAuth())('Accessibility — Portal pages', () => {
     expect($('h1').length).toBe(1);
   });
 
-  test('portal heading hierarchy (/owner/payments)', async () => {
-    const cookies = await getAuthCookies('owner');
-    const { $ } = await fetchPage('/owner/payments', { cookies, followRedirects: true });
+  test('portal heading hierarchy (/client/payments)', async () => {
+    const cookies = await getAuthCookies('client');
+    const { $ } = await fetchPage('/client/payments', { cookies, followRedirects: true });
     expectNoSkippedHeadings($);
     expect($('h1').length).toBe(1);
   });

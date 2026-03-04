@@ -17,7 +17,7 @@ import { mockTrpcQuery } from '../../helpers/trpc-mock';
 test.describe.configure({ timeout: 90_000 });
 
 test.describe('Portal Mobile Responsive — Owner', () => {
-  test.use({ storageState: 'e2e/auth-state/owner.json' });
+  test.use({ storageState: 'e2e/auth-state/client.json' });
 
   test('owner payments on mobile', async ({ page }, testInfo) => {
     await mockExternalServices(page);
@@ -26,7 +26,7 @@ test.describe('Portal Mobile Responsive — Owner', () => {
     await mockTrpcQuery(page, 'owner.getPaymentHistory', ownerPaymentHistory);
     await mockAllTrpc(page);
 
-    const loaded = await gotoPortalPage(page, '/owner/payments');
+    const loaded = await gotoPortalPage(page, '/client/payments');
     if (!loaded) return;
 
     await expect(page.getByText(/my payment plan|payment/i).first()).toBeVisible({ timeout: 5000 });

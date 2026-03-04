@@ -80,7 +80,7 @@ const OWNER_ID = 'owner-test-1';
 function ownerCtx(): any {
   return {
     db: dbMock,
-    session: { userId: USER_ID, role: 'owner' },
+    session: { userId: USER_ID, role: 'client' },
     supabase: {
       auth: {
         mfa: {
@@ -143,22 +143,22 @@ describe('payment.initiateDeposit', () => {
   afterEach(resetDbMocks);
 
   it('owner initiates deposit successfully', async () => {
-    // ownerProcedure looks up owner by authId
+    // clientProcedure looks up owner by authId
     createMockChain([[{ id: OWNER_ID }]]);
     const caller = createCaller(ownerCtx());
 
     const result = await caller.initiateDeposit({
       planId: PLAN_ID,
-      successUrl: 'http://localhost:3000/owner/payments?success=true',
-      cancelUrl: 'http://localhost:3000/owner/payments?cancelled=true',
+      successUrl: 'http://localhost:3000/client/payments?success=true',
+      cancelUrl: 'http://localhost:3000/client/payments?cancelled=true',
     });
 
     expect(result.sessionId).toBe('cs_test_123');
     expect(mockProcessDeposit).toHaveBeenCalledWith({
       planId: PLAN_ID,
-      ownerId: OWNER_ID,
-      successUrl: 'http://localhost:3000/owner/payments?success=true',
-      cancelUrl: 'http://localhost:3000/owner/payments?cancelled=true',
+      clientId: OWNER_ID,
+      successUrl: 'http://localhost:3000/client/payments?success=true',
+      cancelUrl: 'http://localhost:3000/client/payments?cancelled=true',
     });
   });
 
@@ -170,7 +170,7 @@ describe('payment.initiateDeposit', () => {
       caller.initiateDeposit({
         planId: PLAN_ID,
         successUrl: 'https://evil.com/steal',
-        cancelUrl: 'http://localhost:3000/owner/payments',
+        cancelUrl: 'http://localhost:3000/client/payments',
       }),
     ).rejects.toThrow('Redirect URLs must belong to the application domain');
     expect(mockProcessDeposit).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('payment.initiateDeposit', () => {
     await expect(
       caller.initiateDeposit({
         planId: PLAN_ID,
-        successUrl: 'http://localhost:3000/owner/payments',
+        successUrl: 'http://localhost:3000/client/payments',
         cancelUrl: 'https://evil.com/steal',
       }),
     ).rejects.toThrow('Redirect URLs must belong to the application domain');

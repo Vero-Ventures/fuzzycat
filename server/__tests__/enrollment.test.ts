@@ -228,7 +228,7 @@ describe('createEnrollment', () => {
     );
 
     expect(result.planId).toBe(PLAN_ID);
-    expect(result.ownerId).toBe(OWNER_ID);
+    expect(result.clientId).toBe(OWNER_ID);
     expect(result.paymentIds).toHaveLength(7);
     expect(result.paymentIds).toEqual(paymentIds.map((p) => p.id));
   });
@@ -301,7 +301,7 @@ describe('createEnrollment', () => {
       ENROLLMENT_DATE,
     );
 
-    expect(result.ownerId).toBe(OWNER_ID);
+    expect(result.clientId).toBe(OWNER_ID);
     expect(result.planId).toBe(PLAN_ID);
     expect(result.paymentIds).toHaveLength(7);
   });
@@ -557,12 +557,12 @@ describe('getEnrollmentSummary', () => {
       installmentCents: 15_900,
       numInstallments: 6,
       createdAt: new Date(),
-      owner: null,
+      client: null,
       clinic: { id: CLINIC_ID, name: 'Happy Paws Vet' },
       payments: [],
     });
 
-    await expect(getEnrollmentSummary(PLAN_ID)).rejects.toThrow('no associated owner');
+    await expect(getEnrollmentSummary(PLAN_ID)).rejects.toThrow('no associated client');
   });
 
   it('throws when plan has no associated clinic', async () => {
@@ -577,7 +577,7 @@ describe('getEnrollmentSummary', () => {
       installmentCents: 15_900,
       numInstallments: 6,
       createdAt: new Date(),
-      owner: {
+      client: {
         id: OWNER_ID,
         name: 'Jane Doe',
         email: 'jane@example.com',
@@ -606,7 +606,7 @@ describe('getEnrollmentSummary', () => {
       installmentCents: 15_900,
       numInstallments: 6,
       createdAt,
-      owner: {
+      client: {
         id: OWNER_ID,
         name: 'Jane Doe',
         email: 'jane@example.com',
@@ -653,7 +653,7 @@ describe('getEnrollmentSummary', () => {
       installmentCents: 15_900,
       numInstallments: 6,
       createdAt: new Date(),
-      owner: {
+      client: {
         id: OWNER_ID,
         name: 'Jane Doe',
         email: 'jane@example.com',

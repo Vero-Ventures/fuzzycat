@@ -53,13 +53,13 @@ export default defineConfig({
       testDir: './e2e/tests/auth',
       use: { ...devices['Desktop Chrome'] },
     },
-    // ── Owner portal (authenticated) ──────────────────────────────────
+    // ── Client portal (authenticated) ─────────────────────────────────
     {
-      name: 'owner',
-      testDir: './e2e/tests/owner',
+      name: 'client',
+      testDir: './e2e/tests/client',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'e2e/auth-state/owner.json',
+        storageState: 'e2e/auth-state/client.json',
       },
     },
     // ── Clinic portal (authenticated) ─────────────────────────────────

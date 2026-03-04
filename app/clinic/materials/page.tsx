@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTRPC } from '@/lib/trpc/client';
-import { OwnerInfoSheet } from './_components/owner-info-sheet';
+import { ClientInfoSheet } from './_components/client-info-sheet';
 import { QuickReferenceCard } from './_components/quick-reference-card';
 import { WaitingRoomFlyer } from './_components/waiting-room-flyer';
 
@@ -97,7 +97,7 @@ export default function MaterialsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <OwnerInfoSheet clinicName={clinicName} />
+                <ClientInfoSheet clinicName={clinicName} />
               </CardContent>
             </Card>
           </TabsContent>

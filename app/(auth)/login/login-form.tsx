@@ -44,7 +44,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         return;
       }
 
-      const role = data.user ? getUserRole(data.user) : 'owner';
+      const role = data.user ? getUserRole(data.user) : 'client';
       const isSafeRedirect =
         redirectTo && SAFE_REDIRECT_PREFIXES.some((p) => redirectTo.startsWith(p));
       const destination = isSafeRedirect ? redirectTo : ROLE_HOME[role];

@@ -89,7 +89,7 @@ export default function ClinicEnrollPage() {
       return;
     }
     if (!ownerName.trim()) {
-      setError('Owner name is required.');
+      setError('Client name is required.');
       return;
     }
     if (!ownerEmail.trim() || !ownerEmail.includes('@')) {

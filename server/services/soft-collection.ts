@@ -12,7 +12,7 @@ import { publicEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { addDays } from '@/lib/utils/date';
 import { db } from '@/server/db';
-import { owners, plans, softCollections } from '@/server/db/schema';
+import { clients, plans, softCollections } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import {
   sendSoftCollectionDay1,
@@ -69,13 +69,13 @@ function getNextStage(currentStage: SoftCollectionStage): SoftCollectionStage | 
 /** Build the update-payment URL for the owner portal. */
 function getUpdatePaymentUrl(): string {
   const url = publicEnv().NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  return `${url}/owner/settings`;
+  return `${url}/client/settings`;
 }
 
 /** Build the owner dashboard URL. */
 function getDashboardUrl(): string {
   const url = publicEnv().NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  return `${url}/owner/dashboard`;
+  return `${url}/client/dashboard`;
 }
 
 /** Calculate next escalation date from stage. */
@@ -92,14 +92,14 @@ async function getPlanWithOwner(planId: string): Promise<PlanOwnerInfo | null> {
     .select({
       planId: plans.id,
       remainingCents: plans.remainingCents,
-      ownerName: owners.name,
-      ownerEmail: owners.email,
-      ownerPhone: owners.phone,
-      petName: owners.petName,
+      ownerName: clients.name,
+      ownerEmail: clients.email,
+      ownerPhone: clients.phone,
+      petName: clients.petName,
       clinicId: plans.clinicId,
     })
     .from(plans)
-    .leftJoin(owners, eq(plans.ownerId, owners.id))
+    .leftJoin(clients, eq(plans.clientId, clients.id))
     .where(eq(plans.id, planId))
     .limit(1);
 

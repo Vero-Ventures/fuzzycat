@@ -113,12 +113,12 @@ mock.module('@/server/db', () => ({
 }));
 
 mock.module('@/server/db/schema', () => ({
-  owners: {
-    id: 'owners.id',
-    stripeCustomerId: 'owners.stripe_customer_id',
-    stripeCardPaymentMethodId: 'owners.stripe_card_payment_method_id',
-    stripeAchPaymentMethodId: 'owners.stripe_ach_payment_method_id',
-    paymentMethod: 'owners.payment_method',
+  clients: {
+    id: 'clients.id',
+    stripeCustomerId: 'clients.stripe_customer_id',
+    stripeCardPaymentMethodId: 'clients.stripe_card_payment_method_id',
+    stripeAchPaymentMethodId: 'clients.stripe_ach_payment_method_id',
+    paymentMethod: 'clients.payment_method',
   },
   clinics: {
     id: 'clinics.id',
@@ -129,7 +129,7 @@ mock.module('@/server/db/schema', () => ({
   },
   plans: {
     id: 'plans.id',
-    ownerId: 'plans.owner_id',
+    clientId: 'plans.client_id',
     clinicId: 'plans.clinic_id',
     depositCents: 'plans.deposit_cents',
     totalBillCents: 'plans.total_bill_cents',
@@ -158,9 +158,9 @@ mock.module('@/server/db/schema', () => ({
   payoutStatusEnum: {},
   riskPoolTypeEnum: {},
   actorTypeEnum: {},
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   clinicsRelations: {},
-  ownersRelations: {},
+  clientsRelations: {},
   petsRelations: {},
   plansRelations: {},
   paymentsRelations: {},
@@ -285,7 +285,7 @@ describe('processDeposit', () => {
     mockSelectLimit.mockResolvedValueOnce([
       {
         id: 'plan-1',
-        ownerId: 'owner-1',
+        clientId: 'owner-1',
         clinicId: 'clinic-1',
         depositCents: 26_500,
         status: 'active',
@@ -306,7 +306,7 @@ describe('processDeposit', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
           status: 'pending',
@@ -328,7 +328,7 @@ describe('processDeposit', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
           status: 'pending',
@@ -353,7 +353,7 @@ describe('processDeposit', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
           status: 'pending',
@@ -376,7 +376,7 @@ describe('processDeposit', () => {
     expect(mockCustomersCreate).toHaveBeenCalledWith({
       email: 'owner@example.com',
       name: 'Jane Doe',
-      metadata: { ownerId: 'owner-1' },
+      metadata: { clientId: 'owner-1' },
     });
     expect(result.sessionId).toBe('cs_test_session_123');
   });
@@ -386,7 +386,7 @@ describe('processDeposit', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
           status: 'pending',
@@ -464,7 +464,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'pending' }]);
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'pending' }]);
 
     await expect(processInstallment({ paymentId: 'pay-1' })).rejects.toThrow('is not active');
   });
@@ -480,7 +480,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: null }]);
 
     await expect(processInstallment({ paymentId: 'pay-1' })).rejects.toThrow(
@@ -499,7 +499,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -528,7 +528,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -555,7 +555,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -586,7 +586,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -617,7 +617,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -647,7 +647,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -674,7 +674,7 @@ describe('processInstallment', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -712,7 +712,7 @@ describe('handlePaymentSuccess', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
@@ -778,7 +778,7 @@ describe('handlePaymentSuccess', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
@@ -897,7 +897,7 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
@@ -941,7 +941,7 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-2',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
@@ -984,7 +984,7 @@ describe('handlePaymentSuccess — installment plan completion', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
@@ -1029,7 +1029,7 @@ describe('handlePaymentSuccess — installment plan completion', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
@@ -1106,7 +1106,7 @@ describe('handlePaymentSuccess — payout idempotency', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
@@ -1152,7 +1152,7 @@ describe('handlePaymentSuccess — deposit card save', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
@@ -1194,7 +1194,7 @@ describe('handlePaymentSuccess — deposit card save', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
@@ -1225,7 +1225,7 @@ describe('handlePaymentSuccess — deposit card save', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
@@ -1263,7 +1263,7 @@ describe('handlePaymentSuccess — deposit card save', () => {
       .mockResolvedValueOnce([
         {
           id: 'plan-1',
-          ownerId: 'owner-1',
+          clientId: 'owner-1',
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
@@ -1358,7 +1358,7 @@ describe('processInstallment — no payment method preference', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -1403,7 +1403,7 @@ describe('processInstallment — payment method validation', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {
@@ -1435,7 +1435,7 @@ describe('processInstallment — payment method validation', () => {
           type: 'installment',
         },
       ])
-      .mockResolvedValueOnce([{ ownerId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([
         {

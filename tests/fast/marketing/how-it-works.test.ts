@@ -12,7 +12,7 @@ describe('How It Works /how-it-works', () => {
     expect($('h1').text()).toContain('How FuzzyCat Works');
   });
 
-  test('pet owner steps (4)', async () => {
+  test('client steps (4)', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
     expect(text).toContain('Visit your vet');
@@ -48,7 +48,7 @@ describe('How It Works /how-it-works', () => {
   test('clinic payouts steps', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Pet owner enrolls');
+    expect(text).toContain('Client enrolls');
     expect(text).toContain('payment succeeds');
     expect(text).toContain('revenue share');
     expect(text).toContain('Track all plans');
@@ -58,7 +58,7 @@ describe('How It Works /how-it-works', () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
     expect(text).toContain('Ready to get started?');
-    expect($('a:contains("Sign Up as Pet Owner")').attr('href')).toBe('/signup/owner');
+    expect($('a:contains("Sign Up as Client")').attr('href')).toBe('/signup/client');
     expect($('a:contains("Register Your Clinic")').attr('href')).toBe('/signup/clinic');
   });
 });

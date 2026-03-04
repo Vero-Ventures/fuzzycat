@@ -133,8 +133,11 @@ export async function convertOwnerReferral(
  * Get the fee discount for a referred owner's enrollment.
  * Returns 0 if the owner was not referred.
  */
-export async function getReferralDiscount(ownerId: string): Promise<number> {
-  const [referral] = await db
+export async function getReferralDiscount(
+  ownerId: string,
+  queryDb: Pick<typeof db, 'select'> = db,
+): Promise<number> {
+  const [referral] = await queryDb
     .select({ id: ownerReferrals.id })
     .from(ownerReferrals)
     .where(and(eq(ownerReferrals.referredOwnerId, ownerId), eq(ownerReferrals.status, 'converted')))

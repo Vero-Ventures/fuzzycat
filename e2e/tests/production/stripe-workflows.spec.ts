@@ -182,10 +182,9 @@ test.describe('Owner Stripe workflows', () => {
       // If bank account already exists, clicking switches active method →
       // should see "Payment method updated" success or the button becomes selected
       const successText = page.getByText(/payment method updated/i);
-      const hasSuccess = await successText.isVisible({ timeout: 5_000 }).catch(() => false);
+      await successText.isVisible({ timeout: 5_000 }).catch(() => false);
 
       // Or the Bank Account button becomes the selected/active one
-      // (indicated by different styling, but we can check if debit_card is no longer selected)
       await testInfo.attach('bank-switch-result', {
         body: await page.screenshot({ fullPage: true }),
         contentType: 'image/png',

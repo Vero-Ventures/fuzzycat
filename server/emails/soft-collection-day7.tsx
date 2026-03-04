@@ -60,8 +60,8 @@ export function SoftCollectionDay7({
       </Section>
 
       <Text style={muted}>
-        If you are experiencing financial difficulty, please contact our support team. We may be
-        able to work out an alternative arrangement.
+        If you are experiencing financial difficulty, please contact your veterinary clinic directly
+        to discuss possible options.
       </Text>
     </EmailLayout>
   );

@@ -14,6 +14,7 @@ import {
 } from '@/server/services/payout';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
 import { createDepositCheckoutSession } from '@/server/services/stripe/checkout';
+import { getOrCreateCustomer } from '@/server/services/stripe/customer';
 
 // biome-ignore lint/suspicious/noExplicitAny: Drizzle transaction types are complex generics that vary by driver; using `any` here avoids coupling to a specific driver implementation.
 type DrizzleTx = PgTransaction<any, any, any>;
@@ -99,25 +100,35 @@ export async function processDeposit(params: {
     );
   }
 
-  // Fetch the owner's Stripe customer ID
+  // Fetch the owner's Stripe customer ID (lazy-create if missing)
   const [owner] = await db
     .select({
       stripeCustomerId: owners.stripeCustomerId,
+      email: owners.email,
+      name: owners.name,
     })
     .from(owners)
     .where(eq(owners.id, plan.ownerId))
     .limit(1);
 
-  if (!owner?.stripeCustomerId) {
-    throw new Error(`Owner ${plan.ownerId} does not have a Stripe customer ID`);
+  if (!owner) {
+    throw new Error(`Owner ${plan.ownerId} not found`);
   }
+
+  const stripeCustomerId =
+    owner.stripeCustomerId ??
+    (await getOrCreateCustomer({
+      ownerId: plan.ownerId,
+      email: owner.email,
+      name: owner.name,
+    }));
 
   const clinicShareRate = getEffectiveShareRate(clinic);
 
   return createDepositCheckoutSession({
     paymentId: depositPayment.id,
     planId: params.planId,
-    stripeCustomerId: owner.stripeCustomerId,
+    stripeCustomerId,
     depositCents: plan.depositCents,
     successUrl: params.successUrl,
     cancelUrl: params.cancelUrl,

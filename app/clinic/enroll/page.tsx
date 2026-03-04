@@ -131,8 +131,9 @@ export default function ClinicEnrollPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Enrollment Created</h1>
           <p className="mt-2 text-muted-foreground">
-            The payment plan has been created successfully. The pet owner will receive an email with
-            instructions to pay their deposit.
+            The payment plan has been created successfully. An email has been sent to{' '}
+            <strong>{ownerEmail}</strong> with instructions to set up their account and pay the
+            deposit.
           </p>
         </div>
 
@@ -354,6 +355,10 @@ export default function ClinicEnrollPage() {
                   Bank Account
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Sets the owner's preferred method for future installment payments. The initial
+                deposit is always collected via debit card.
+              </p>
             </div>
 
             <Separator />

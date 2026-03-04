@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { resend } from '@/lib/resend';
 import type { ClinicWelcomeProps } from '@/server/emails/clinic-welcome';
 import { ClinicWelcome } from '@/server/emails/clinic-welcome';
+import type { EnrollmentInviteProps } from '@/server/emails/enrollment-invite';
+import { EnrollmentInvite } from '@/server/emails/enrollment-invite';
 import type { SoftCollectionDay1Props } from '@/server/emails/soft-collection-day1';
 import { SoftCollectionDay1 } from '@/server/emails/soft-collection-day1';
 import type { SoftCollectionDay7Props } from '@/server/emails/soft-collection-day7';
@@ -64,6 +66,22 @@ export async function sendClinicWelcome(
     subject: `Welcome to FuzzyCat, ${props.clinicName}!`,
     react: ClinicWelcome(props),
     errorContext: 'clinic welcome',
+  });
+}
+
+/**
+ * Send enrollment invite email to a pet owner.
+ * Includes payment plan summary and link to set up account + pay deposit.
+ */
+export async function sendEnrollmentInvite(
+  to: string,
+  props: EnrollmentInviteProps,
+): Promise<SendEmailResult> {
+  return sendEmail({
+    to,
+    subject: `Your payment plan for ${props.petName} is ready`,
+    react: EnrollmentInvite(props),
+    errorContext: 'enrollment invite',
   });
 }
 

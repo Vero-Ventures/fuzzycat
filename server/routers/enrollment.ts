@@ -2,14 +2,21 @@
 // Exposes enrollment service functions as typed procedures.
 
 import { TRPCError } from '@trpc/server';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
+import { logger } from '@/lib/logger';
+import { calculatePaymentSchedule } from '@/lib/utils/schedule';
+import { db } from '@/server/db';
+import { clinics } from '@/server/db/schema';
 import { assertClinicOwnership, assertPlanAccess } from '@/server/services/authorization';
 import {
+  type CreateEnrollmentResult,
   cancelEnrollment,
   createEnrollment,
   getEnrollmentSummary,
 } from '@/server/services/enrollment';
+import { provisionOwnerAccount } from '@/server/services/owner-provisioning';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
 const ownerDataSchema = z.object({
@@ -60,8 +67,9 @@ export const enrollmentRouter = router({
         await assertClinicOwnership(ctx.session.userId, input.clinicId);
       }
 
+      let result: CreateEnrollmentResult;
       try {
-        return await createEnrollment(
+        result = await createEnrollment(
           input.clinicId,
           input.ownerData,
           input.billAmountCents,
@@ -71,6 +79,33 @@ export const enrollmentRouter = router({
         const message = error instanceof Error ? error.message : 'Failed to create enrollment';
         throw new TRPCError({ code: 'BAD_REQUEST', message });
       }
+
+      // Provision owner account (non-blocking — enrollment is valid even if this fails)
+      try {
+        const [clinic] = await db
+          .select({ name: clinics.name })
+          .from(clinics)
+          .where(eq(clinics.id, input.clinicId))
+          .limit(1);
+
+        await provisionOwnerAccount({
+          ownerId: result.ownerId,
+          ownerEmail: input.ownerData.email,
+          ownerName: input.ownerData.name,
+          petName: input.ownerData.petName,
+          planId: result.planId,
+          clinicName: clinic?.name ?? 'Your Veterinary Clinic',
+          schedule: calculatePaymentSchedule(input.billAmountCents),
+        });
+      } catch (err) {
+        logger.error('Owner provisioning failed (enrollment still valid)', {
+          planId: result.planId,
+          ownerId: result.ownerId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      return result;
     }),
 
   /**

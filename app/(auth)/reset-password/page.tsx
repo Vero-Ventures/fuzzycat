@@ -2,15 +2,17 @@
 
 import { Cat, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { createClient } from '@/lib/supabase/client';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get('next');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export default function ResetPasswordPage() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/login');
+        router.push(nextUrl || '/login');
       }, 3000);
     } finally {
       setLoading(false);
@@ -62,11 +64,14 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-2xl font-semibold">Password updated</h1>
           <p className="text-sm text-muted-foreground">
-            Your password has been reset successfully. Redirecting you to login...
+            Your password has been reset successfully.{' '}
+            {nextUrl ? 'Redirecting...' : 'Redirecting you to login...'}
           </p>
-          <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
-            Go to login now
-          </Link>
+          {!nextUrl && (
+            <Link href="/login" className="text-sm font-medium text-primary hover:text-primary/80">
+              Go to login now
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -125,5 +130,22 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="w-full max-w-md space-y-6 text-center">
+            <Cat className="mx-auto mb-4 h-10 w-10 text-primary" />
+            <h1 className="text-2xl font-semibold">Set a new password</h1>
+          </div>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

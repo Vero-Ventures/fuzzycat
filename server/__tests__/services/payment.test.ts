@@ -20,6 +20,9 @@ const mockPaymentIntentsCreate = mock(() =>
 
 const mockTransfersCreate = mock(() => Promise.resolve({ id: 'tr_transfer_789' }));
 
+const mockCustomersCreate = mock(() =>
+  Promise.resolve({ id: 'cus_lazy_created', email: 'owner@example.com' }),
+);
 const mockCustomersUpdate = mock(() => Promise.resolve({}));
 
 const mockPaymentMethodsRetrieve = mock((_id: string) =>
@@ -31,7 +34,7 @@ mock.module('@/lib/stripe', () => ({
     checkout: { sessions: { create: mockCheckoutSessionsCreate } },
     paymentIntents: { create: mockPaymentIntentsCreate },
     transfers: { create: mockTransfersCreate },
-    customers: { update: mockCustomersUpdate },
+    customers: { create: mockCustomersCreate, update: mockCustomersUpdate },
     paymentMethods: { retrieve: mockPaymentMethodsRetrieve },
   }),
 }));
@@ -51,6 +54,7 @@ const mockSelectFrom = mock();
 const mockSelect = mock();
 const mockUpdateSet = mock();
 const mockUpdateWhere = mock();
+const mockUpdateReturning = mock();
 const mockUpdate = mock();
 const mockInsertValues = mock();
 const mockInsertReturning = mock();
@@ -179,6 +183,7 @@ mock.module('drizzle-orm', () => ({
   and: (...args: unknown[]) => ({ args, type: 'and' }),
   desc: (col: string) => ({ col, type: 'desc' }),
   lte: (col: string, val: unknown) => ({ col, val, type: 'lte' }),
+  isNull: (col: string) => ({ col, type: 'isNull' }),
   inArray: (col: string, vals: unknown[]) => ({ col, vals, type: 'inArray' }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     strings: [...strings],
@@ -205,7 +210,10 @@ function setupSelectChain() {
 }
 
 function setupUpdateChain() {
-  mockUpdateWhere.mockResolvedValue([]);
+  mockUpdateReturning.mockResolvedValue([{ stripeCustomerId: 'cus_lazy_created' }]);
+  mockUpdateWhere.mockImplementation(() =>
+    Object.assign(Promise.resolve([]), { returning: mockUpdateReturning }),
+  );
   mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
   mockUpdate.mockReturnValue({ set: mockUpdateSet });
 }
@@ -340,7 +348,7 @@ describe('processDeposit', () => {
     ).rejects.toThrow('Deposit payment not found');
   });
 
-  it('throws when owner has no Stripe customer ID', async () => {
+  it('lazy-creates Stripe customer when owner has no customer ID', async () => {
     mockSelectLimit
       .mockResolvedValueOnce([
         {
@@ -353,15 +361,24 @@ describe('processDeposit', () => {
       ])
       .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
       .mockResolvedValueOnce([{ id: 'pay-1', status: 'pending' }])
+      .mockResolvedValueOnce([
+        { stripeCustomerId: null, email: 'owner@example.com', name: 'Jane Doe' },
+      ])
+      // 5th select: getOrCreateCustomer checks stripeCustomerId
       .mockResolvedValueOnce([{ stripeCustomerId: null }]);
 
-    await expect(
-      processDeposit({
-        planId: 'plan-1',
-        successUrl: 'https://app.example.com/success',
-        cancelUrl: 'https://app.example.com/cancel',
-      }),
-    ).rejects.toThrow('does not have a Stripe customer ID');
+    const result = await processDeposit({
+      planId: 'plan-1',
+      successUrl: 'https://app.example.com/success',
+      cancelUrl: 'https://app.example.com/cancel',
+    });
+
+    expect(mockCustomersCreate).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      name: 'Jane Doe',
+      metadata: { ownerId: 'owner-1' },
+    });
+    expect(result.sessionId).toBe('cs_test_session_123');
   });
 
   it('creates a checkout session for valid deposit', async () => {

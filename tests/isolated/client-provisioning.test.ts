@@ -305,7 +305,7 @@ describe('provisionClientAccount', () => {
         `https://test.fuzzycatapp.com/client/payments/${PLAN_ID}/deposit`,
       );
       expect(mockLoggerError).toHaveBeenCalledWith(
-        'Failed to create Supabase auth account for owner',
+        'Failed to create Supabase auth account for client',
         expect.objectContaining({ clientId: OWNER_ID }),
       );
       // Should NOT generate recovery link since auth failed

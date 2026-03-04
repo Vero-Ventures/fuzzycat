@@ -48,7 +48,7 @@ describe('How It Works /how-it-works', () => {
   test('clinic payouts steps', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Client enrolls');
+    expect(text).toContain('Pet owner enrolls');
     expect(text).toContain('payment succeeds');
     expect(text).toContain('revenue share');
     expect(text).toContain('Track all plans');

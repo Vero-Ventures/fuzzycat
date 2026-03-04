@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
-  CLINIC_SHARE_RATE,
+  CLINIC_SHARE_PERCENT,
   DEPOSIT_RATE,
   FEE_PERCENT,
   NUM_INSTALLMENTS,
@@ -26,7 +26,7 @@ import {
 
 export const metadata: Metadata = {
   title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
-  description: `Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn 3% on every enrollment. Flexible payment plans for veterinary care.`,
+  description: `Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn ${CLINIC_SHARE_PERCENT}% on every enrollment. Flexible payment plans for veterinary care.`,
   openGraph: {
     title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
     description:
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   const feePercent = FEE_PERCENT;
   const depositPercent = Math.round(DEPOSIT_RATE * 100);
-  const clinicSharePercent = Math.round(CLINIC_SHARE_RATE * 100);
+  const clinicSharePercent = CLINIC_SHARE_PERCENT;
 
   return (
     <>

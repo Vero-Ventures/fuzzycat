@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatDate } from '@/lib/utils/date';
 import { formatCents } from '@/lib/utils/money';
@@ -202,7 +203,7 @@ export default function ClinicPlanDetailPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Amount</TableHead>
-                  <TableHead>3% Share</TableHead>
+                  <TableHead>{CLINIC_SHARE_PERCENT}% Share</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { FEE_PERCENT } from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, FEE_PERCENT } from '@/lib/constants';
 import { fetchPage } from '../helpers/fetch';
 
 describe('How It Works /how-it-works', () => {
@@ -41,7 +41,7 @@ describe('How It Works /how-it-works', () => {
   test('clinic benefits (3 cards)', async () => {
     const { $ } = await fetchPage('/how-it-works');
     const text = $('body').text();
-    expect(text).toContain('Earn 3% on every enrollment');
+    expect(text).toContain(`Earn ${CLINIC_SHARE_PERCENT}% on every enrollment`);
     expect(text).toContain('Automated payment recovery');
     expect(text).toContain('Fast payouts');
   });

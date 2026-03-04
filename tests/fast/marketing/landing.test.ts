@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 import { fetchPage } from '../helpers/fetch';
 
 describe('Landing page /', () => {
@@ -36,12 +37,12 @@ describe('Landing page /', () => {
     expect(text).toContain('12-Week Plans');
   });
 
-  test('clinic section with 3% revenue share', async () => {
+  test(`clinic section with ${CLINIC_SHARE_PERCENT}% revenue share`, async () => {
     const { $ } = await fetchPage('/');
     const text = $('body').text();
     expect(text).toContain('For Veterinary Clinics');
     expect(text).toContain('Get paid to offer payment plans');
-    expect(text).toContain('Earn 3% on every plan');
+    expect(text).toContain(`Earn ${CLINIC_SHARE_PERCENT}% on every plan`);
     expect(text).toContain('Built-in default protection');
     expect(text).toContain('Zero setup cost');
     expect(text).toContain('Partner With FuzzyCat');

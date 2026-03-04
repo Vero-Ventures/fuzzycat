@@ -2,6 +2,7 @@ import { HydrationBoundary } from '@tanstack/react-query';
 import type { Metadata } from 'next';
 import { createServerHelpers } from '@/lib/trpc/server';
 import { PayoutEarnings } from './_components/payout-earnings';
+import { PayoutExplainer } from './_components/payout-explainer';
 import { PayoutHistory } from './_components/payout-history';
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default async function ClinicPayoutsPage() {
         </div>
 
         <PayoutEarnings />
+        <PayoutExplainer />
         <PayoutHistory />
       </div>
     </HydrationBoundary>

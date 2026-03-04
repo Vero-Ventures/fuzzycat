@@ -271,7 +271,22 @@ describe('GET /clinic/clients', () => {
     const app = createApiApp();
     setupAuth(['clients:read']);
     mockGetClients.mockResolvedValue({
-      clients: [{ planId: PLAN_ID, ownerName: 'Jane' }],
+      clients: [
+        {
+          clientId: '22222222-2222-4222-a222-222222222222',
+          ownerName: 'Jane',
+          ownerEmail: 'jane@test.com',
+          ownerPhone: '555-1234',
+          planCount: 1,
+          activePlanCount: 1,
+          totalOutstandingCents: 72300,
+          totalPaidCents: 47700,
+          latestPlanId: PLAN_ID,
+          latestStatus: 'active',
+          nextPaymentAt: null,
+          hasDefaulted: false,
+        },
+      ],
       pagination: { page: 1, pageSize: 20, totalCount: 1, totalPages: 1 },
     });
 

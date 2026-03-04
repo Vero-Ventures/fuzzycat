@@ -87,17 +87,18 @@ const enrollmentTrendSchema = z.object({
 });
 
 const clientRowSchema = z.object({
-  planId: z.string().uuid(),
+  clientId: z.string().uuid(),
   ownerName: z.string().nullable(),
   ownerEmail: z.string().nullable(),
   ownerPhone: z.string().nullable(),
-  petName: z.string().nullable(),
-  totalBillCents: z.number().openapi({ example: 150000 }),
-  totalWithFeeCents: z.number().openapi({ example: 159000 }),
-  planStatus: z.string().openapi({ example: 'active' }),
-  nextPaymentAt: z.string().nullable().openapi({ example: '2026-02-01T00:00:00.000Z' }),
-  createdAt: z.string().nullable().openapi({ example: '2026-01-15T12:00:00.000Z' }),
+  planCount: z.number().openapi({ example: 2 }),
+  activePlanCount: z.number().openapi({ example: 1 }),
+  totalOutstandingCents: z.number().openapi({ example: 119250 }),
   totalPaidCents: z.number().openapi({ example: 39750 }),
+  latestPlanId: z.string().uuid(),
+  latestStatus: z.string().openapi({ example: 'active' }),
+  nextPaymentAt: z.string().nullable().openapi({ example: '2026-02-01T00:00:00.000Z' }),
+  hasDefaulted: z.boolean().openapi({ example: false }),
 });
 
 const clientsResponseSchema = z.object({
@@ -577,7 +578,6 @@ clinicRoutes.openapi(getClientsRoute, async (c) => {
     clients: result.clients.map((cl) => ({
       ...cl,
       nextPaymentAt: cl.nextPaymentAt?.toISOString() ?? null,
-      createdAt: cl.createdAt?.toISOString() ?? null,
     })),
   });
 });

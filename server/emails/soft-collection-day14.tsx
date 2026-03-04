@@ -62,7 +62,7 @@ export function SoftCollectionDay14({
 
       <Text style={muted}>
         If you believe this notice was sent in error, or if you need to discuss your options, please
-        contact our support team immediately.
+        contact your veterinary clinic directly.
       </Text>
     </EmailLayout>
   );

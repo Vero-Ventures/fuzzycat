@@ -103,8 +103,8 @@ export default function SupportPage() {
                 <p>
                   Payment plans cannot be cancelled once the deposit has been processed, as the
                   funds are forwarded to the veterinary clinic. If you are experiencing financial
-                  difficulty, please contact us at support@fuzzycatapp.com and we will work with you
-                  to find a solution.
+                  difficulty, please contact your veterinary clinic directly to discuss possible
+                  options.
                 </p>
               </AccordionContent>
             </AccordionItem>

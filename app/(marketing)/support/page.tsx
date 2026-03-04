@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Support',
@@ -44,8 +45,8 @@ export default function SupportPage() {
                 <p>
                   Your veterinary clinic enrolls you in a FuzzyCat payment plan. You pay a 25%
                   deposit upfront, and the remaining 75% is divided into 6 equal biweekly payments
-                  over 12 weeks. A flat 8% platform fee is included in your total &mdash; there is
-                  no interest and no credit check required.
+                  over 12 weeks. A flat {FEE_PERCENT}% platform fee is included in your total
+                  &mdash; there is no interest and no credit check required.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -54,9 +55,9 @@ export default function SupportPage() {
               <AccordionTrigger>How does the deposit work?</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  The deposit is 25% of your total amount (bill + 8% fee). It is charged to your
-                  debit card at the time of enrollment. Once the deposit is processed, your payment
-                  plan becomes active and your clinic is notified.
+                  The deposit is 25% of your total amount (bill + {FEE_PERCENT}% fee). It is charged
+                  to your debit card at the time of enrollment. Once the deposit is processed, your
+                  payment plan becomes active and your clinic is notified.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -182,9 +183,9 @@ export default function SupportPage() {
               <AccordionTrigger>What does FuzzyCat cost for clinics?</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  Nothing. FuzzyCat is free for veterinary clinics. The 8% platform fee is paid
-                  entirely by the client. Clinics earn a 3% revenue share on every enrollment as
-                  platform administration compensation.
+                  Nothing. FuzzyCat is free for veterinary clinics. The {FEE_PERCENT}% platform fee
+                  is paid entirely by the client. Clinics earn a 3% revenue share on every
+                  enrollment as platform administration compensation.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -297,8 +298,8 @@ export default function SupportPage() {
               <AccordionContent>
                 <p>
                   No. FuzzyCat is a payment facilitation platform, not a lender. There are no credit
-                  checks, no interest charges, and no loan origination. The 8% fee is a flat
-                  platform fee, not interest.
+                  checks, no interest charges, and no loan origination. The {FEE_PERCENT}% fee is a
+                  flat platform fee, not interest.
                 </p>
               </AccordionContent>
             </AccordionItem>

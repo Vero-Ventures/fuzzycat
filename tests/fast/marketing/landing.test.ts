@@ -58,8 +58,7 @@ describe('Landing page /', () => {
     const hrefs = headerLinks.map((l) => l.href);
     expect(hrefs).toContain('/');
     expect(hrefs).toContain('/how-it-works');
-    expect(hrefs).toContain('/login/clinic');
-    expect(hrefs).toContain('/login/client');
+    expect(hrefs).toContain('/login');
   });
 
   test('footer sections and copyright', async () => {

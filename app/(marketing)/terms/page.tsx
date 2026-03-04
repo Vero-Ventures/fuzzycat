@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Separator } from '@/components/ui/separator';
+import { FEE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -74,10 +75,10 @@ export default function TermsOfServicePage() {
               for veterinary bills between $500 and $25,000.
             </li>
             <li>
-              <strong className="text-foreground">Platform fee:</strong> A flat 8% platform fee is
-              added to your bill amount. This fee is disclosed before you confirm enrollment and is
-              included in your total payment amount. This is the only cost — there is no interest,
-              no annual percentage rate, and no additional charges.
+              <strong className="text-foreground">Platform fee:</strong> A flat {FEE_PERCENT}%
+              platform fee is added to your bill amount. This fee is disclosed before you confirm
+              enrollment and is included in your total payment amount. This is the only cost — there
+              is no interest, no annual percentage rate, and no additional charges.
             </li>
             <li>
               <strong className="text-foreground">Deposit:</strong> 25% of the total amount

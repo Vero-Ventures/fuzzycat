@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { FEE_PERCENT } from '@/lib/constants';
 import { clinicProfile } from '../../helpers/audit-mock-data';
 import { gotoPortalPage, mockAllTrpc, mockExternalServices } from '../../helpers/portal-test-base';
 import { mockTrpcMutation, mockTrpcQuery } from '../../helpers/trpc-mock';
@@ -50,8 +51,10 @@ test.describe('Clinic Enrollment — Form Interactions', () => {
     await expect(page.getByText(/payment plan preview/i)).toBeVisible({ timeout: 5000 });
 
     // Preview should show fee breakdown
-    // 8% platform fee on $1,200 = $96
-    await expect(page.getByText(/platform fee.*8%/i)).toBeVisible({ timeout: 3000 });
+    // Platform fee on $1,200
+    await expect(page.getByText(new RegExp(`platform fee.*${FEE_PERCENT}%`, 'i'))).toBeVisible({
+      timeout: 3000,
+    });
 
     // Total with fee
     await expect(page.getByText(/total with fee/i)).toBeVisible({ timeout: 3000 });

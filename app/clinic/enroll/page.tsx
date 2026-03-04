@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
+import { FEE_PERCENT, MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
 import { useTRPC } from '@/lib/trpc/client';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
@@ -154,7 +154,7 @@ export default function ClinicEnrollPage() {
                   <p className="font-medium">{formatCents(schedule.totalBillCents)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total with Fee (8%)</p>
+                  <p className="text-xs text-muted-foreground">Total with Fee ({FEE_PERCENT}%)</p>
                   <p className="font-medium">{formatCents(schedule.totalWithFeeCents)}</p>
                 </div>
                 <div>
@@ -394,7 +394,7 @@ export default function ClinicEnrollPage() {
                 <h3 className="text-sm font-medium">Payment Plan Preview</h3>
                 <div className="grid gap-2 text-sm md:grid-cols-2">
                   <div className="flex justify-between md:flex-col">
-                    <span className="text-muted-foreground">Platform Fee (8%)</span>
+                    <span className="text-muted-foreground">Platform Fee ({FEE_PERCENT}%)</span>
                     <span className="font-medium">{formatCents(schedule.feeCents)}</span>
                   </div>
                   <div className="flex justify-between md:flex-col">

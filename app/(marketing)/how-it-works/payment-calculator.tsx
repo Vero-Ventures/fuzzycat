@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { MIN_BILL_CENTS } from '@/lib/constants';
+import { FEE_PERCENT, MIN_BILL_CENTS } from '@/lib/constants';
 import { formatCents, toCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 
@@ -53,7 +53,10 @@ export function PaymentCalculator() {
           <>
             <div className="grid grid-cols-2 gap-4">
               <SummaryItem label="Vet bill" value={formatCents(schedule.totalBillCents)} />
-              <SummaryItem label="Platform fee (8%)" value={formatCents(schedule.feeCents)} />
+              <SummaryItem
+                label={`Platform fee (${FEE_PERCENT}%)`}
+                value={formatCents(schedule.feeCents)}
+              />
               <SummaryItem
                 label="Total cost"
                 value={formatCents(schedule.totalWithFeeCents)}

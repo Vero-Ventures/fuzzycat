@@ -162,7 +162,7 @@ export async function createEnrollment(
     }
 
     // 2. Check for referral discount (reduces platform fee, FuzzyCat absorbs as CAC)
-    const referralDiscountCents = await getReferralDiscount(ownerId);
+    const referralDiscountCents = await getReferralDiscount(ownerId, tx);
     const adjustedFeeCents = Math.max(0, schedule.feeCents - referralDiscountCents);
     const feeReduction = schedule.feeCents - adjustedFeeCents;
     const adjustedTotalWithFeeCents = schedule.totalWithFeeCents - feeReduction;

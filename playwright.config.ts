@@ -147,6 +147,16 @@ export default defineConfig({
         ...(isProduction ? {} : { baseURL: PRODUCTION_BASE_URL }),
       },
     },
+    // ── Production: Stripe workflows ────────────────────────────────────
+    {
+      name: 'production-stripe',
+      testDir: './e2e/tests/production',
+      testMatch: 'stripe-workflows.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(isProduction ? {} : { baseURL: PRODUCTION_BASE_URL }),
+      },
+    },
   ],
   ...(isProduction
     ? {}

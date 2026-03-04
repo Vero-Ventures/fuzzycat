@@ -27,8 +27,8 @@ export default function PrivacyPolicyPage() {
             consent to the practices described in this policy.
           </p>
           <p className="mt-3">
-            This policy applies to all users of the Service, including pet owners, veterinary
-            clinics, and administrators.
+            This policy applies to all users of the Service, including clients, veterinary clinics,
+            and administrators.
           </p>
         </section>
 
@@ -43,7 +43,7 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-2 list-disc space-y-2 pl-6">
             <li>
               <strong className="text-foreground">Account information:</strong> Name, email address,
-              phone number, and role (pet owner or veterinary clinic) provided during registration.
+              phone number, and role (client or veterinary clinic) provided during registration.
             </li>
             <li>
               <strong className="text-foreground">Clinic information:</strong> Clinic name, state,

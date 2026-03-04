@@ -16,7 +16,7 @@ export function hasAuth(): boolean {
   return !!url && !url.includes('placeholder');
 }
 
-export async function getAuthCookies(role: 'owner' | 'clinic' | 'admin'): Promise<string> {
+export async function getAuthCookies(role: 'client' | 'clinic' | 'admin'): Promise<string> {
   const cached = cookieCache.get(role);
   if (cached) return cached;
 

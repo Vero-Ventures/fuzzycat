@@ -7,7 +7,7 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { escapeIlike } from '@/lib/utils/sql';
 import { db } from '@/server/db';
-import { clinics, owners, payments, payouts, plans } from '@/server/db/schema';
+import { clients, clinics, payments, payouts, plans } from '@/server/db/schema';
 
 // ── Profile ──────────────────────────────────────────────────────────
 
@@ -108,14 +108,14 @@ export async function getDashboardStats(clinicId: string) {
     db
       .select({
         id: plans.id,
-        ownerName: owners.name,
-        petName: owners.petName,
+        ownerName: clients.name,
+        petName: clients.petName,
         totalBillCents: plans.totalBillCents,
         status: plans.status,
         createdAt: plans.createdAt,
       })
       .from(plans)
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .where(eq(plans.clinicId, clinicId))
       .orderBy(desc(plans.createdAt))
       .limit(10),
@@ -201,8 +201,8 @@ export async function getClients(
   if (params.search) {
     const searchPattern = `%${escapeIlike(params.search)}%`;
     const searchCondition = or(
-      ilike(owners.name, searchPattern),
-      ilike(owners.petName, searchPattern),
+      ilike(clients.name, searchPattern),
+      ilike(clients.petName, searchPattern),
     );
     if (searchCondition) {
       conditions.push(searchCondition);
@@ -215,10 +215,10 @@ export async function getClients(
     db
       .select({
         planId: plans.id,
-        ownerName: owners.name,
-        ownerEmail: owners.email,
-        ownerPhone: owners.phone,
-        petName: owners.petName,
+        ownerName: clients.name,
+        ownerEmail: clients.email,
+        ownerPhone: clients.phone,
+        petName: clients.petName,
         totalBillCents: plans.totalBillCents,
         totalWithFeeCents: plans.totalWithFeeCents,
         planStatus: plans.status,
@@ -227,17 +227,17 @@ export async function getClients(
         totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
       })
       .from(plans)
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .leftJoin(payments, eq(plans.id, payments.planId))
       .where(whereClause)
-      .groupBy(plans.id, owners.id)
+      .groupBy(plans.id, clients.id)
       .orderBy(desc(plans.createdAt))
       .limit(pageSize)
       .offset(offset),
     db
       .select({ total: sql<number>`count(*)` })
       .from(plans)
-      .leftJoin(owners, eq(plans.ownerId, owners.id))
+      .leftJoin(clients, eq(plans.clientId, clients.id))
       .where(whereClause),
   ]);
 
@@ -262,7 +262,7 @@ export async function getClients(
 
 export async function getClientDetails(clinicId: string, planId: string) {
   const [seedPlan] = await db
-    .select({ ownerId: plans.ownerId })
+    .select({ ownerId: plans.clientId })
     .from(plans)
     .where(and(eq(plans.id, planId), eq(plans.clinicId, clinicId)))
     .limit(1);
@@ -273,14 +273,14 @@ export async function getClientDetails(clinicId: string, planId: string) {
 
   const [owner] = await db
     .select({
-      id: owners.id,
-      name: owners.name,
-      email: owners.email,
-      phone: owners.phone,
-      petName: owners.petName,
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      phone: clients.phone,
+      petName: clients.petName,
     })
-    .from(owners)
-    .where(eq(owners.id, seedPlan.ownerId))
+    .from(clients)
+    .where(eq(clients.id, seedPlan.ownerId))
     .limit(1);
 
   if (!owner) {
@@ -297,14 +297,14 @@ export async function getClientDetails(clinicId: string, planId: string) {
       numInstallments: plans.numInstallments,
       status: plans.status,
       createdAt: plans.createdAt,
-      petName: owners.petName,
+      petName: clients.petName,
       totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
     })
     .from(plans)
-    .leftJoin(owners, eq(plans.ownerId, owners.id))
+    .leftJoin(clients, eq(plans.clientId, clients.id))
     .leftJoin(payments, eq(plans.id, payments.planId))
-    .where(and(eq(plans.ownerId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
-    .groupBy(plans.id, owners.id)
+    .where(and(eq(plans.clientId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
+    .groupBy(plans.id, clients.id)
     .orderBy(desc(plans.createdAt));
 
   return {
@@ -341,13 +341,13 @@ export async function getClientPlanDetails(clinicId: string, planId: string) {
       nextPaymentAt: plans.nextPaymentAt,
       completedAt: plans.completedAt,
       createdAt: plans.createdAt,
-      ownerName: owners.name,
-      ownerEmail: owners.email,
-      ownerPhone: owners.phone,
-      petName: owners.petName,
+      ownerName: clients.name,
+      ownerEmail: clients.email,
+      ownerPhone: clients.phone,
+      petName: clients.petName,
     })
     .from(plans)
-    .leftJoin(owners, eq(plans.ownerId, owners.id))
+    .leftJoin(clients, eq(plans.clientId, clients.id))
     .where(and(eq(plans.id, planId), eq(plans.clinicId, clinicId)))
     .limit(1);
 
@@ -531,24 +531,24 @@ export async function getDefaultRate(clinicId: string) {
 export async function exportClientsCSV(clinicId: string) {
   const clientRows = await db
     .select({
-      ownerName: owners.name,
-      ownerEmail: owners.email,
-      petName: owners.petName,
+      ownerName: clients.name,
+      ownerEmail: clients.email,
+      petName: clients.petName,
       planStatus: plans.status,
       totalBillCents: plans.totalBillCents,
       totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
       remainingCents: plans.remainingCents,
     })
     .from(plans)
-    .leftJoin(owners, eq(plans.ownerId, owners.id))
+    .leftJoin(clients, eq(plans.clientId, clients.id))
     .leftJoin(payments, eq(plans.id, payments.planId))
     .where(eq(plans.clinicId, clinicId))
-    .groupBy(plans.id, owners.id)
+    .groupBy(plans.id, clients.id)
     .orderBy(desc(plans.createdAt))
     .limit(10000);
 
   const headers = [
-    'Owner Name',
+    'Client Name',
     'Email',
     'Pet Name',
     'Plan Status',
@@ -610,19 +610,19 @@ export async function exportPayoutsCSV(clinicId: string) {
       status: payouts.status,
       stripeTransferId: payouts.stripeTransferId,
       createdAt: payouts.createdAt,
-      ownerName: owners.name,
-      petName: owners.petName,
+      ownerName: clients.name,
+      petName: clients.petName,
     })
     .from(payouts)
     .leftJoin(plans, eq(payouts.planId, plans.id))
-    .leftJoin(owners, eq(plans.ownerId, owners.id))
+    .leftJoin(clients, eq(plans.clientId, clients.id))
     .where(eq(payouts.clinicId, clinicId))
     .orderBy(desc(payouts.createdAt))
     .limit(10000);
 
   const headers = [
     'Payout ID',
-    'Owner',
+    'Client',
     'Pet',
     'Amount',
     'Clinic Share',

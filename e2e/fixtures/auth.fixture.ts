@@ -3,13 +3,13 @@ import { TEST_USERS } from '../helpers/test-users';
 
 /** Fixtures providing pre-authenticated pages for each role. */
 export const test = base.extend<{
-  ownerPage: Page;
+  clientPage: Page;
   clinicPage: Page;
   adminPage: Page;
 }>({
-  ownerPage: async ({ browser }, use) => {
+  clientPage: async ({ browser }, use) => {
     const context = await browser.newContext({
-      storageState: TEST_USERS.owner.storageStatePath,
+      storageState: TEST_USERS.client.storageStatePath,
     });
     const page = await context.newPage();
     await use(page);

@@ -90,19 +90,19 @@ const fullSchemaMock = {
     addressState: 'clinics.address_state',
     addressZip: 'clinics.address_zip',
   },
-  owners: {
-    ...schemaMock.owners,
-    authId: 'owners.auth_id',
-    name: 'owners.name',
-    email: 'owners.email',
-    phone: 'owners.phone',
-    paymentMethod: 'owners.payment_method',
-    petName: 'owners.pet_name',
+  clients: {
+    ...schemaMock.clients,
+    authId: 'clients.auth_id',
+    name: 'clients.name',
+    email: 'clients.email',
+    phone: 'clients.phone',
+    paymentMethod: 'clients.payment_method',
+    petName: 'clients.pet_name',
   },
   plans: {
     ...schemaMock.plans,
     clinicId: 'plans.clinic_id',
-    ownerId: 'plans.owner_id',
+    clientId: 'plans.client_id',
     totalBillCents: 'plans.total_bill_cents',
     feeCents: 'plans.fee_cents',
     depositCents: 'plans.deposit_cents',
@@ -151,7 +151,7 @@ mock.module('@/lib/stripe', () => ({
 }));
 mock.module('@/server/services/authorization', () => ({
   assertClinicOwnership: mock(),
-  assertPlanAccess: mock(() => Promise.resolve({ clinicId: 'c1', ownerId: 'o1' })),
+  assertPlanAccess: mock(() => Promise.resolve({ clinicId: 'c1', clientId: 'o1' })),
 }));
 mock.module('@/server/services/enrollment', () => ({
   createEnrollment: mock(),
@@ -217,8 +217,8 @@ mock.module('@/server/services/stripe/checkout', () => ({
 mock.module('@/server/services/stripe/customer', () => ({
   getOrCreateCustomer: mock(),
 }));
-mock.module('@/server/services/owner-provisioning', () => ({
-  provisionOwnerAccount: mock(() => Promise.resolve({ setupUrl: null })),
+mock.module('@/server/services/client-provisioning', () => ({
+  provisionClientAccount: mock(() => Promise.resolve({ setupUrl: null })),
 }));
 mock.module('@/server/services/collection', () => ({
   identifyDuePayments: mock(() => Promise.resolve([])),
@@ -290,7 +290,7 @@ function makeCtx(session: { userId: string; role: string } | null): any {
 const unauthCtx = makeCtx(null);
 const adminCtx = makeCtx({ userId: ADMIN_ID, role: 'admin' });
 const clinicCtx = makeCtx({ userId: CLINIC_USER_ID, role: 'clinic' });
-const ownerCtx = makeCtx({ userId: OWNER_USER_ID, role: 'owner' });
+const clientCtx = makeCtx({ userId: OWNER_USER_ID, role: 'client' });
 
 // ── Procedure matrix ─────────────────────────────────────────────────
 // baseProcedure determines which roles can access:
@@ -298,9 +298,9 @@ const ownerCtx = makeCtx({ userId: OWNER_USER_ID, role: 'owner' });
 //   protected → any authenticated user
 //   admin     → admin only
 //   clinic    → clinic + admin
-//   owner     → owner + admin
+//   client    → client + admin
 
-type Base = 'public' | 'protected' | 'admin' | 'clinic' | 'owner';
+type Base = 'public' | 'protected' | 'admin' | 'clinic' | 'client';
 
 interface ProcSpec {
   path: string;
@@ -315,7 +315,7 @@ const PROCEDURES: ProcSpec[] = [
   { path: 'enrollment.getSummary', base: 'protected' },
   { path: 'enrollment.cancel', base: 'protected' },
   // payment
-  { path: 'payment.initiateDeposit', base: 'owner' },
+  { path: 'payment.initiateDeposit', base: 'client' },
   { path: 'payment.processInstallment', base: 'admin' },
   { path: 'payment.retryPayment', base: 'admin' },
   { path: 'payment.getDuePayments', base: 'admin' },
@@ -325,13 +325,13 @@ const PROCEDURES: ProcSpec[] = [
   { path: 'payout.history', base: 'clinic' },
   { path: 'payout.earnings', base: 'clinic' },
   // owner
-  { path: 'owner.healthCheck', base: 'owner' },
-  { path: 'owner.getProfile', base: 'owner' },
-  { path: 'owner.updateProfile', base: 'owner' },
-  { path: 'owner.updatePaymentMethod', base: 'owner' },
-  { path: 'owner.getPlans', base: 'owner' },
-  { path: 'owner.getPaymentHistory', base: 'owner' },
-  { path: 'owner.getDashboardSummary', base: 'owner' },
+  { path: 'client.healthCheck', base: 'client' },
+  { path: 'client.getProfile', base: 'client' },
+  { path: 'client.updateProfile', base: 'client' },
+  { path: 'client.updatePaymentMethod', base: 'client' },
+  { path: 'client.getPlans', base: 'client' },
+  { path: 'client.getPaymentHistory', base: 'client' },
+  { path: 'client.getDashboardSummary', base: 'client' },
   // clinic
   { path: 'clinic.healthCheck', base: 'clinic' },
   { path: 'clinic.search', base: 'protected' },
@@ -376,15 +376,15 @@ const PROCEDURES: ProcSpec[] = [
 function allowedRoles(base: Base): string[] {
   switch (base) {
     case 'public':
-      return ['owner', 'clinic', 'admin'];
+      return ['client', 'clinic', 'admin'];
     case 'protected':
-      return ['owner', 'clinic', 'admin'];
+      return ['client', 'clinic', 'admin'];
     case 'admin':
       return ['admin'];
     case 'clinic':
       return ['clinic', 'admin'];
-    case 'owner':
-      return ['owner', 'admin'];
+    case 'client':
+      return ['client', 'admin'];
   }
 }
 
@@ -446,20 +446,20 @@ describe('Authorization matrix', () => {
         },
       );
 
-      for (const role of ['owner', 'clinic', 'admin'] as const) {
+      for (const role of ['client', 'clinic', 'admin'] as const) {
         const allowed = allowedRoles(proc.base);
         const isAllowed = allowed.includes(role);
 
         if (isAllowed) {
           it(`allows ${role} role`, async () => {
-            // Set up DB mock to return a row for clinicProcedure/ownerProcedure lookups
+            // Set up DB mock to return a row for clinicProcedure/clientProcedure lookups
             mockSelectResult.mockImplementation(() => {
               if (role === 'clinic') return [{ id: CLINIC_ROW_ID }];
-              if (role === 'owner') return [{ id: OWNER_ROW_ID }];
+              if (role === 'client') return [{ id: OWNER_ROW_ID }];
               return [{ id: 'mock-id' }];
             });
 
-            const ctxMap = { admin: adminCtx, clinic: clinicCtx, owner: ownerCtx };
+            const ctxMap = { admin: adminCtx, clinic: clinicCtx, client: clientCtx };
             const caller = createCaller(ctxMap[role]);
             const code = await callAndGetErrorCode(caller, proc.path);
             // Auth should pass — error should NOT be auth-related
@@ -471,7 +471,7 @@ describe('Authorization matrix', () => {
             // DB mock not needed — FORBIDDEN thrown before DB access
             mockSelectResult.mockReturnValue([]);
 
-            const ctxMap = { admin: adminCtx, clinic: clinicCtx, owner: ownerCtx };
+            const ctxMap = { admin: adminCtx, clinic: clinicCtx, client: clientCtx };
             const caller = createCaller(ctxMap[role]);
             const code = await callAndGetErrorCode(caller, proc.path);
             expect(code).toBe('FORBIDDEN');

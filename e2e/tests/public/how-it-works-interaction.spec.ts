@@ -12,11 +12,11 @@ test.describe('How It Works — Interactions', () => {
     await expect(page).toHaveURL(/\/signup\/clinic/);
   });
 
-  test('"Sign Up as Pet Owner" CTA navigates to /signup/owner', async ({ page }) => {
-    const cta = page.getByRole('link', { name: /sign up as pet owner/i });
+  test('"Sign Up as Client" CTA navigates to /signup/client', async ({ page }) => {
+    const cta = page.getByRole('link', { name: /sign up as client/i });
     await expect(cta).toBeVisible();
     await cta.click();
-    await expect(page).toHaveURL(/\/signup\/owner/);
+    await expect(page).toHaveURL(/\/signup\/client/);
   });
 
   test('clinic benefits section shows key value props', async ({ page }) => {
@@ -27,7 +27,7 @@ test.describe('How It Works — Interactions', () => {
     await expect(page.getByText('Fast payouts')).toBeVisible();
   });
 
-  test('pet owner steps show all 4 steps in order', async ({ page }) => {
+  test('client steps show all 4 steps in order', async ({ page }) => {
     const step1 = page.getByText('Visit your vet');
     const step2 = page.getByText('Enroll online');
     const step3 = page.getByText('Pay 25% deposit');

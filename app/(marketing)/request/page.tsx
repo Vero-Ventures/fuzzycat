@@ -130,10 +130,10 @@ export default function RequestPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="ownerEmail">Your Email *</Label>
+              <Label htmlFor="clientEmail">Your Email *</Label>
               <Input
-                id="ownerEmail"
-                name="ownerEmail"
+                id="clientEmail"
+                name="clientEmail"
                 type="email"
                 required
                 placeholder="you@example.com"
@@ -142,10 +142,10 @@ export default function RequestPage() {
             </div>
 
             <div>
-              <Label htmlFor="ownerName">Your Name</Label>
+              <Label htmlFor="clientName">Your Name</Label>
               <Input
-                id="ownerName"
-                name="ownerName"
+                id="clientName"
+                name="clientName"
                 type="text"
                 placeholder="Jane Doe"
                 className="mt-1.5"

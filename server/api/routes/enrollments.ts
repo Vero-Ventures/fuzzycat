@@ -109,7 +109,7 @@ const createEnrollmentSchema = z.object({
 
 const enrollmentResponseSchema = z.object({
   planId: z.string().uuid(),
-  ownerId: z.string().uuid(),
+  clientId: z.string().uuid(),
   paymentIds: z.array(z.string().uuid()),
 });
 

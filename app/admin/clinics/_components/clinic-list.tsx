@@ -53,8 +53,46 @@ export function ClinicList() {
 
   const updateStatusMutation = useMutation(
     trpc.admin.updateClinicStatus.mutationOptions({
-      onSuccess: () => {
+      onMutate: async ({ clinicId, status: newStatus }) => {
+        await queryClient.cancelQueries({ queryKey: trpc.admin.getClinics.queryKey() });
+        const previousData = queryClient.getQueryData(
+          trpc.admin.getClinics.queryKey({
+            status: statusFilter === 'all' ? undefined : statusFilter,
+            search: search || undefined,
+            limit,
+            offset,
+          }),
+        );
+        queryClient.setQueriesData(
+          { queryKey: trpc.admin.getClinics.queryKey() },
+          (old: typeof data) => {
+            if (!old) return old;
+            return {
+              ...old,
+              clinics: old.clinics.map((c: (typeof old.clinics)[number]) =>
+                c.id === clinicId ? { ...c, status: newStatus } : c,
+              ),
+            };
+          },
+        );
+        return { previousData };
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            trpc.admin.getClinics.queryKey({
+              status: statusFilter === 'all' ? undefined : statusFilter,
+              search: search || undefined,
+              limit,
+              offset,
+            }),
+            context.previousData,
+          );
+        }
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({ queryKey: trpc.admin.getClinics.queryKey() });
+        queryClient.invalidateQueries({ queryKey: trpc.admin.getPlatformStats.queryKey() });
       },
     }),
   );

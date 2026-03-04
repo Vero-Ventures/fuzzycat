@@ -69,7 +69,7 @@ mock.module('@/server/db', () => ({
 }));
 
 mock.module('@/server/db/schema', () => ({
-  owners: { id: 'owners.id' },
+  clients: { id: 'clients.id' },
   clinics: { id: 'clinics.id' },
   plans: {
     id: 'plans.id',
@@ -99,9 +99,9 @@ mock.module('@/server/db/schema', () => ({
   payoutStatusEnum: {},
   riskPoolTypeEnum: {},
   actorTypeEnum: {},
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   clinicsRelations: {},
-  ownersRelations: {},
+  clientsRelations: {},
   petsRelations: {},
   plansRelations: {},
   paymentsRelations: {},

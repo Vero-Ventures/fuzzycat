@@ -30,11 +30,11 @@ export default function SupportPage() {
 
       <Separator className="my-10" />
 
-      {/* Pet Owner FAQ */}
+      {/* Client FAQ */}
       <section>
         <div className="flex items-center gap-2">
           <PawPrint className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-bold tracking-tight">For Pet Owners</h2>
+          <h2 className="text-2xl font-bold tracking-tight">For Clients</h2>
         </div>
         <div className="mt-6">
           <Accordion type="single" collapsible className="w-full">
@@ -183,7 +183,7 @@ export default function SupportPage() {
               <AccordionContent>
                 <p>
                   Nothing. FuzzyCat is free for veterinary clinics. The 8% platform fee is paid
-                  entirely by the pet owner. Clinics earn a 3% revenue share on every enrollment as
+                  entirely by the client. Clinics earn a 3% revenue share on every enrollment as
                   platform administration compensation.
                 </p>
               </AccordionContent>
@@ -205,10 +205,10 @@ export default function SupportPage() {
               <AccordionTrigger>When and how are clinics paid?</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  After each successful installment payment from a pet owner, the corresponding
-                  amount (minus the FuzzyCat share) is transferred to your Stripe Connect account.
-                  Payouts are automatic and you can track every transfer in the Payouts section of
-                  your clinic portal.
+                  After each successful installment payment from a client, the corresponding amount
+                  (minus the FuzzyCat share) is transferred to your Stripe Connect account. Payouts
+                  are automatic and you can track every transfer in the Payouts section of your
+                  clinic portal.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -219,14 +219,14 @@ export default function SupportPage() {
                 <p>
                   From your clinic portal, click &ldquo;Initiate Enrollment&rdquo; and fill in the
                   client and treatment details. You can search for existing clients to auto-fill
-                  their information. The pet owner will then receive instructions to complete their
+                  their information. The client will then receive instructions to complete their
                   deposit and activate the plan.
                 </p>
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="clinic-default">
-              <AccordionTrigger>What happens if a pet owner defaults?</AccordionTrigger>
+              <AccordionTrigger>What happens if a client defaults?</AccordionTrigger>
               <AccordionContent>
                 <p>
                   FuzzyCat uses an automated soft collection process with escalating reminders. If
@@ -319,7 +319,7 @@ export default function SupportPage() {
               <AccordionTrigger>Where is FuzzyCat available?</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  FuzzyCat is currently available to veterinary clinics and pet owners in the United
+                  FuzzyCat is currently available to veterinary clinics and clients in the United
                   States, with the exception of New York where we are awaiting regulatory
                   finalization. We plan to expand availability as regulations are confirmed.
                 </p>

@@ -11,9 +11,9 @@ mock.module('@/server/db', () => ({
 }));
 
 mock.module('@/server/db/schema', () => ({
-  owners: { __table: 'owners' },
+  clients: { __table: 'clients' },
   clinics: { __table: 'clinics' },
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   petsRelations: {},
 }));
 
@@ -82,7 +82,7 @@ mock.module('@sentry/nextjs', () => ({
 }));
 
 // Import AFTER all mocks are set up
-const { signUpOwner, signUpClinic } = await import('@/app/(auth)/signup/actions');
+const { signUpClient, signUpClinic } = await import('@/app/(auth)/signup/actions');
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ function setupSuccessfulAuth() {
 
 // ── Tests ────────────────────────────────────────────────────────────
 
-describe('signUpOwner', () => {
+describe('signUpClient', () => {
   beforeEach(() => {
     mock.restore();
     setupSuccessfulAuth();
@@ -147,7 +147,7 @@ describe('signUpOwner', () => {
   });
 
   it('creates owner successfully', async () => {
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBeNull();
     expect(result.needsEmailConfirmation).toBe(false);
   });
@@ -159,7 +159,7 @@ describe('signUpOwner', () => {
     (pgError as unknown as { code: string }).code = '23505';
     mockInsertReturning.mockRejectedValue(pgError);
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
@@ -168,30 +168,30 @@ describe('signUpOwner', () => {
       new Error('duplicate key value violates unique constraint'),
     );
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns duplicate email error when error message contains "unique"', async () => {
     mockInsertReturning.mockRejectedValue(new Error('unique constraint violated on email'));
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns generic error for non-unique DB failures', async () => {
     mockInsertReturning.mockRejectedValue(new Error('connection refused'));
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBe(
-      'Account setup failed due to a database error. Please try again or contact support. (REF: DB-OWNER)',
+      'Account setup failed due to a database error. Please try again or contact support. (REF: DB-CLIENT)',
     );
   });
 
   it('deletes auth user on DB insert failure', async () => {
     mockInsertReturning.mockRejectedValue(new Error('connection refused'));
 
-    await signUpOwner(makeOwnerFormData());
+    await signUpClient(makeOwnerFormData());
     expect(mockDeleteUser).toHaveBeenCalledWith(USER_ID);
   });
 
@@ -204,12 +204,12 @@ describe('signUpOwner', () => {
       error: null,
     });
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBe('An account with this email already exists. Please log in instead.');
   });
 
   it('returns validation error for invalid email', async () => {
-    const result = await signUpOwner(makeOwnerFormData({ email: 'not-an-email' }));
+    const result = await signUpClient(makeOwnerFormData({ email: 'not-an-email' }));
     expect(result.error).toContain('Invalid email');
   });
 
@@ -217,9 +217,9 @@ describe('signUpOwner', () => {
     const dbError = new Error('connection refused');
     mockInsertReturning.mockRejectedValue(dbError);
 
-    await signUpOwner(makeOwnerFormData());
+    await signUpClient(makeOwnerFormData());
     expect(mockCaptureException).toHaveBeenCalledWith(dbError, {
-      tags: { component: 'signup', step: 'db_insert', role: 'owner' },
+      tags: { component: 'signup', step: 'db_insert', role: 'client' },
       extra: { userId: USER_ID, email: 'owner@example.com' },
     });
   });
@@ -338,7 +338,7 @@ describe('validateCaptcha (DISABLE_CAPTCHA flag)', () => {
   it('bypasses CAPTCHA when DISABLE_CAPTCHA=true even with TURNSTILE_SECRET_KEY set', async () => {
     mockServerEnv.mockReturnValue({ TURNSTILE_SECRET_KEY: 'real-key', DISABLE_CAPTCHA: 'true' });
 
-    const result = await signUpOwner(makeOwnerFormData());
+    const result = await signUpClient(makeOwnerFormData());
     expect(result.error).toBeNull();
     expect(mockVerifyCaptcha).not.toHaveBeenCalled();
   });

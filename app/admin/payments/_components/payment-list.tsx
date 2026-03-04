@@ -50,6 +50,8 @@ type PaymentStatusFilter =
 export function PaymentList() {
   const trpc = useTRPC();
   const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
+  const [clientName, setClientName] = useState('');
+  const [clinicName, setClinicName] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [offset, setOffset] = useState(0);
@@ -58,6 +60,8 @@ export function PaymentList() {
   const { data, isLoading, error } = useQuery(
     trpc.admin.getPayments.queryOptions({
       status: statusFilter === 'all' ? undefined : statusFilter,
+      clientName: clientName || undefined,
+      clinicName: clinicName || undefined,
       dateFrom: dateFrom ? new Date(`${dateFrom}T00:00:00.000Z`).toISOString() : undefined,
       dateTo: dateTo ? new Date(`${dateTo}T23:59:59.999Z`).toISOString() : undefined,
       limit,
@@ -82,36 +86,58 @@ export function PaymentList() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <Tabs value={statusFilter} onValueChange={handleStatusChange}>
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="succeeded">Succeeded</TabsTrigger>
-              <TabsTrigger value="failed">Failed</TabsTrigger>
-              <TabsTrigger value="written_off">Written Off</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Tabs value={statusFilter} onValueChange={handleStatusChange}>
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="succeeded">Succeeded</TabsTrigger>
+                <TabsTrigger value="failed">Failed</TabsTrigger>
+                <TabsTrigger value="written_off">Written Off</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setOffset(0);
+                }}
+                className="w-40"
+                placeholder="From"
+              />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setOffset(0);
+                }}
+                className="w-40"
+                placeholder="To"
+              />
+            </div>
+          </div>
           <div className="flex gap-2">
             <Input
-              type="date"
-              value={dateFrom}
+              placeholder="Filter by client name..."
+              value={clientName}
               onChange={(e) => {
-                setDateFrom(e.target.value);
+                setClientName(e.target.value);
                 setOffset(0);
               }}
-              className="w-40"
-              placeholder="From"
+              className="max-w-xs"
             />
             <Input
-              type="date"
-              value={dateTo}
+              placeholder="Filter by clinic name..."
+              value={clinicName}
               onChange={(e) => {
-                setDateTo(e.target.value);
+                setClinicName(e.target.value);
                 setOffset(0);
               }}
-              className="w-40"
-              placeholder="To"
+              className="max-w-xs"
             />
           </div>
         </div>
@@ -131,7 +157,7 @@ export function PaymentList() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Owner</TableHead>
+                  <TableHead>Pet Owner</TableHead>
                   <TableHead>Clinic</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Type</TableHead>

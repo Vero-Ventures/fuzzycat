@@ -552,7 +552,7 @@ export const adminRecentAuditLog = [
     action: 'disclaimer_confirmed',
     oldValue: null,
     newValue: JSON.stringify({ confirmedAt: '2026-02-19T09:00:00.000Z' }),
-    actorType: 'owner' as const,
+    actorType: 'client' as const,
     actorId: 'owner-005',
     createdAt: '2026-02-19T09:00:00.000Z',
   },

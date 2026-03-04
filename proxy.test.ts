@@ -13,18 +13,22 @@ mock.module('@supabase/ssr', () => ({
 }));
 
 mock.module('@/lib/auth', () => ({
-  getUserRole: (user: { app_metadata?: { role?: string } }) => user.app_metadata?.role ?? 'owner',
+  getUserRole: (user: { app_metadata?: { role?: string } }) => {
+    const r = user.app_metadata?.role;
+    if (r === 'owner') return 'client';
+    return r ?? 'client';
+  },
   ROLE_HOME: {
     clinic: '/clinic/dashboard',
     admin: '/admin/dashboard',
-    owner: '/owner/payments',
+    client: '/client/payments',
   },
   ROLE_PREFIXES: {
     clinic: ['/clinic'],
     admin: ['/admin'],
-    owner: ['/owner'],
+    client: ['/client'],
   },
-  SAFE_REDIRECT_PREFIXES: ['/clinic', '/owner', '/admin', '/mfa'],
+  SAFE_REDIRECT_PREFIXES: ['/clinic', '/client', '/admin', '/mfa'],
 }));
 
 let envShouldThrow = false;
@@ -119,10 +123,10 @@ describe('proxy', () => {
     const { NextRequest } = await import('next/server');
 
     // Test a dynamic route
-    const dynamicReq = new NextRequest('http://localhost:3000/owner/payments');
+    const dynamicReq = new NextRequest('http://localhost:3000/client/payments');
     mockGetUser.mockImplementation(() =>
       Promise.resolve({
-        data: { user: { id: 'user-1', app_metadata: { role: 'owner' } } },
+        data: { user: { id: 'user-1', app_metadata: { role: 'client' } } },
         error: null,
       }),
     );
@@ -170,7 +174,7 @@ describe('proxy', () => {
     });
 
     const { NextRequest } = await import('next/server');
-    const req = new NextRequest('http://localhost:3000/owner/payments');
+    const req = new NextRequest('http://localhost:3000/client/payments');
     const response = await proxy(req);
 
     // Should redirect to login (unauthenticated)
@@ -180,10 +184,15 @@ describe('proxy', () => {
   });
 
   const roleRedirectCases = [
-    { role: 'owner' as const, path: '/admin/dashboard', status: 307, redirect: '/owner/payments' },
+    {
+      role: 'client' as const,
+      path: '/admin/dashboard',
+      status: 307,
+      redirect: '/client/payments',
+    },
     {
       role: 'clinic' as const,
-      path: '/owner/payments',
+      path: '/client/payments',
       status: 307,
       redirect: '/clinic/dashboard',
     },
@@ -193,7 +202,7 @@ describe('proxy', () => {
       status: 307,
       redirect: '/admin/dashboard',
     },
-    { role: 'owner' as const, path: '/owner/payments', status: 200, redirect: null },
+    { role: 'client' as const, path: '/client/payments', status: 200, redirect: null },
   ];
 
   it.each(roleRedirectCases)('authenticated $role accessing $path → $status', async ({

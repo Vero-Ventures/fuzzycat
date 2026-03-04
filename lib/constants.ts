@@ -42,8 +42,8 @@ export const CLINIC_REFERRAL_BONUS_BPS = 200;
 /** Duration of referral bonus for referring clinic (months). */
 export const CLINIC_REFERRAL_BONUS_MONTHS = 6;
 
-/** Fee discount for a referred pet owner in cents ($20). */
-export const OWNER_REFERRAL_DISCOUNT_CENTS = 2_000;
+/** Fee discount for a referred client in cents ($20). */
+export const CLIENT_REFERRAL_DISCOUNT_CENTS = 2_000;
 
-/** Credit for referrer pet owner when referral converts in cents ($20). */
-export const OWNER_REFERRAL_CREDIT_CENTS = 2_000;
+/** Credit for referrer client when referral converts in cents ($20). */
+export const CLIENT_REFERRAL_CREDIT_CENTS = 2_000;

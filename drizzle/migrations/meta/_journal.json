@@ -8,6 +8,13 @@
       "when": 1771801428780,
       "tag": "0000_zippy_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772856000000,
+      "tag": "0001_rename_owners_to_clients",
+      "breakpoints": true
     }
   ]
 }

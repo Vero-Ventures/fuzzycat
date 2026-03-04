@@ -19,8 +19,8 @@ mock.module('@/server/db', () => ({
 
 mock.module('@/server/db/schema', () => ({
   clinics: { id: 'clinics.id', authId: 'clinics.auth_id' },
-  owners: { id: 'owners.id', authId: 'owners.auth_id' },
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  clients: { id: 'clients.id', authId: 'clients.auth_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   petsRelations: {},
 }));
 
@@ -57,7 +57,7 @@ describe('createTRPCContext', () => {
       data: {
         user: {
           id: 'supabase-user-456',
-          app_metadata: { role: 'owner' },
+          app_metadata: { role: 'client' },
         },
       },
     });
@@ -67,7 +67,7 @@ describe('createTRPCContext', () => {
       resHeaders: new Headers(),
     });
 
-    expect(ctx.session).toEqual({ userId: 'supabase-user-456', role: 'owner' });
+    expect(ctx.session).toEqual({ userId: 'supabase-user-456', role: 'client' });
     expect(mockGetUser).toHaveBeenCalledTimes(1);
   });
 
@@ -107,7 +107,7 @@ describe('createTRPCContext', () => {
   });
 
   it('accepts all valid roles from middleware headers', async () => {
-    for (const role of ['owner', 'clinic', 'admin'] as const) {
+    for (const role of ['client', 'clinic', 'admin'] as const) {
       const ctx = await createTRPCContext({
         req: makeRequest({
           'x-user-id': `user-${role}`,

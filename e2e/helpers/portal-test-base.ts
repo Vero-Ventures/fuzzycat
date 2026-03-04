@@ -33,13 +33,13 @@ import { _ensureRouteInstalled, mockTrpcQuery } from './trpc-mock';
  * Pre-configure all tRPC mocks for a given portal role.
  * This enables portal tests to run in CI without real Supabase auth.
  */
-export async function setupPortalMocks(page: Page, role: 'owner' | 'clinic' | 'admin') {
+export async function setupPortalMocks(page: Page, role: 'client' | 'clinic' | 'admin') {
   switch (role) {
-    case 'owner':
-      await mockTrpcQuery(page, 'owner.getDashboardSummary', ownerDashboardSummary);
-      await mockTrpcQuery(page, 'owner.getPlans', ownerPlans);
-      await mockTrpcQuery(page, 'owner.getPaymentHistory', ownerPaymentHistory);
-      await mockTrpcQuery(page, 'owner.getProfile', ownerProfile);
+    case 'client':
+      await mockTrpcQuery(page, 'client.getDashboardSummary', ownerDashboardSummary);
+      await mockTrpcQuery(page, 'client.getPlans', ownerPlans);
+      await mockTrpcQuery(page, 'client.getPaymentHistory', ownerPaymentHistory);
+      await mockTrpcQuery(page, 'client.getProfile', ownerProfile);
       await mockTrpcQuery(page, 'clinic.search', clinicSearch);
       break;
     case 'clinic':

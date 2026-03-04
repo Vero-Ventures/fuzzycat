@@ -76,9 +76,9 @@ export default function LandingPage() {
                   Clinic Portal Login
                 </Button>
               </Link>
-              <Link href="/login/owner">
+              <Link href="/login/client">
                 <Button size="lg" className="w-full sm:w-auto">
-                  Pet Owner Portal Login
+                  Client Portal Login
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </Link>
@@ -212,7 +212,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* For Pet Owners CTA */}
+      {/* For Clients CTA */}
       <section className="border-t bg-muted/50 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <Cat className="mx-auto mb-6 h-12 w-12 text-primary" />
@@ -223,7 +223,7 @@ export default function LandingPage() {
             Sign up in minutes. No credit check. See your full payment schedule before you commit.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/signup/owner">
+            <Link href="/signup/client">
               <Button size="lg" className="w-full sm:w-auto">
                 Get Started
                 <ArrowRight className="ml-1.5 h-4 w-4" />

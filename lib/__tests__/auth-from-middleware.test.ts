@@ -18,10 +18,10 @@ afterEach(() => {
 describe('getAuthFromMiddleware', () => {
   it('returns userId and role when valid headers are present', async () => {
     mockHeaders.set('x-user-id', 'user-123');
-    mockHeaders.set('x-user-role', 'owner');
+    mockHeaders.set('x-user-role', 'client');
 
     const result = await getAuthFromMiddleware();
-    expect(result).toEqual({ userId: 'user-123', role: 'owner' });
+    expect(result).toEqual({ userId: 'user-123', role: 'client' });
   });
 
   it('returns correct role for clinic', async () => {
@@ -41,7 +41,7 @@ describe('getAuthFromMiddleware', () => {
   });
 
   it('returns null when x-user-id is missing', async () => {
-    mockHeaders.set('x-user-role', 'owner');
+    mockHeaders.set('x-user-role', 'client');
 
     const result = await getAuthFromMiddleware();
     expect(result).toBeNull();

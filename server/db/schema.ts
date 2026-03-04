@@ -37,7 +37,7 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 ]);
 export const payoutStatusEnum = pgEnum('payout_status', ['pending', 'succeeded', 'failed']);
 export const riskPoolTypeEnum = pgEnum('risk_pool_type', ['contribution', 'claim', 'recovery']);
-export const actorTypeEnum = pgEnum('actor_type', ['system', 'admin', 'owner', 'clinic']);
+export const actorTypeEnum = pgEnum('actor_type', ['system', 'admin', 'owner', 'clinic', 'client']);
 export const softCollectionStageEnum = pgEnum('soft_collection_stage', [
   'day_1_reminder',
   'day_7_followup',
@@ -77,8 +77,8 @@ export const clinics = pgTable(
   (table) => [index('idx_clinics_stripe_account').on(table.stripeAccountId)],
 );
 
-// ── Pet owners ──────────────────────────────────────────────────────
-export const owners = pgTable('owners', {
+// ── Pet clients (formerly "owners") ─────────────────────────────────
+export const clients = pgTable('clients', {
   id: uuid('id').primaryKey().defaultRandom(),
   authId: text('auth_id').unique(),
   name: text('name').notNull(),
@@ -110,8 +110,8 @@ export const paymentMethods = pgTable(
   'payment_methods',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    ownerId: uuid('owner_id')
-      .references(() => owners.id)
+    clientId: uuid('client_id')
+      .references(() => clients.id)
       .notNull(),
     type: paymentMethodEnum('type').notNull(),
     stripePaymentMethodId: text('stripe_payment_method_id').notNull(),
@@ -122,7 +122,7 @@ export const paymentMethods = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    index('idx_payment_methods_owner').on(table.ownerId),
+    index('idx_payment_methods_client').on(table.clientId),
     index('idx_payment_methods_stripe').on(table.stripePaymentMethodId),
   ],
 );
@@ -132,8 +132,8 @@ export const pets = pgTable(
   'pets',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    ownerId: uuid('owner_id')
-      .references(() => owners.id)
+    clientId: uuid('client_id')
+      .references(() => clients.id)
       .notNull(),
     name: text('name').notNull(),
     species: text('species').notNull(), // 'dog', 'cat', 'other'
@@ -144,7 +144,7 @@ export const pets = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index('idx_pets_owner').on(table.ownerId)],
+  (table) => [index('idx_pets_client').on(table.clientId)],
 );
 
 // ── Payment plans (one per enrollment) ──────────────────────────────
@@ -152,7 +152,7 @@ export const plans = pgTable(
   'plans',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    ownerId: uuid('owner_id').references(() => owners.id),
+    clientId: uuid('client_id').references(() => clients.id),
     clinicId: uuid('clinic_id').references(() => clinics.id),
     totalBillCents: integer('total_bill_cents').notNull(),
     feeCents: integer('fee_cents').notNull(),
@@ -163,7 +163,7 @@ export const plans = pgTable(
     numInstallments: integer('num_installments').notNull().default(6),
     status: planStatusEnum('status').notNull().default('pending'),
     referralDiscountCents: integer('referral_discount_cents').default(0),
-    ownerReferralId: uuid('owner_referral_id'),
+    clientReferralId: uuid('client_referral_id'),
     depositPaidAt: timestamp('deposit_paid_at', { withTimezone: true }),
     nextPaymentAt: timestamp('next_payment_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -174,7 +174,7 @@ export const plans = pgTable(
   },
   (table) => [
     index('idx_plans_clinic').on(table.clinicId),
-    index('idx_plans_owner').on(table.ownerId),
+    index('idx_plans_client').on(table.clientId),
     index('idx_plans_status').on(table.status),
   ],
 );
@@ -380,20 +380,20 @@ export const webhookDeliveries = pgTable(
   ],
 );
 
-// ── Clinic requests (pet owner waitlist) ──────────────────────────────
+// ── Clinic requests (client waitlist) ─────────────────────────────────
 export const clinicRequests = pgTable(
   'clinic_requests',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    ownerEmail: text('owner_email').notNull(),
-    ownerName: text('owner_name'),
+    clientEmail: text('client_email').notNull(),
+    clientName: text('client_name'),
     clinicName: text('clinic_name').notNull(),
     clinicCity: text('clinic_city'),
     clinicState: text('clinic_state'),
     clinicZip: text('clinic_zip'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
-  (table) => [index('idx_clinic_requests_email').on(table.ownerEmail)],
+  (table) => [index('idx_clinic_requests_email').on(table.clientEmail)],
 );
 
 // ── Clinic referrals (clinic-to-clinic) ──────────────────────────────
@@ -417,15 +417,15 @@ export const clinicReferrals = pgTable(
   ],
 );
 
-// ── Owner referrals (pet owner-to-owner) ─────────────────────────────
-export const ownerReferrals = pgTable(
-  'owner_referrals',
+// ── Client referrals (client-to-client) ──────────────────────────────
+export const clientReferrals = pgTable(
+  'client_referrals',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    referrerOwnerId: uuid('referrer_owner_id')
-      .references(() => owners.id)
+    referrerClientId: uuid('referrer_client_id')
+      .references(() => clients.id)
       .notNull(),
-    referredOwnerId: uuid('referred_owner_id').references(() => owners.id),
+    referredClientId: uuid('referred_client_id').references(() => clients.id),
     referralCode: text('referral_code').notNull().unique(),
     status: referralStatusEnum('status').notNull().default('pending'),
     creditApplied: boolean('credit_applied').notNull().default(false),
@@ -433,8 +433,8 @@ export const ownerReferrals = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (table) => [
-    index('idx_owner_referrals_referrer').on(table.referrerOwnerId),
-    index('idx_owner_referrals_code').on(table.referralCode),
+    index('idx_client_referrals_referrer').on(table.referrerClientId),
+    index('idx_client_referrals_code').on(table.referralCode),
   ],
 );
 
@@ -448,23 +448,23 @@ export const clinicsRelations = relations(clinics, ({ many }) => ({
   clinicReferrals: many(clinicReferrals),
 }));
 
-export const ownersRelations = relations(owners, ({ many }) => ({
+export const clientsRelations = relations(clients, ({ many }) => ({
   plans: many(plans),
   pets: many(pets),
   paymentMethods: many(paymentMethods),
-  ownerReferrals: many(ownerReferrals),
+  clientReferrals: many(clientReferrals),
 }));
 
 export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
-  owner: one(owners, { fields: [paymentMethods.ownerId], references: [owners.id] }),
+  client: one(clients, { fields: [paymentMethods.clientId], references: [clients.id] }),
 }));
 
 export const petsRelations = relations(pets, ({ one }) => ({
-  owner: one(owners, { fields: [pets.ownerId], references: [owners.id] }),
+  client: one(clients, { fields: [pets.clientId], references: [clients.id] }),
 }));
 
 export const plansRelations = relations(plans, ({ one, many }) => ({
-  owner: one(owners, { fields: [plans.ownerId], references: [owners.id] }),
+  client: one(clients, { fields: [plans.clientId], references: [clients.id] }),
   clinic: one(clinics, { fields: [plans.clinicId], references: [clinics.id] }),
   payments: many(payments),
   payouts: many(payouts),
@@ -517,9 +517,9 @@ export const clinicReferralsRelations = relations(clinicReferrals, ({ one }) => 
   }),
 }));
 
-export const ownerReferralsRelations = relations(ownerReferrals, ({ one }) => ({
-  referrerOwner: one(owners, {
-    fields: [ownerReferrals.referrerOwnerId],
-    references: [owners.id],
+export const clientReferralsRelations = relations(clientReferrals, ({ one }) => ({
+  referrerClient: one(clients, {
+    fields: [clientReferrals.referrerClientId],
+    references: [clients.id],
   }),
 }));

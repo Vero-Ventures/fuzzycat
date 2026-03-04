@@ -1,11 +1,11 @@
 // ── E2E test user constants and route definitions ─────────────────────
 
 export const TEST_USERS = {
-  owner: {
-    email: process.env.E2E_OWNER_EMAIL ?? 'e2e-owner@fuzzycatapp.com',
-    role: 'owner' as const,
-    home: '/owner/payments',
-    storageStatePath: 'e2e/auth-state/owner.json',
+  client: {
+    email: process.env.E2E_CLIENT_EMAIL ?? 'e2e-client@fuzzycatapp.com',
+    role: 'client' as const,
+    home: '/client/payments',
+    storageStatePath: 'e2e/auth-state/client.json',
   },
   clinic: {
     email: process.env.E2E_CLINIC_EMAIL ?? 'e2e-clinic@fuzzycatapp.com',
@@ -35,8 +35,8 @@ export const PUBLIC_ROUTES = [
 
 /** Routes that require authentication and redirect to /login when unauthenticated. */
 export const PROTECTED_ROUTES = [
-  '/owner/payments',
-  '/owner/settings',
+  '/client/payments',
+  '/client/settings',
   '/clinic/dashboard',
   '/clinic/onboarding',
   '/clinic/clients',
@@ -48,8 +48,8 @@ export const PROTECTED_ROUTES = [
   '/admin/payments',
 ] as const;
 
-/** Owner portal routes. */
-export const OWNER_ROUTES = ['/owner/payments', '/owner/settings'] as const;
+/** Client portal routes. */
+export const CLIENT_ROUTES = ['/client/payments', '/client/settings'] as const;
 
 /** Clinic portal routes. */
 export const CLINIC_ROUTES = [

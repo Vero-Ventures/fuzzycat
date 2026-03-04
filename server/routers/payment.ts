@@ -8,7 +8,7 @@ import {
   retryFailedPayment,
 } from '@/server/services/collection';
 import { processDeposit, processInstallment } from '@/server/services/payment';
-import { adminProcedure, ownerProcedure, router } from '@/server/trpc';
+import { adminProcedure, clientProcedure, router } from '@/server/trpc';
 
 /** Validate that a URL belongs to the app domain. */
 function isAppUrl(url: string): boolean {
@@ -28,7 +28,7 @@ export const paymentRouter = router({
    * Initiate a deposit checkout session for a plan.
    * Called by the pet owner during enrollment.
    */
-  initiateDeposit: ownerProcedure
+  initiateDeposit: clientProcedure
     .input(
       z.object({
         planId: z.string().uuid(),
@@ -46,7 +46,7 @@ export const paymentRouter = router({
 
       const result = await processDeposit({
         planId: input.planId,
-        ownerId: ctx.ownerId,
+        clientId: ctx.clientId,
         successUrl: input.successUrl,
         cancelUrl: input.cancelUrl,
       });

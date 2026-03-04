@@ -24,8 +24,8 @@ import { db } from '@/server/db';
 import type * as schema from '@/server/db/schema';
 import {
   auditLog,
+  clients,
   clinics,
-  owners,
   payments,
   payouts,
   pets,
@@ -405,10 +405,10 @@ async function seedClinics(tx: Tx, clinicAuthId: string) {
 // ── Seed: Owners ────────────────────────────────────────────────────
 
 async function seedOwners(tx: Tx, ownerAuthId: string) {
-  console.log('Creating owners...');
+  console.log('Creating clients...');
 
   const [owner1] = await tx
-    .insert(owners)
+    .insert(clients)
     .values({
       authId: ownerAuthId,
       name: 'Alice Johnson',
@@ -423,10 +423,10 @@ async function seedOwners(tx: Tx, ownerAuthId: string) {
       stripeCustomerId: 'cus_test_alice',
       stripeCardPaymentMethodId: 'pm_test_alice_card',
     })
-    .returning({ id: owners.id });
+    .returning({ id: clients.id });
 
   const [owner2] = await tx
-    .insert(owners)
+    .insert(clients)
     .values({
       name: 'Bob Martinez',
       email: 'bob-martinez@example.com',
@@ -440,10 +440,10 @@ async function seedOwners(tx: Tx, ownerAuthId: string) {
       stripeCustomerId: 'cus_test_bob',
       stripeAchPaymentMethodId: 'pm_test_bob_ach',
     })
-    .returning({ id: owners.id });
+    .returning({ id: clients.id });
 
   const [owner3] = await tx
-    .insert(owners)
+    .insert(clients)
     .values({
       name: 'Carol Chen',
       email: 'carol-chen@example.com',
@@ -457,7 +457,7 @@ async function seedOwners(tx: Tx, ownerAuthId: string) {
       stripeCustomerId: 'cus_test_carol',
       stripeCardPaymentMethodId: 'pm_test_carol_card',
     })
-    .returning({ id: owners.id });
+    .returning({ id: clients.id });
 
   console.log(`  Owner 1 (Alice, debit_card):    ${owner1.id}`);
   console.log(`  Owner 2 (Bob, bank_account):     ${owner2.id}`);
@@ -472,13 +472,13 @@ async function seedPets(tx: Tx, owner1Id: string, owner2Id: string, owner3Id: st
   console.log('Creating pets...');
 
   await tx.insert(pets).values([
-    { ownerId: owner1Id, name: 'Whiskers', species: 'cat', breed: 'Siamese', age: 4 },
-    { ownerId: owner1Id, name: 'Buddy', species: 'dog', breed: 'Golden Retriever', age: 7 },
-    { ownerId: owner2Id, name: 'Mittens', species: 'cat', breed: 'Maine Coon', age: 3 },
-    { ownerId: owner2Id, name: 'Coco', species: 'dog', breed: 'Poodle', age: 2 },
-    { ownerId: owner3Id, name: 'Luna', species: 'cat', breed: 'Persian', age: 5 },
-    { ownerId: owner3Id, name: 'Max', species: 'dog', breed: 'Labrador', age: 6 },
-    { ownerId: owner3Id, name: 'Bella', species: 'rabbit', breed: null, age: 1 },
+    { clientId: owner1Id, name: 'Whiskers', species: 'cat', breed: 'Siamese', age: 4 },
+    { clientId: owner1Id, name: 'Buddy', species: 'dog', breed: 'Golden Retriever', age: 7 },
+    { clientId: owner2Id, name: 'Mittens', species: 'cat', breed: 'Maine Coon', age: 3 },
+    { clientId: owner2Id, name: 'Coco', species: 'dog', breed: 'Poodle', age: 2 },
+    { clientId: owner3Id, name: 'Luna', species: 'cat', breed: 'Persian', age: 5 },
+    { clientId: owner3Id, name: 'Max', species: 'dog', breed: 'Labrador', age: 6 },
+    { clientId: owner3Id, name: 'Bella', species: 'rabbit', breed: null, age: 1 },
   ]);
 
   console.log('  Created 7 pets (2 for Alice, 2 for Bob, 3 for Carol).');
@@ -537,13 +537,13 @@ async function seedPlansAndPayments(
   return { plans: results };
 }
 
-async function seedPlan1(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan1(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(120_000);
   const startDate = weeksAgo(8);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 120_000,
       ...calc,
@@ -570,13 +570,13 @@ async function seedPlan1(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds: [depositId, ...instIds], startDate };
 }
 
-async function seedPlan2(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan2(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(250_000);
   const startDate = weeksAgo(14);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 250_000,
       ...calc,
@@ -610,13 +610,13 @@ async function seedPlan2(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds: [depositId, ...instIds], startDate };
 }
 
-async function seedPlan3(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan3(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(75_000);
   const startDate = now;
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 75_000,
       ...calc,
@@ -645,13 +645,13 @@ async function seedPlan3(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds, startDate };
 }
 
-async function seedPlan4(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan4(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(300_000);
   const startDate = weeksAgo(1);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 300_000,
       ...calc,
@@ -678,13 +678,13 @@ async function seedPlan4(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds: [depositId, ...instIds], startDate };
 }
 
-async function seedPlan5(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan5(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(150_000);
   const startDate = weeksAgo(12);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 150_000,
       ...calc,
@@ -710,13 +710,13 @@ async function seedPlan5(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds: [depositId, ...instIds], startDate };
 }
 
-async function seedPlan6(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan6(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(90_000);
   const startDate = weeksAgo(6);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 90_000,
       ...calc,
@@ -742,13 +742,13 @@ async function seedPlan6(tx: Tx, ownerId: string, clinicId: string): Promise<Pla
   return { planId: plan.id, calc, paymentIds: [depositId, ...instIds], startDate };
 }
 
-async function seedPlan7(tx: Tx, ownerId: string, clinicId: string): Promise<PlanSeedResult> {
+async function seedPlan7(tx: Tx, clientId: string, clinicId: string): Promise<PlanSeedResult> {
   const calc = calculatePlan(500_000);
   const startDate = weeksAgo(10);
   const [plan] = await tx
     .insert(plans)
     .values({
-      ownerId,
+      clientId,
       clinicId,
       totalBillCents: 500_000,
       ...calc,
@@ -1053,7 +1053,7 @@ async function seedAuditLog(
       action: 'plan.cancelled',
       oldValue: { status: 'active' },
       newValue: { status: 'cancelled' },
-      actorType: 'owner' as const,
+      actorType: 'client' as const,
       actorId: owner3Id,
       createdAt: weeksAgo(3),
     },
@@ -1120,14 +1120,14 @@ async function main() {
     TRUNCATE TABLE
       webhook_deliveries, webhook_endpoints, idempotency_keys, api_keys,
       soft_collections, audit_log, risk_pool, payouts, payments, plans,
-      pets, payment_methods, owners, clinics
+      pets, payment_methods, clients, clinics
     CASCADE
   `);
   console.log('  All tables truncated.');
 
   // Step 2: Create auth users
   console.log('\n── Step 2: Create auth users ──\n');
-  const ownerAuthId = await createAuthUser('e2e-owner@fuzzycatapp.com', 'owner');
+  const ownerAuthId = await createAuthUser('e2e-owner@fuzzycatapp.com', 'client');
   const clinicAuthId = await createAuthUser('e2e-clinic@fuzzycatapp.com', 'clinic');
   const adminAuthId = await createAuthUser('e2e-admin@fuzzycatapp.com', 'admin');
   console.log(`  Admin auth ID: ${adminAuthId} (no DB row needed)`);

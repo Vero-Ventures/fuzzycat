@@ -32,11 +32,11 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground">2. Service Description</h2>
           <p className="mt-3">
-            FuzzyCat is a payment facilitation platform that enables pet owners to pay veterinary
-            bills in biweekly installments over 12 weeks. FuzzyCat is not a lender. We do not extend
+            FuzzyCat is a payment facilitation platform that enables clients to pay veterinary bills
+            in biweekly installments over 12 weeks. FuzzyCat is not a lender. We do not extend
             credit, charge interest, or perform credit checks. We facilitate the scheduling and
-            processing of payments between pet owners and veterinary clinics using third-party
-            payment processors.
+            processing of payments between clients and veterinary clinics using third-party payment
+            processors.
           </p>
           <p className="mt-3">
             <strong className="text-foreground">Regulatory disclaimer:</strong> The Service is not a
@@ -167,8 +167,8 @@ export default function TermsOfServicePage() {
               part of your payout schedule.
             </li>
             <li>
-              You are responsible for collecting any outstanding balance from pet owners whose plans
-              default. FuzzyCat does not guarantee payment from pet owners to clinics.
+              You are responsible for collecting any outstanding balance from clients whose plans
+              default. FuzzyCat does not guarantee payment from clients to clinics.
             </li>
             <li>
               You must maintain an active Stripe Connect account in good standing to receive
@@ -379,7 +379,7 @@ export default function TermsOfServicePage() {
             warranties of any kind, either express or implied, including but not limited to implied
             warranties of merchantability, fitness for a particular purpose, and non-infringement.
             We do not warrant that the Service will be uninterrupted, error-free, or secure. We do
-            not guarantee payment between pet owners and clinics.
+            not guarantee payment between clients and clinics.
           </p>
         </section>
 

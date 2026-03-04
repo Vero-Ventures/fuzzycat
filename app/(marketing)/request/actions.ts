@@ -7,8 +7,8 @@ import { db } from '@/server/db';
 import { clinicRequests } from '@/server/db/schema';
 
 const requestSchema = z.object({
-  ownerEmail: z.string().email('Please enter a valid email address.'),
-  ownerName: z.string().optional(),
+  clientEmail: z.string().email('Please enter a valid email address.'),
+  clientName: z.string().optional(),
   clinicName: z.string().min(1, 'Clinic name is required.'),
   clinicCity: z.string().optional(),
   clinicState: z.string().optional(),
@@ -33,8 +33,8 @@ export async function submitClinicRequest(
 
   try {
     await db.insert(clinicRequests).values({
-      ownerEmail: parsed.data.ownerEmail,
-      ownerName: parsed.data.ownerName || null,
+      clientEmail: parsed.data.clientEmail,
+      clientName: parsed.data.clientName || null,
       clinicName: parsed.data.clinicName,
       clinicCity: parsed.data.clinicCity || null,
       clinicState: parsed.data.clinicState || null,
@@ -42,7 +42,7 @@ export async function submitClinicRequest(
     });
 
     logger.info('Clinic request submitted', {
-      ownerEmail: parsed.data.ownerEmail,
+      clientEmail: parsed.data.clientEmail,
       clinicName: parsed.data.clinicName,
     });
 

@@ -1,5 +1,5 @@
 /**
- * Seed the dev database with sample clinics, owners, plans, payments, and payouts.
+ * Seed the dev database with sample clinics, clients, plans, payments, and payouts.
  * Usage: bun run db:seed
  */
 import {
@@ -10,7 +10,7 @@ import {
   PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 import { db } from '@/server/db';
-import { auditLog, clinics, owners, payments, payouts, plans, riskPool } from '@/server/db/schema';
+import { auditLog, clients, clinics, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import {
   CLINIC_1_AUTH_ID,
   CLINIC_1_ID,
@@ -67,7 +67,7 @@ async function seed() {
     await tx.delete(payouts);
     await tx.delete(payments);
     await tx.delete(plans);
-    await tx.delete(owners);
+    await tx.delete(clients);
     await tx.delete(clinics);
 
     console.log('Seeding clinics...');
@@ -100,8 +100,8 @@ async function seed() {
       },
     ]);
 
-    console.log('Seeding owners...');
-    await tx.insert(owners).values([
+    console.log('Seeding clients...');
+    await tx.insert(clients).values([
       {
         id: OWNER_1_ID,
         authId: OWNER_1_AUTH_ID,
@@ -151,7 +151,7 @@ async function seed() {
     await tx.insert(plans).values([
       {
         id: PLAN_1_ID,
-        ownerId: OWNER_1_ID,
+        clientId: OWNER_1_ID,
         clinicId: CLINIC_1_ID,
         totalBillCents: PLAN_1_BILL_CENTS,
         ...plan1Calc,
@@ -162,7 +162,7 @@ async function seed() {
       },
       {
         id: PLAN_2_ID,
-        ownerId: OWNER_2_ID,
+        clientId: OWNER_2_ID,
         clinicId: CLINIC_1_ID,
         totalBillCents: PLAN_2_BILL_CENTS,
         ...plan2Calc,
@@ -171,7 +171,7 @@ async function seed() {
       },
       {
         id: PLAN_3_ID,
-        ownerId: OWNER_3_ID,
+        clientId: OWNER_3_ID,
         clinicId: CLINIC_2_ID,
         totalBillCents: PLAN_3_BILL_CENTS,
         ...plan3Calc,

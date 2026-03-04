@@ -13,8 +13,12 @@ function makeUser(role?: string): User {
 }
 
 describe('getUserRole', () => {
-  it('returns "owner" for a user with role "owner"', () => {
-    expect(getUserRole(makeUser('owner'))).toBe('owner');
+  it('returns "client" for a user with role "client"', () => {
+    expect(getUserRole(makeUser('client'))).toBe('client');
+  });
+
+  it('maps legacy "owner" role to "client"', () => {
+    expect(getUserRole(makeUser('owner'))).toBe('client');
   });
 
   it('returns "clinic" for a user with role "clinic"', () => {
@@ -25,30 +29,30 @@ describe('getUserRole', () => {
     expect(getUserRole(makeUser('admin'))).toBe('admin');
   });
 
-  it('defaults to "owner" when no role is set', () => {
-    expect(getUserRole(makeUser())).toBe('owner');
+  it('defaults to "client" when no role is set', () => {
+    expect(getUserRole(makeUser())).toBe('client');
   });
 
-  it('defaults to "owner" for an unknown role string', () => {
-    expect(getUserRole(makeUser('superadmin'))).toBe('owner');
+  it('defaults to "client" for an unknown role string', () => {
+    expect(getUserRole(makeUser('superadmin'))).toBe('client');
   });
 
-  it('defaults to "owner" when role is not a string', () => {
+  it('defaults to "client" when role is not a string', () => {
     const user = makeUser();
     user.app_metadata = { role: 123 };
-    expect(getUserRole(user)).toBe('owner');
+    expect(getUserRole(user)).toBe('client');
   });
 
-  it('defaults to "owner" when app_metadata is empty', () => {
+  it('defaults to "client" when app_metadata is empty', () => {
     const user = makeUser();
     user.app_metadata = {};
-    expect(getUserRole(user)).toBe('owner');
+    expect(getUserRole(user)).toBe('client');
   });
 });
 
 describe('ROLE_HOME', () => {
   it('maps all three roles to dashboard paths', () => {
-    expect(ROLE_HOME.owner).toBe('/owner/payments');
+    expect(ROLE_HOME.client).toBe('/client/payments');
     expect(ROLE_HOME.clinic).toBe('/clinic/dashboard');
     expect(ROLE_HOME.admin).toBe('/admin/dashboard');
   });
@@ -57,7 +61,7 @@ describe('ROLE_HOME', () => {
 describe('SAFE_REDIRECT_PREFIXES', () => {
   it('includes the four expected prefixes', () => {
     expect(SAFE_REDIRECT_PREFIXES).toContain('/clinic');
-    expect(SAFE_REDIRECT_PREFIXES).toContain('/owner');
+    expect(SAFE_REDIRECT_PREFIXES).toContain('/client');
     expect(SAFE_REDIRECT_PREFIXES).toContain('/admin');
     expect(SAFE_REDIRECT_PREFIXES).toContain('/mfa');
   });

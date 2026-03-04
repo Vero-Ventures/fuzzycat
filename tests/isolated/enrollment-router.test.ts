@@ -102,7 +102,7 @@ function clinicCtx(): any {
 function ownerCtx(): any {
   return {
     db: dbMock,
-    session: { userId: USER_ID, role: 'owner' },
+    session: { userId: USER_ID, role: 'client' },
     supabase: {
       auth: {
         mfa: {
@@ -281,13 +281,13 @@ describe('enrollment.getSummary', () => {
 
   it('returns summary for authorized user', async () => {
     const caller = createCaller(ownerCtx());
-    // ownerProcedure looks up owner by authId
+    // clientProcedure looks up owner by authId
     createMockChain([[{ id: 'owner-1' }]]);
 
     const result = await caller.getSummary({ planId: PLAN_ID });
 
     expect(result.plan.id).toBe('plan-1');
-    expect(mockAssertPlanAccess).toHaveBeenCalledWith(USER_ID, 'owner', PLAN_ID);
+    expect(mockAssertPlanAccess).toHaveBeenCalledWith(USER_ID, 'client', PLAN_ID);
     expect(mockGetEnrollmentSummary).toHaveBeenCalledWith(PLAN_ID);
   });
 
@@ -324,8 +324,8 @@ describe('enrollment.cancel', () => {
     const result = await caller.cancel({ planId: PLAN_ID });
 
     expect(result).toEqual({ success: true });
-    expect(mockAssertPlanAccess).toHaveBeenCalledWith(USER_ID, 'owner', PLAN_ID);
-    expect(mockCancelEnrollment).toHaveBeenCalledWith(PLAN_ID, USER_ID, 'owner');
+    expect(mockAssertPlanAccess).toHaveBeenCalledWith(USER_ID, 'client', PLAN_ID);
+    expect(mockCancelEnrollment).toHaveBeenCalledWith(PLAN_ID, USER_ID, 'client');
   });
 
   it('wraps service error as BAD_REQUEST', async () => {

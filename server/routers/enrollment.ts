@@ -4,23 +4,24 @@
 import { TRPCError } from '@trpc/server';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { roleToActorType } from '@/lib/auth';
 import { MAX_BILL_CENTS, MIN_BILL_CENTS } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
 import { clinics } from '@/server/db/schema';
 import { assertClinicOwnership, assertPlanAccess } from '@/server/services/authorization';
+import { provisionClientAccount } from '@/server/services/client-provisioning';
 import {
   type CreateEnrollmentResult,
   cancelEnrollment,
   createEnrollment,
   getEnrollmentSummary,
 } from '@/server/services/enrollment';
-import { provisionOwnerAccount } from '@/server/services/owner-provisioning';
 import { clinicProcedure, protectedProcedure, router } from '@/server/trpc';
 
-const ownerDataSchema = z.object({
-  name: z.string().min(1, 'Owner name is required'),
+const clientDataSchema = z.object({
+  name: z.string().min(1, 'Client name is required'),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(1, 'Phone number is required'),
   petName: z.string().min(1, 'Pet name is required'),
@@ -39,7 +40,7 @@ export const enrollmentRouter = router({
     .input(
       z.object({
         clinicId: z.string().uuid('Valid clinic ID is required'),
-        ownerData: ownerDataSchema,
+        ownerData: clientDataSchema,
         billAmountCents: z
           .number()
           .int()
@@ -88,19 +89,19 @@ export const enrollmentRouter = router({
           .where(eq(clinics.id, input.clinicId))
           .limit(1);
 
-        await provisionOwnerAccount({
-          ownerId: result.ownerId,
-          ownerEmail: input.ownerData.email,
-          ownerName: input.ownerData.name,
+        await provisionClientAccount({
+          clientId: result.clientId,
+          clientEmail: input.ownerData.email,
+          clientName: input.ownerData.name,
           petName: input.ownerData.petName,
           planId: result.planId,
           clinicName: clinic?.name ?? 'Your Veterinary Clinic',
           schedule: calculatePaymentSchedule(input.billAmountCents),
         });
       } catch (err) {
-        logger.error('Owner provisioning failed (enrollment still valid)', {
+        logger.error('Client provisioning failed (enrollment still valid)', {
           planId: result.planId,
-          ownerId: result.ownerId,
+          clientId: result.clientId,
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -135,7 +136,7 @@ export const enrollmentRouter = router({
       await assertPlanAccess(ctx.session.userId, ctx.session.role, input.planId);
 
       try {
-        await cancelEnrollment(input.planId, ctx.session.userId, ctx.session.role);
+        await cancelEnrollment(input.planId, ctx.session.userId, roleToActorType(ctx.session.role));
         return { success: true as const };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to cancel enrollment';

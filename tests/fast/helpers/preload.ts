@@ -53,7 +53,7 @@ if (!ready) {
 
 // Pre-authenticate all roles in parallel
 await Promise.all([
-  getAuthCookies('owner'),
+  getAuthCookies('client'),
   getAuthCookies('clinic'),
   getAuthCookies('admin'),
 ]).catch((err) => {

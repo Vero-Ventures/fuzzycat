@@ -51,19 +51,19 @@ mock.module('@/server/db/schema', () => ({
   },
   plans: {
     id: 'plans.id',
-    ownerId: 'plans.owner_id',
+    clientId: 'plans.client_id',
     clinicId: 'plans.clinic_id',
     remainingCents: 'plans.remaining_cents',
     status: 'plans.status',
   },
-  owners: {
-    id: 'owners.id',
-    name: 'owners.name',
-    email: 'owners.email',
-    phone: 'owners.phone',
-    petName: 'owners.pet_name',
+  clients: {
+    id: 'clients.id',
+    name: 'clients.name',
+    email: 'clients.email',
+    phone: 'clients.phone',
+    petName: 'clients.pet_name',
   },
-  pets: { id: 'pets.id', ownerId: 'pets.owner_id' },
+  pets: { id: 'pets.id', clientId: 'pets.client_id' },
   petsRelations: {},
   softCollectionStageEnum: mock(),
 }));

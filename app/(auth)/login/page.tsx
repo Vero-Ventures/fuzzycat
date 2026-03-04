@@ -31,10 +31,10 @@ export default async function LoginPage({
               Clinic Portal
             </Button>
           </Link>
-          <Link href="/login/owner">
+          <Link href="/login/client">
             <Button variant="outline" className="w-full gap-2">
               <User className="h-4 w-4" />
-              Pet Owner
+              Client Portal
             </Button>
           </Link>
         </div>

@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import {
+  getClientReferrals,
+  getOrCreateClientReferralCode,
+} from '@/server/services/client-referral';
+import {
   createClinicReferral,
   getClinicReferralCode,
   getClinicReferrals,
 } from '@/server/services/clinic-referral';
 import { enrollAsFoundingClinic, getFoundingClinicStatus } from '@/server/services/founding-clinic';
-import { getOrCreateOwnerReferralCode, getOwnerReferrals } from '@/server/services/owner-referral';
-import { clinicProcedure, ownerProcedure, router } from '@/server/trpc';
+import { clientProcedure, clinicProcedure, router } from '@/server/trpc';
 
 export const growthRouter = router({
   // ── Founding Clinic ──────────────────────────────────────────────────
@@ -40,15 +43,15 @@ export const growthRouter = router({
     return getClinicReferrals(ctx.clinicId);
   }),
 
-  // ── Owner Referrals ──────────────────────────────────────────────────
+  // ── Client Referrals ─────────────────────────────────────────────────
 
-  getMyOwnerReferralCode: ownerProcedure.query(async ({ ctx }) => {
-    if (!ctx.ownerId) throw new Error('Owner ID required');
-    return getOrCreateOwnerReferralCode(ctx.ownerId);
+  getMyClientReferralCode: clientProcedure.query(async ({ ctx }) => {
+    if (!ctx.clientId) throw new Error('Client ID required');
+    return getOrCreateClientReferralCode(ctx.clientId);
   }),
 
-  getMyOwnerReferrals: ownerProcedure.query(async ({ ctx }) => {
-    if (!ctx.ownerId) throw new Error('Owner ID required');
-    return getOwnerReferrals(ctx.ownerId);
+  getMyClientReferrals: clientProcedure.query(async ({ ctx }) => {
+    if (!ctx.clientId) throw new Error('Client ID required');
+    return getClientReferrals(ctx.clientId);
   }),
 });

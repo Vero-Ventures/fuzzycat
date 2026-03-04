@@ -206,7 +206,7 @@ async function main() {
     ['/terms', 'Terms of Service'],
     ['/support', 'Support'],
     ['/api-docs', 'API Docs'],
-    ['/login/owner', 'Owner Login'],
+    ['/login/client', 'Client Login'],
     ['/login/clinic', 'Clinic Login'],
   ];
 
@@ -228,15 +228,15 @@ async function main() {
     ownerCtx,
     OWNER_EMAIL,
     PASSWORD,
-    '/owner/payments',
+    '/client/payments',
     'Owner',
-    '/login/owner',
+    '/login/client',
   );
 
   if (ownerPage) {
     const ownerPages = [
-      ['/owner/payments', 'Payments'],
-      ['/owner/settings', 'Settings'],
+      ['/client/payments', 'Payments'],
+      ['/client/settings', 'Settings'],
     ];
 
     for (const [url, name] of ownerPages) {
@@ -247,7 +247,7 @@ async function main() {
     console.log('\n── Owner SPA CSP ──');
     await checkSpaNavCsp(
       ownerPage,
-      ['/owner/payments', '/owner/settings', '/owner/payments'],
+      ['/client/payments', '/client/settings', '/client/payments'],
       'Owner',
     );
 
@@ -323,18 +323,18 @@ async function main() {
 
   // Unauthenticated user hitting protected route should redirect to /login
   try {
-    await anonPage.goto(`${BASE}/owner/payments`, {
+    await anonPage.goto(`${BASE}/client/payments`, {
       waitUntil: 'domcontentloaded',
       timeout: 15000,
     });
     const url = anonPage.url();
     if (url.includes('/login')) {
-      record('Unauth → /owner/payments redirects to /login', 'PASS');
+      record('Unauth → /client/payments redirects to /login', 'PASS');
     } else {
-      record('Unauth → /owner/payments redirects to /login', 'FAIL', `Got: ${url}`);
+      record('Unauth → /client/payments redirects to /login', 'FAIL', `Got: ${url}`);
     }
   } catch (err) {
-    record('Unauth → /owner/payments redirects to /login', 'FAIL', String(err).slice(0, 120));
+    record('Unauth → /client/payments redirects to /login', 'FAIL', String(err).slice(0, 120));
   }
 
   try {

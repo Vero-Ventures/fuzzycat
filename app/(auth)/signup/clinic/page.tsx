@@ -201,6 +201,40 @@ export default function ClinicSignupPage() {
               Sign in
             </Link>
           </p>
+
+          {/* Marketing info */}
+          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+            <h3 className="text-sm font-semibold">Why sign up for FuzzyCat?</h3>
+            <p className="text-xs text-muted-foreground">
+              When clients can&apos;t afford needed veterinary care, your clinic loses income too.
+              FuzzyCat helps your clients pay over time while boosting your earnings.
+            </p>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">The problem:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>8 in 10 pet owners face financial stress over vet bills</li>
+                <li>Clinics lose revenue when clients delay or decline care</li>
+                <li>Current financing options involve high interest or credit denials</li>
+              </ul>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium">The FuzzyCat solution:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Clients pay over time &mdash; no credit checks, no high interest</li>
+                <li>Your clinic earns 3% on every enrollment</li>
+                <li>Secure, encrypted platform with no charge to clinics</li>
+                <li>Clients pay 25% down, then biweekly debits for up to 12 weeks</li>
+                <li>Higher treatment acceptance and increased revenue</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+            <strong>Disclaimer:</strong> FuzzyCat is only an automatic payment service and no
+            collection services are included. Information is encrypted but FuzzyCat is not
+            responsible for any damages resulting from the use of the software.
+          </p>
         </div>
       </div>
 

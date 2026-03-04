@@ -197,6 +197,37 @@ export default function ClientSignupPage() {
                   Sign in
                 </Link>
               </p>
+
+              {/* Marketing info */}
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                <h3 className="text-sm font-semibold">How FuzzyCat works</h3>
+                <p className="text-xs text-muted-foreground">
+                  Your clinic must be registered with FuzzyCat. Once registered, you can sign up by
+                  entering your debit card or bank information. You pay a 25% deposit on the total
+                  vet bill, and FuzzyCat debits your account for the balance every two weeks in
+                  equal amounts. An 8% platform fee applies to the total bill.
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                  <li>No credit checks or high interest fees</li>
+                  <li>Payments go directly to your vet clinic</li>
+                  <li>All you need is a debit card or checking account</li>
+                </ul>
+                <p className="text-xs text-muted-foreground font-medium">
+                  * Ensure you can afford all payments. FuzzyCat will continue charging your account
+                  until the balance is paid. All overdraft fees or other charges are your
+                  responsibility. Do not sign up unless you can complete the entire payment schedule
+                  on time.
+                </p>
+              </div>
+
+              {/* Disclaimer */}
+              <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+                <strong>Disclaimer:</strong> FuzzyCat is not responsible for any damages resulting
+                from use of the product. By signing up, you acknowledge that you have read the
+                information about automatic debits and that you are aware of the total charges that
+                will be incurred, including fees paid. Information is encrypted but FuzzyCat is not
+                responsible for any damages resulting from the use of the software.
+              </p>
             </>
           )}
         </div>

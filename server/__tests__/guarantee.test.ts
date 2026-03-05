@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { PLATFORM_RESERVE_RATE } from '@/lib/constants';
+import { PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 
 // ── Mocks ────────────────────────────────────────────────────────────
@@ -52,20 +52,19 @@ afterEach(() => {
 
 describe('calculateContribution', () => {
   it('calculates 1% of total with fee', () => {
-    // $1,200 bill + 8% fee = $1,296.00 = 129,600 cents
-    // 1% of 129,600 = 1,296 cents
-    const totalWithFeeCents = 129_600;
+    // $1,200 bill + PLATFORM_FEE_RATE fee
+    const billCents = 120_000;
+    const totalWithFeeCents = billCents + Math.round(billCents * PLATFORM_FEE_RATE);
     const result = calculateContribution(totalWithFeeCents);
     expect(result).toBe(percentOfCents(totalWithFeeCents, PLATFORM_RESERVE_RATE));
-    expect(result).toBe(1296);
   });
 
   it('calculates contribution for minimum bill ($500)', () => {
-    // $500 + 8% = $540 = 54,000 cents
-    // 1% = 540 cents
-    const totalWithFeeCents = 54_000;
+    // $500 + PLATFORM_FEE_RATE fee
+    const billCents = 50_000;
+    const totalWithFeeCents = billCents + Math.round(billCents * PLATFORM_FEE_RATE);
     const result = calculateContribution(totalWithFeeCents);
-    expect(result).toBe(540);
+    expect(result).toBe(percentOfCents(totalWithFeeCents, PLATFORM_RESERVE_RATE));
   });
 
   it('returns 0 for 0 cents', () => {

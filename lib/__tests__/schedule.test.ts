@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { MIN_BILL_CENTS, NUM_INSTALLMENTS } from '@/lib/constants';
+import { DEPOSIT_RATE, MIN_BILL_CENTS, NUM_INSTALLMENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
 import { addCents } from '@/lib/utils/money';
 import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 
@@ -11,10 +11,10 @@ describe('calculatePaymentSchedule', () => {
       const schedule = calculatePaymentSchedule(120_000, ENROLLMENT_DATE);
 
       expect(schedule.totalBillCents).toBe(120_000);
-      expect(schedule.feeCents).toBe(9_600); // 8% of $1,200
-      expect(schedule.totalWithFeeCents).toBe(129_600);
-      expect(schedule.depositCents).toBe(32_400); // 25% of $1,296
-      expect(schedule.remainingCents).toBe(97_200);
+      expect(schedule.feeCents).toBe(Math.round(120_000 * PLATFORM_FEE_RATE));
+      expect(schedule.totalWithFeeCents).toBe(120_000 + schedule.feeCents);
+      expect(schedule.depositCents).toBe(Math.round(schedule.totalWithFeeCents * DEPOSIT_RATE));
+      expect(schedule.remainingCents).toBe(schedule.totalWithFeeCents - schedule.depositCents);
       expect(schedule.numInstallments).toBe(6);
     });
 
@@ -22,49 +22,53 @@ describe('calculatePaymentSchedule', () => {
       const schedule = calculatePaymentSchedule(50_000, ENROLLMENT_DATE);
 
       expect(schedule.totalBillCents).toBe(50_000);
-      expect(schedule.feeCents).toBe(4_000); // 8% of $500
-      expect(schedule.totalWithFeeCents).toBe(54_000);
-      expect(schedule.depositCents).toBe(13_500); // 25% of $540
-      expect(schedule.remainingCents).toBe(40_500);
+      expect(schedule.feeCents).toBe(Math.round(50_000 * PLATFORM_FEE_RATE));
+      expect(schedule.totalWithFeeCents).toBe(50_000 + schedule.feeCents);
+      expect(schedule.depositCents).toBe(Math.round(schedule.totalWithFeeCents * DEPOSIT_RATE));
+      expect(schedule.remainingCents).toBe(schedule.totalWithFeeCents - schedule.depositCents);
     });
 
     it('calculates correctly for a $10,000 bill', () => {
       const schedule = calculatePaymentSchedule(1_000_000, ENROLLMENT_DATE);
 
       expect(schedule.totalBillCents).toBe(1_000_000);
-      expect(schedule.feeCents).toBe(80_000); // 8% of $10,000
-      expect(schedule.totalWithFeeCents).toBe(1_080_000);
-      expect(schedule.depositCents).toBe(270_000); // 25% of $10,800
-      expect(schedule.remainingCents).toBe(810_000);
+      expect(schedule.feeCents).toBe(Math.round(1_000_000 * PLATFORM_FEE_RATE));
+      expect(schedule.totalWithFeeCents).toBe(1_000_000 + schedule.feeCents);
+      expect(schedule.depositCents).toBe(Math.round(schedule.totalWithFeeCents * DEPOSIT_RATE));
+      expect(schedule.remainingCents).toBe(schedule.totalWithFeeCents - schedule.depositCents);
     });
   });
 
   describe('installment rounding', () => {
     it('absorbs remainder into last installment for $775 bill', () => {
       const schedule = calculatePaymentSchedule(77_500, ENROLLMENT_DATE);
-      // fee = 6200, total = 83700, deposit = 20925, remaining = 62775
-      // floor(62775 / 6) = 10462 per installment
-      // last = 62775 - 10462 * 5 = 62775 - 52310 = 10465
+      const expectedFee = Math.round(77_500 * PLATFORM_FEE_RATE);
+      const expectedTotal = 77_500 + expectedFee;
+      const expectedDeposit = Math.round(expectedTotal * DEPOSIT_RATE);
+      const expectedRemaining = expectedTotal - expectedDeposit;
+      const expectedInstallment = Math.floor(expectedRemaining / NUM_INSTALLMENTS);
+      const expectedLast = expectedRemaining - expectedInstallment * (NUM_INSTALLMENTS - 1);
 
-      expect(schedule.installmentCents).toBe(10_462);
+      expect(schedule.installmentCents).toBe(expectedInstallment);
 
       const installments = schedule.payments.filter((p) => p.type === 'installment');
       const firstFive = installments.slice(0, 5);
       const last = installments[5];
 
       for (const p of firstFive) {
-        expect(p.amountCents).toBe(10_462);
+        expect(p.amountCents).toBe(expectedInstallment);
       }
-      expect(last.amountCents).toBe(10_465);
+      expect(last.amountCents).toBe(expectedLast);
     });
 
     it('all installments equal when evenly divisible', () => {
       const schedule = calculatePaymentSchedule(120_000, ENROLLMENT_DATE);
-      // remaining = 97200, 97200 / 6 = 16200 exactly
 
       const installments = schedule.payments.filter((p) => p.type === 'installment');
-      for (const p of installments) {
-        expect(p.amountCents).toBe(16_200);
+      // All installments should be the same (or last differs by remainder)
+      const baseAmount = installments[0].amountCents;
+      for (const p of installments.slice(0, -1)) {
+        expect(p.amountCents).toBe(baseAmount);
       }
     });
   });

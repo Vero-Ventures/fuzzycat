@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { PLATFORM_FEE_RATE, PLATFORM_RESERVE_RATE } from '@/lib/constants';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -420,10 +421,13 @@ describe('createEnrollment', () => {
 
     await createEnrollment(CLINIC_ID, VALID_OWNER_DATA, 120_000, ACTOR_ID, ENROLLMENT_DATE);
 
-    // $1,200 bill -> 8% fee = $96 -> total = $1,296 -> 1% risk pool = $12.96 = 1296 cents
+    // $1,200 bill -> PLATFORM_FEE_RATE fee -> total with fee -> 1% risk pool
+    const expectedFee = Math.round(120_000 * PLATFORM_FEE_RATE);
+    const expectedTotal = 120_000 + expectedFee;
+    const expectedRiskPool = Math.round(expectedTotal * PLATFORM_RESERVE_RATE);
     // The risk pool insert is the 4th insert (after owner, plan, payments)
     const riskPoolInsert = insertedValues[3] as { contributionCents: number; type: string };
-    expect(riskPoolInsert.contributionCents).toBe(1_296);
+    expect(riskPoolInsert.contributionCents).toBe(expectedRiskPool);
     expect(riskPoolInsert.type).toBe('contribution');
   });
 

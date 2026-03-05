@@ -18,8 +18,8 @@ test.describe('Payment Calculator — Interactions', () => {
     // Total: $1090
     await expect(page.getByText(/\$1,090|\$1090/).first()).toBeVisible({ timeout: 3000 });
 
-    // Deposit: 25% of $1090 = $272.50 → $273 (rounded)
-    await expect(page.getByText(/\$273/).first()).toBeVisible({ timeout: 3000 });
+    // Deposit: 25% of $1090 = $272.50
+    await expect(page.getByText(/\$272\.50/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('$500 minimum bill shows valid schedule', async ({ page }) => {
@@ -33,8 +33,8 @@ test.describe('Payment Calculator — Interactions', () => {
     // Total: $545
     await expect(page.getByText(/\$545/).first()).toBeVisible({ timeout: 3000 });
 
-    // Deposit: 25% of $545 = $136.25 → $136 (rounded)
-    await expect(page.getByText(/\$136/).first()).toBeVisible({ timeout: 3000 });
+    // Deposit: 25% of $545 = $136.25
+    await expect(page.getByText(/\$136\.25/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('below minimum shows error or no schedule', async ({ page }) => {

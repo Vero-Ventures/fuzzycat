@@ -12,14 +12,14 @@ test.describe('Payment Calculator — Interactions', () => {
     await billInput.clear();
     await billInput.fill('1000');
 
-    // Platform fee: 9% of $1000 = $90
-    await expect(page.getByText(/\$90/).first()).toBeVisible({ timeout: 3000 });
+    // Platform fee: 6% of $1000 = $60
+    await expect(page.getByText(/\$60/).first()).toBeVisible({ timeout: 3000 });
 
-    // Total: $1090
-    await expect(page.getByText(/\$1,090|\$1090/).first()).toBeVisible({ timeout: 3000 });
+    // Total: $1060
+    await expect(page.getByText(/\$1,060|\$1060/).first()).toBeVisible({ timeout: 3000 });
 
-    // Deposit: 25% of $1090 = $272.50
-    await expect(page.getByText(/\$272\.50/).first()).toBeVisible({ timeout: 3000 });
+    // Deposit: 25% of $1060 = $265
+    await expect(page.getByText(/\$265/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('$500 minimum bill shows valid schedule', async ({ page }) => {
@@ -27,14 +27,14 @@ test.describe('Payment Calculator — Interactions', () => {
     await billInput.clear();
     await billInput.fill('500');
 
-    // Fee: 9% of $500 = $45
-    await expect(page.getByText(/\$45/).first()).toBeVisible({ timeout: 3000 });
+    // Fee: 6% of $500 = $30
+    await expect(page.getByText(/\$30/).first()).toBeVisible({ timeout: 3000 });
 
-    // Total: $545
-    await expect(page.getByText(/\$545/).first()).toBeVisible({ timeout: 3000 });
+    // Total: $530
+    await expect(page.getByText(/\$530/).first()).toBeVisible({ timeout: 3000 });
 
-    // Deposit: 25% of $545 = $136.25
-    await expect(page.getByText(/\$136\.25/).first()).toBeVisible({ timeout: 3000 });
+    // Deposit: 25% of $530 = $132.50
+    await expect(page.getByText(/\$132\.50/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('below minimum shows error or no schedule', async ({ page }) => {
@@ -66,11 +66,11 @@ test.describe('Payment Calculator — Interactions', () => {
     await billInput.clear();
     await billInput.fill('25000');
 
-    // Fee: 9% of $25,000 = $2,250
-    await expect(page.getByText(/\$2,250/).first()).toBeVisible({ timeout: 3000 });
+    // Fee: 6% of $25,000 = $1,500
+    await expect(page.getByText(/\$1,500/).first()).toBeVisible({ timeout: 3000 });
 
-    // Total: $27,250
-    await expect(page.getByText(/\$27,250/).first()).toBeVisible({ timeout: 3000 });
+    // Total: $26,500
+    await expect(page.getByText(/\$26,500/).first()).toBeVisible({ timeout: 3000 });
   });
 
   test('clear input resets display', async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe('Payment Calculator — Interactions', () => {
     // First enter a value
     await billInput.clear();
     await billInput.fill('1000');
-    await expect(page.getByText(/\$1,090|\$1090/).first()).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(/\$1,060|\$1060/).first()).toBeVisible({ timeout: 3000 });
 
     // Clear the input
     await billInput.clear();

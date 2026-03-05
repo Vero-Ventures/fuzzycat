@@ -8,8 +8,8 @@ import {
 
 describe('Marketing page constants', () => {
   it('should use correct fee percentage', () => {
-    expect(PLATFORM_FEE_RATE).toBe(0.09);
-    expect(Math.round(PLATFORM_FEE_RATE * 100)).toBe(9);
+    expect(PLATFORM_FEE_RATE).toBe(0.06);
+    expect(Math.round(PLATFORM_FEE_RATE * 100)).toBe(6);
   });
 
   it('should use correct deposit percentage', () => {

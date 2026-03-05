@@ -7,7 +7,7 @@ Payment plan platform for veterinary clinics. Pet owners split vet bills into bi
 ## Key Business Rules
 
 - **Bill range**: $500–$25,000. Enforced in `lib/constants.ts` and enrollment router Zod schema.
-- **Fee structure**: 9% platform fee to pet owner, 3% revenue share to clinic, 1% platform reserve
+- **Fee structure**: 6% platform fee to pet owner, 3% revenue share to clinic, 1% platform reserve
 - **Deposit**: 25% of total (incl. fee), charged immediately via debit card (not ACH)
 - **Installments**: remaining 75% split into 6 biweekly ACH debits
 - **Default handling**: 3 failed retries → plan "defaulted" → clinic notified, responsible for collection. Retries are payday-aligned (next Friday, 1st, or 15th at least 2 days out).

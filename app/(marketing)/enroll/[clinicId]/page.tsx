@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { DEPOSIT_RATE, NUM_INSTALLMENTS, PLATFORM_FEE_RATE } from '@/lib/constants';
+import { DEPOSIT_RATE, FEE_PERCENT, NUM_INSTALLMENTS } from '@/lib/constants';
 import { db } from '@/server/db';
 import { clinics } from '@/server/db/schema';
 
@@ -50,7 +50,7 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
     notFound();
   }
 
-  const feePercent = Math.round(PLATFORM_FEE_RATE * 100);
+  const feePercent = FEE_PERCENT;
   const depositPercent = Math.round(DEPOSIT_RATE * 100);
 
   return (

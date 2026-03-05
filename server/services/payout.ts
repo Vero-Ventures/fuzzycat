@@ -48,9 +48,9 @@ export interface ClinicEarnings {
 /**
  * Calculate the payout breakdown for a given payment amount.
  *
- * The payment amount from the pet owner includes the 8% platform fee.
+ * The payment amount from the pet owner includes the PLATFORM_FEE_RATE platform fee.
  * From each payment, FuzzyCat retains:
- *   - Platform fee portion (proportional share of the 8% fee)
+ *   - Platform fee portion (proportional share of the PLATFORM_FEE_RATE fee)
  *   - Risk pool contribution (1% of the original bill portion)
  *
  * The clinic receives:
@@ -67,7 +67,7 @@ export function calculatePayoutBreakdown(
     throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
   }
 
-  // The payment amount includes the 8% fee. Reverse-calculate the original bill portion.
+  // The payment amount includes the platform fee. Reverse-calculate the original bill portion.
   // paymentAmount = billPortion + feePortion
   // paymentAmount = billPortion * (1 + PLATFORM_FEE_RATE)
   // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)

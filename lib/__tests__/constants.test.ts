@@ -9,8 +9,8 @@ import {
 } from '@/lib/constants';
 
 describe('business constants', () => {
-  it('platform fee rate is 9%', () => {
-    expect(PLATFORM_FEE_RATE).toBe(0.09);
+  it('platform fee rate is 6%', () => {
+    expect(PLATFORM_FEE_RATE).toBe(0.06);
   });
 
   it('deposit rate is 25%', () => {

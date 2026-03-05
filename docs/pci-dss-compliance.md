@@ -155,7 +155,7 @@ The platform stores only Stripe-issued tokenized references (`pm_*`, `pi_*`, `cu
 | Data retention policy | ✅ | 7 years payment records (IRS); 2 years account data |
 | Breach notification | ✅ | 72-hour notification standard in privacy policy |
 | No-lender disclaimer | ✅ | Explicit TILA/ECOA non-applicability statement |
-| Fee transparency | ✅ | 9% fee, 25% deposit, 6 installments clearly disclosed |
+| Fee transparency | ✅ | 6% fee, 25% deposit, 6 installments clearly disclosed |
 
 ---
 

@@ -1,6 +1,6 @@
 # FuzzyCat
 
-Payment plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). 9% platform fee to owner, 3% revenue share to clinic.
+Payment plan platform for veterinary clinics. Pet owners split vet bills into biweekly installments over 12 weeks (25% deposit + 6 installments). 6% platform fee to owner, 3% revenue share to clinic.
 
 **Not a lender.** No credit checks, no interest, no loan origination. FuzzyCat does **not** guarantee clinic payment — clinics are responsible for collecting from defaulting owners.
 
@@ -93,7 +93,7 @@ bunx drizzle-kit generate        # Generate SQL migrations
 
 ```
 ENROLLMENT:
-  1. Owner enters vet bill → system calculates 9% fee, 25% deposit, 6 installments
+  1. Owner enters vet bill → system calculates 6% fee, 25% deposit, 6 installments
   2. Owner connects debit card or bank account via Stripe
   3. Deposit charged immediately → plan becomes "active"
   4. Remaining 75% split into 6 biweekly ACH debits

@@ -9,8 +9,8 @@ describe('Login page /login', () => {
 
   test('heading and subtitle', async () => {
     const { $ } = await fetchPage('/login');
-    expect($('h1').text()).toContain('Log in to FuzzyCat');
-    expect($('body').text()).toContain('Choose your portal or sign in below');
+    expect($('h1').text()).toContain('Welcome Back');
+    expect($('body').text()).toContain('Sign in to your account');
   });
 
   test('signup link', async () => {

@@ -191,10 +191,7 @@ export default function ClientSignupPage() {
 
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <Link
-                  href="/login/client"
-                  className="font-medium text-primary hover:text-primary/80"
-                >
+                <Link href="/login" className="font-medium text-primary hover:text-primary/80">
                   Sign in
                 </Link>
               </p>

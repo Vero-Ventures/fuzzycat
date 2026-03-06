@@ -71,15 +71,15 @@ export default function LandingPage() {
               a flat {feePercent}% fee &mdash; no interest, no credit check, no surprises.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
-              <Link href="/login/clinic">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Clinic Portal Login
+              <Link href="/login">
+                <Button size="lg" className="w-full sm:w-auto">
+                  Log In
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/login/client">
-                <Button size="lg" className="w-full sm:w-auto">
-                  Client Portal Login
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
+              <Link href="/how-it-works">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                  Learn More
                 </Button>
               </Link>
             </div>

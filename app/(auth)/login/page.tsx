@@ -1,7 +1,7 @@
-import { Building2, User } from 'lucide-react';
+import { Cat } from 'lucide-react';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = {
@@ -16,55 +16,59 @@ export default async function LoginPage({
   const { redirectTo, error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Log in to FuzzyCat</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Choose your portal or sign in below</p>
-        </div>
-
-        {/* Portal routing buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/login/clinic">
-            <Button variant="outline" className="w-full gap-2">
-              <Building2 className="h-4 w-4" />
-              Clinic Portal
-            </Button>
-          </Link>
-          <Link href="/login/client">
-            <Button variant="outline" className="w-full gap-2">
-              <User className="h-4 w-4" />
-              Client Portal
-            </Button>
-          </Link>
-        </div>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">or sign in directly</span>
+    <div className="flex min-h-screen">
+      {/* Left panel: branding with cat photo */}
+      <div className="hidden items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 p-12 text-white lg:flex lg:w-[40%]">
+        <div className="max-w-sm space-y-8">
+          <Image
+            src="/sharkie.webp"
+            alt="A black cat lounging comfortably"
+            width={320}
+            height={280}
+            className="rounded-xl shadow-lg"
+            sizes="320px"
+            priority
+          />
+          <div>
+            <Cat className="mb-3 h-8 w-8 text-teal-200" />
+            <blockquote className="text-2xl font-semibold leading-relaxed">
+              &ldquo;Because your best friend deserves the best care.&rdquo;
+            </blockquote>
+            <p className="mt-4 text-teal-200">
+              Flexible payment plans for veterinary care. No credit check. No interest.
+            </p>
           </div>
         </div>
+      </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive"
-          >
-            {error === 'auth_callback_failed'
-              ? 'Authentication failed. Please try again.'
-              : 'An error occurred. Please try again.'}
+      {/* Right panel: login form */}
+      <div className="flex flex-1 items-center justify-center px-4 sm:px-8">
+        <div className="w-full max-w-md space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome Back</h1>
+            <p className="mt-2 text-muted-foreground">Sign in to your account</p>
           </div>
-        )}
-        <LoginForm redirectTo={redirectTo} />
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-medium text-primary hover:text-primary/80">
-            Sign up
-          </Link>
-        </p>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-md bg-destructive/10 p-3 text-center text-sm text-destructive"
+            >
+              {error === 'auth_callback_failed'
+                ? 'Authentication failed. Please try again.'
+                : 'An error occurred. Please try again.'}
+            </div>
+          )}
+
+          <LoginForm redirectTo={redirectTo} />
+
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="font-medium text-primary hover:text-primary/80">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

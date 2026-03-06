@@ -40,9 +40,9 @@ test.describe('Landing Page — Interactions', () => {
     const cta = page.locator('a[href="/how-it-works"]', {
       hasText: /learn more/i,
     });
-    await cta.scrollIntoViewIfNeeded();
-    await expect(cta).toBeVisible();
-    await cta.click();
+    await cta.last().scrollIntoViewIfNeeded();
+    await expect(cta.last()).toBeVisible();
+    await cta.last().click();
     await expect(page).toHaveURL(/\/how-it-works/);
   });
 });

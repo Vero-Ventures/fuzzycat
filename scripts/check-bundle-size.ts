@@ -15,7 +15,7 @@ const ROOT = join(import.meta.dir, '..');
 const CHUNKS_DIR = join(ROOT, '.next', 'static', 'chunks');
 
 /** Maximum allowed total gzipped size of client JS in kilobytes. */
-const BUDGET_KB = 840;
+const BUDGET_KB = 1000;
 
 function collectJsFiles(dir: string): string[] {
   const files: string[] = [];

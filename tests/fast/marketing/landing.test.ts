@@ -17,8 +17,8 @@ describe('Landing page /', () => {
 
   test('hero CTAs link to correct pages', async () => {
     const { $ } = await fetchPage('/');
-    expect($('a:contains("Clinic Portal Login")').attr('href')).toBe('/login/clinic');
-    expect($('a:contains("Client Portal Login")').attr('href')).toBe('/login/client');
+    expect($('a:contains("Log In")').attr('href')).toBe('/login');
+    expect($('a:contains("Learn More")').first().attr('href')).toBe('/how-it-works');
   });
 
   test('three "how it works" steps', async () => {

@@ -206,8 +206,7 @@ async function main() {
     ['/terms', 'Terms of Service'],
     ['/support', 'Support'],
     ['/api-docs', 'API Docs'],
-    ['/login/client', 'Client Login'],
-    ['/login/clinic', 'Clinic Login'],
+    ['/login', 'Login'],
   ];
 
   for (const [url, name] of publicPages) {
@@ -230,7 +229,7 @@ async function main() {
     PASSWORD,
     '/client/payments',
     'Owner',
-    '/login/client',
+    '/login',
   );
 
   if (ownerPage) {
@@ -264,7 +263,7 @@ async function main() {
     PASSWORD,
     '/clinic/dashboard',
     'Clinic',
-    '/login/clinic',
+    '/login',
   );
 
   if (clinicPage) {

@@ -39,7 +39,7 @@ export default function ApiDocsPage() {
             </p>
             <p className="text-muted-foreground">
               API keys can be generated from the{' '}
-              <Link href="/login/clinic" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary hover:underline">
                 Clinic Portal
               </Link>{' '}
               under Settings. Authenticate requests using your API key in the{' '}

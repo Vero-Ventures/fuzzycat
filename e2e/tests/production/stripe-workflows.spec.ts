@@ -71,7 +71,7 @@ async function loginViaApi(page: import('@playwright/test').Page, role: 'client'
 
 async function formLogin(page: import('@playwright/test').Page, role: 'client' | 'clinic') {
   const user = TEST_USERS[role];
-  const loginPath = role === 'client' ? '/login/client' : '/login/clinic';
+  const loginPath = '/login';
 
   await page.goto(loginPath, { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10_000 });

@@ -21,7 +21,7 @@ Sentry.init({
 // Deferred to requestIdleCallback so the main thread stays free during
 // page load, improving INP on mobile.
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-  const loadIntegrations = () => {
+  const loadReplay = () => {
     Sentry.lazyLoadIntegration('replayIntegration')
       .then((replayIntegration) => {
         Sentry.addIntegration(replayIntegration());
@@ -30,9 +30,9 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   };
 
   if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(loadIntegrations);
+    requestIdleCallback(loadReplay);
   } else {
-    setTimeout(loadIntegrations, 1000);
+    setTimeout(loadReplay, 1000);
   }
 }
 

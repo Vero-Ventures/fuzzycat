@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
   deposit_paid: 'Deposit Paid',
   completed: 'Completed',
   pending: 'Pending',
-  defaulted: 'Defaulted',
+  defaulted: 'Paused',
   cancelled: 'Cancelled',
 };
 

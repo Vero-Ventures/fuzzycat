@@ -86,14 +86,17 @@ export default function SupportPage() {
             </AccordionItem>
 
             <AccordionItem value="missed-payment">
-              <AccordionTrigger>What happens if a payment fails?</AccordionTrigger>
+              <AccordionTrigger>
+                What happens if a payment doesn&apos;t go through?
+              </AccordionTrigger>
               <AccordionContent>
                 <p>
-                  If a payment fails, we automatically retry up to 3 times, with retries aligned to
-                  common paydays (the next Friday, 1st, or 15th that is at least 2 days out). You
-                  will receive reminders via email at day 1, 7, and 14 after a missed payment. There
-                  are no late fees. If all 3 retries fail, the plan is marked as defaulted and the
-                  clinic is notified.
+                  If a payment doesn&apos;t go through, we&apos;ll automatically retry up to 3
+                  times, with retries aligned to common paydays (the next Friday, 1st, or 15th that
+                  is at least 2 days out). You&apos;ll receive friendly reminders via email at day
+                  1, 7, and 14. There are no late fees. If all 3 retries are unsuccessful, your plan
+                  will be paused and your clinic will be notified so you can work together on next
+                  steps.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -229,14 +232,14 @@ export default function SupportPage() {
             </AccordionItem>
 
             <AccordionItem value="clinic-default">
-              <AccordionTrigger>What happens if a client defaults?</AccordionTrigger>
+              <AccordionTrigger>What happens if a client misses payments?</AccordionTrigger>
               <AccordionContent>
                 <p>
                   FuzzyCat uses an automated soft collection process with escalating reminders. If
-                  all payment retries fail, the plan is marked as defaulted and the clinic is
+                  all payment retries are unsuccessful, the plan is paused and the clinic is
                   notified with the owner&apos;s contact information for direct follow-up. FuzzyCat
                   does not guarantee payment &mdash; clinics retain responsibility for collecting
-                  from defaulting owners.
+                  outstanding balances.
                 </p>
               </AccordionContent>
             </AccordionItem>

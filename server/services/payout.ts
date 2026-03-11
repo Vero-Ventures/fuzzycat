@@ -2,7 +2,6 @@ import { and, desc, eq, sql, sum } from 'drizzle-orm';
 import {
   CLINIC_SHARE_RATE,
   DEFAULT_CLINIC_SHARE_BPS,
-  PLATFORM_FEE_RATE,
   PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
@@ -46,61 +45,103 @@ export interface ClinicEarnings {
 // ── Payout calculation ───────────────────────────────────────────────
 
 /**
- * Calculate the payout breakdown for a given payment amount.
+ * Validate that a payment amount is a positive finite number.
+ */
+function assertValidAmount(amountCents: number, label: string): void {
+  if (amountCents <= 0 || !Number.isFinite(amountCents)) {
+    throw new RangeError(`${label}: invalid payment amount ${amountCents}`);
+  }
+}
+
+/**
+ * Calculate the payout breakdown for a DEPOSIT payment.
  *
- * The payment amount from the pet owner includes the PLATFORM_FEE_RATE platform fee.
- * From each payment, FuzzyCat retains:
- *   - Platform fee portion (proportional share of the PLATFORM_FEE_RATE fee)
- *   - Risk pool contribution (1% of the original bill portion)
- *
- * The clinic receives:
- *   - The original bill portion of the payment (minus risk pool)
- *   - Plus a 3% clinic share bonus (platform administration compensation)
+ * All platform fee extraction (entire 6%) and all clinic revenue share (entire 3%)
+ * happen on the deposit. This front-loads FuzzyCat's revenue and the clinic's share,
+ * reducing cash-flow risk from defaults on later installments.
  *
  * All arithmetic uses integer cents — no floating point.
  */
-export function calculatePayoutBreakdown(
-  paymentAmountCents: number,
+export function calculateDepositPayoutBreakdown(
+  depositAmountCents: number,
+  totalFeeCents: number,
+  totalWithFeeCents: number,
   clinicShareRate = CLINIC_SHARE_RATE,
 ): PayoutBreakdown {
-  if (paymentAmountCents <= 0 || !Number.isFinite(paymentAmountCents)) {
-    throw new RangeError(`calculatePayoutBreakdown: invalid payment amount ${paymentAmountCents}`);
-  }
+  assertValidAmount(depositAmountCents, 'calculateDepositPayoutBreakdown');
 
-  // The payment amount includes the platform fee. Reverse-calculate the original bill portion.
-  // paymentAmount = billPortion + feePortion
-  // paymentAmount = billPortion * (1 + PLATFORM_FEE_RATE)
-  // billPortion = paymentAmount / (1 + PLATFORM_FEE_RATE)
-  const billPortionCents = Math.round(paymentAmountCents / (1 + PLATFORM_FEE_RATE));
-  const platformFeeCents = paymentAmountCents - billPortionCents;
-  const riskPoolCents = percentOfCents(billPortionCents, PLATFORM_RESERVE_RATE);
-  const clinicShareCents = percentOfCents(paymentAmountCents, clinicShareRate);
-
-  // Transfer = bill portion - risk pool + clinic share
-  const transferAmountCents = billPortionCents - riskPoolCents + clinicShareCents;
+  // depositBillPortion = deposit minus the entire plan fee
+  // This is safe because deposit (25% of bill × 1.06 = 0.265 × bill) always exceeds
+  // the fee (6% of bill = 0.06 × bill) for all positive bills.
+  const depositBillPortion = depositAmountCents - totalFeeCents;
+  const riskPoolCents = percentOfCents(depositBillPortion, PLATFORM_RESERVE_RATE);
+  const totalClinicShareCents = percentOfCents(totalWithFeeCents, clinicShareRate);
+  const applicationFeeCents = totalFeeCents + riskPoolCents - totalClinicShareCents;
+  const transferAmountCents = depositAmountCents - applicationFeeCents;
 
   return {
-    paymentAmountCents,
-    platformFeeCents,
+    paymentAmountCents: depositAmountCents,
+    platformFeeCents: totalFeeCents,
     riskPoolCents,
-    clinicShareCents,
+    clinicShareCents: totalClinicShareCents,
     transferAmountCents,
   };
 }
 
 /**
- * Calculate the application_fee_amount for a Stripe destination charge.
+ * Calculate the payout breakdown for an INSTALLMENT payment.
+ *
+ * Installments have no platform fee and no clinic share — only the 1% risk pool
+ * is deducted. The full installment amount is treated as bill (no fee component).
+ *
+ * All arithmetic uses integer cents — no floating point.
+ */
+export function calculateInstallmentPayoutBreakdown(
+  installmentAmountCents: number,
+): PayoutBreakdown {
+  assertValidAmount(installmentAmountCents, 'calculateInstallmentPayoutBreakdown');
+
+  const riskPoolCents = percentOfCents(installmentAmountCents, PLATFORM_RESERVE_RATE);
+  const applicationFeeCents = riskPoolCents;
+  const transferAmountCents = installmentAmountCents - applicationFeeCents;
+
+  return {
+    paymentAmountCents: installmentAmountCents,
+    platformFeeCents: 0,
+    riskPoolCents,
+    clinicShareCents: 0,
+    transferAmountCents,
+  };
+}
+
+/**
+ * Calculate the application_fee_amount for a deposit Stripe destination charge.
  * This is the amount FuzzyCat retains when Stripe atomically splits the payment.
  *
- * applicationFee = paymentAmount - transferToClinic
- *                = platformFee + riskPool - clinicShare
+ * applicationFee = totalPlatformFee + riskPool - totalClinicShare
  */
-export function calculateApplicationFee(
-  paymentAmountCents: number,
+export function calculateDepositApplicationFee(
+  depositAmountCents: number,
+  totalFeeCents: number,
+  totalWithFeeCents: number,
   clinicShareRate = CLINIC_SHARE_RATE,
 ): number {
-  const breakdown = calculatePayoutBreakdown(paymentAmountCents, clinicShareRate);
-  return paymentAmountCents - breakdown.transferAmountCents;
+  const breakdown = calculateDepositPayoutBreakdown(
+    depositAmountCents,
+    totalFeeCents,
+    totalWithFeeCents,
+    clinicShareRate,
+  );
+  return depositAmountCents - breakdown.transferAmountCents;
+}
+
+/**
+ * Calculate the application_fee_amount for an installment Stripe destination charge.
+ * For installments, this is simply the risk pool (1% of the payment).
+ */
+export function calculateInstallmentApplicationFee(installmentAmountCents: number): number {
+  const breakdown = calculateInstallmentPayoutBreakdown(installmentAmountCents);
+  return installmentAmountCents - breakdown.transferAmountCents;
 }
 
 // ── Revenue share resolution ────────────────────────────────────────

@@ -132,6 +132,8 @@ mock.module('@/server/db/schema', () => ({
     clientId: 'plans.client_id',
     clinicId: 'plans.clinic_id',
     depositCents: 'plans.deposit_cents',
+    feeCents: 'plans.fee_cents',
+    totalWithFeeCents: 'plans.total_with_fee_cents',
     totalBillCents: 'plans.total_bill_cents',
     remainingCents: 'plans.remaining_cents',
     status: 'plans.status',
@@ -288,6 +290,8 @@ describe('processDeposit', () => {
         clientId: 'owner-1',
         clinicId: 'clinic-1',
         depositCents: 26_500,
+        feeCents: 6_000,
+        totalWithFeeCents: 106_000,
         status: 'active',
       },
     ]);
@@ -309,6 +313,8 @@ describe('processDeposit', () => {
           clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           status: 'pending',
         },
       ])
@@ -331,6 +337,8 @@ describe('processDeposit', () => {
           clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           status: 'pending',
         },
       ])
@@ -356,6 +364,8 @@ describe('processDeposit', () => {
           clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           status: 'pending',
         },
       ])
@@ -389,6 +399,8 @@ describe('processDeposit', () => {
           clientId: 'owner-1',
           clinicId: 'clinic-1',
           depositCents: 26_500,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           status: 'pending',
         },
       ])
@@ -716,6 +728,8 @@ describe('handlePaymentSuccess', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
+          feeCents: 7_200,
+          totalWithFeeCents: 127_200,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -782,6 +796,8 @@ describe('handlePaymentSuccess', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
+          feeCents: 7_200,
+          totalWithFeeCents: 127_200,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -901,6 +917,8 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -945,6 +963,8 @@ describe('handlePaymentSuccess — deposit plan activation', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -988,6 +1008,8 @@ describe('handlePaymentSuccess — installment plan completion', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1033,6 +1055,8 @@ describe('handlePaymentSuccess — installment plan completion', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1110,6 +1134,8 @@ describe('handlePaymentSuccess — payout idempotency', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 120_000,
+          feeCents: 7_200,
+          totalWithFeeCents: 127_200,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1156,6 +1182,8 @@ describe('handlePaymentSuccess — deposit card save', () => {
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1198,6 +1226,8 @@ describe('handlePaymentSuccess — deposit card save', () => {
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1229,6 +1259,8 @@ describe('handlePaymentSuccess — deposit card save', () => {
           clinicId: 'clinic-1',
           status: 'active',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])
@@ -1267,6 +1299,8 @@ describe('handlePaymentSuccess — deposit card save', () => {
           clinicId: 'clinic-1',
           status: 'pending',
           totalBillCents: 106_000,
+          feeCents: 6_000,
+          totalWithFeeCents: 106_000,
           stripeCustomerId: 'cus_owner_1',
         },
       ])

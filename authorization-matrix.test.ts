@@ -228,8 +228,10 @@ mock.module('@/server/services/collection', () => ({
   getRetrySuccessRate: mock(() => Promise.resolve({ rate: 0, total: 0, succeeded: 0 })),
 }));
 mock.module('@/server/services/payout', () => ({
-  calculatePayoutBreakdown: mock(),
-  calculateApplicationFee: mock(),
+  calculateDepositPayoutBreakdown: mock(),
+  calculateInstallmentPayoutBreakdown: mock(),
+  calculateDepositApplicationFee: mock(),
+  calculateInstallmentApplicationFee: mock(),
   getClinicPayoutHistory: mock(() => Promise.resolve([])),
   getClinicEarnings: mock(() =>
     Promise.resolve({ totalEarnings: 0, pendingPayouts: 0, completedPayouts: 0 }),

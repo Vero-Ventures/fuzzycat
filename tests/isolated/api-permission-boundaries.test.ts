@@ -36,8 +36,10 @@ mock.module('@/server/services/clinic-queries', () => ({
 mock.module('@/server/services/payout', () => ({
   getClinicPayoutHistory: mock(),
   getClinicEarnings: mock(),
-  calculatePayoutBreakdown: mock(),
-  calculateApplicationFee: mock(),
+  calculateDepositPayoutBreakdown: mock(),
+  calculateInstallmentPayoutBreakdown: mock(),
+  calculateDepositApplicationFee: mock(),
+  calculateInstallmentApplicationFee: mock(),
 }));
 
 mock.module('@/server/services/webhook', () => ({

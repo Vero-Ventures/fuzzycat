@@ -16,28 +16,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-  CLINIC_SHARE_PERCENT,
-  DEPOSIT_RATE,
-  FEE_PERCENT,
-  NUM_INSTALLMENTS,
-  PLATFORM_FEE_RATE,
-} from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
-  description: `Pay your vet bill in easy biweekly installments over 12 weeks. No credit check. Flat ${FEE_PERCENT}% fee. Clinics earn ${CLINIC_SHARE_PERCENT}% on every enrollment. Flexible payment plans for veterinary care.`,
+  title: 'FuzzyCat - Your Pet Gets Care Now, You Pay Over Time',
+  description:
+    "Don't delay vet care because of cost. Split your bill into easy biweekly payments. No credit check, no interest. Clinics: increase treatment acceptance and earn on every plan.",
   openGraph: {
-    title: 'FuzzyCat - Flexible Payment Plans for Veterinary Care',
+    title: 'FuzzyCat - Your Pet Gets Care Now, You Pay Over Time',
     description:
-      'Pay your vet bill in easy biweekly installments. No credit check. No hidden fees.',
+      "Don't delay vet care because of cost. Split your bill into easy biweekly payments. No credit check, no interest.",
     type: 'website',
   },
 };
 
 export default function LandingPage() {
-  const feePercent = FEE_PERCENT;
-  const depositPercent = Math.round(DEPOSIT_RATE * 100);
   const clinicSharePercent = CLINIC_SHARE_PERCENT;
 
   return (
@@ -59,16 +52,17 @@ export default function LandingPage() {
           <div className="text-center lg:text-left">
             <Badge variant="secondary" className="mb-6 text-sm">
               <Cat className="mr-1.5 h-3.5 w-3.5" />
-              No credit check required
+              No credit check. No interest.
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Making Pet Care
+              Your Pet Needs Care Now.
               <br />
-              <span className="text-primary italic">Affordable</span>
+              <span className="text-primary italic">The Bill Can Wait.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Pay your vet bill in {NUM_INSTALLMENTS} easy biweekly installments over 12 weeks. Just
-              a flat {feePercent}% fee &mdash; no interest, no credit check, no surprises.
+              When your pet is sick or hurt, cost shouldn&apos;t stand in the way. FuzzyCat lets you
+              pay your vet bill over time &mdash; no credit check, no interest, just a debit card or
+              bank account.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
               <Link href="/login">
@@ -79,7 +73,7 @@ export default function LandingPage() {
               </Link>
               <Link href="/how-it-works">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Learn More
+                  See How It Works
                 </Button>
               </Link>
             </div>
@@ -103,24 +97,24 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <FeatureCard
-              icon={<Shield className="h-6 w-6" />}
-              title="No Interest"
-              description={`A flat ${Math.round(PLATFORM_FEE_RATE * 100)}% fee is all you pay. No compounding interest, no surprises.`}
-            />
-            <FeatureCard
               icon={<Heart className="h-6 w-6" />}
-              title="12-Week Plans"
-              description="Split your bill into a deposit plus 6 biweekly payments over 12 weeks."
+              title="Get care today"
+              description="Don't delay treatment because of cost. Start a plan and get your pet what they need now."
             />
             <FeatureCard
-              icon={<Banknote className="h-6 w-6" />}
-              title="Easy Management"
-              description="Track payments, view schedules, and manage your plans from one dashboard."
+              icon={<Shield className="h-6 w-6" />}
+              title="No credit check"
+              description="Your credit score is never pulled or affected. All you need is a bank account."
             />
             <FeatureCard
               icon={<BadgeCheck className="h-6 w-6" />}
-              title="No Credit Check"
-              description="Your credit score is never affected. All you need is a bank account."
+              title="No interest, ever"
+              description="Just a small flat fee. No compounding charges, no hidden costs, no surprises."
+            />
+            <FeatureCard
+              icon={<Banknote className="h-6 w-6" />}
+              title="Know what you owe"
+              description="See your exact payment schedule before you commit. Automatic biweekly payments, done in 12 weeks."
             />
           </div>
         </div>
@@ -139,19 +133,19 @@ export default function LandingPage() {
             <StepCard
               step={1}
               title="Enroll online"
-              description={`Enter your vet bill amount and connect your debit card or bank account. Pay a ${depositPercent}% deposit to get started.`}
+              description="Your clinic enters the bill, or you sign up yourself. Connect a debit card or bank account to get started."
               icon={<PawPrint className="h-6 w-6" />}
             />
             <StepCard
               step={2}
-              title="Automatic payments"
-              description={`The remaining balance is paid in ${NUM_INSTALLMENTS} biweekly installments, automatically deducted every two weeks.`}
+              title="Pay a small deposit"
+              description="A deposit gets your plan started immediately. The rest is split into easy biweekly payments."
               icon={<Banknote className="h-6 w-6" />}
             />
             <StepCard
               step={3}
               title="Done in 12 weeks"
-              description="Your plan is complete. No lingering debt, no surprise charges, no interest compounding."
+              description="Automatic payments every two weeks. No lingering debt, no surprise charges."
               icon={<BadgeCheck className="h-6 w-6" />}
             />
           </div>
@@ -173,29 +167,28 @@ export default function LandingPage() {
                     For Veterinary Clinics
                   </Badge>
                   <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                    Get paid to offer payment plans
+                    Clients say no because of cost. Fix that.
                   </h2>
                   <p className="mt-4 text-lg text-teal-100">
-                    FuzzyCat is the only payment plan that pays clinics a {clinicSharePercent}%
-                    revenue share on every enrollment. Increase treatment acceptance, earn more
-                    revenue, and reduce default risk.
+                    Every declined treatment plan is lost revenue. FuzzyCat gives your clients a way
+                    to pay over time, so more of them say yes &mdash; and you get paid faster.
                   </p>
                 </div>
                 <div className="space-y-4">
                   <ClinicBenefit
                     icon={<HandCoins className="h-5 w-5" />}
                     title={`Earn ${clinicSharePercent}% on every plan`}
-                    description="No other BNPL product pays clinics. They charge you. We pay you."
+                    description="The only payment platform that pays clinics. They charge you. We pay you."
                   />
                   <ClinicBenefit
                     icon={<Shield className="h-5 w-5" />}
-                    title="Built-in default protection"
-                    description="25% upfront deposit and automated collection reduce your default risk."
+                    title="Reduce default risk"
+                    description="Upfront deposit and automated collection protect your revenue."
                   />
                   <ClinicBenefit
                     icon={<BadgeCheck className="h-5 w-5" />}
-                    title="Zero setup cost"
-                    description="No merchant fees, no hardware, no contracts. Start in minutes."
+                    title="Zero cost to start"
+                    description="No merchant fees, no hardware, no contracts. Live in minutes."
                   />
                   <div className="pt-2">
                     <Link href="/signup/clinic">
@@ -205,6 +198,14 @@ export default function LandingPage() {
                       </Button>
                     </Link>
                   </div>
+                  <p className="mt-3 text-xs text-teal-200/80">
+                    FuzzyCat is a payment service, not a collection agency. If a client&apos;s
+                    payment plan defaults after automated retries, the clinic is responsible for any
+                    remaining balance.{' '}
+                    <Link href="/terms" className="underline hover:text-white">
+                      Terms of Service
+                    </Link>
+                  </p>
                 </div>
               </div>
             </div>
@@ -217,10 +218,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-3xl text-center">
           <Cat className="mx-auto mb-6 h-12 w-12 text-primary" />
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Ready to make vet care affordable?
+            Don&apos;t put off the care your pet needs
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Sign up in minutes. No credit check. See your full payment schedule before you commit.
+            Sign up in minutes. See your full payment schedule before you commit. No credit check,
+            no interest.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/signup/client">
@@ -231,10 +233,17 @@ export default function LandingPage() {
             </Link>
             <Link href="/how-it-works">
               <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                Learn More
+                See How It Works
               </Button>
             </Link>
           </div>
+          <p className="mx-auto mt-6 max-w-lg text-xs text-muted-foreground">
+            By enrolling, you authorize FuzzyCat to debit your account on the scheduled dates.
+            Overdraft fees or bank charges from failed debits are your responsibility.{' '}
+            <Link href="/terms" className="underline hover:text-foreground">
+              Terms of Service
+            </Link>
+          </p>
         </div>
       </section>
 

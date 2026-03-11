@@ -37,8 +37,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const clinic = await getClinicPublicInfo(clinicId);
   const clinicName = clinic?.name ?? 'Your Veterinarian';
   return {
-    title: `Payment Plans at ${clinicName}`,
-    description: `${clinicName} offers flexible payment plans through FuzzyCat. Split your vet bill into easy biweekly installments. No credit check. No interest.`,
+    title: `${clinicName} - Pay Your Vet Bill Over Time`,
+    description: `Your pet needs care now. ${clinicName} partners with FuzzyCat so you can pay over time. No credit check, no interest.`,
   };
 }
 
@@ -63,14 +63,13 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
             {clinic.name}
           </Badge>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            Flexible Payment Plans
+            Your Pet Needs Care Now.
             <br />
-            <span className="text-primary italic">for Your Pet&apos;s Care</span>
+            <span className="text-primary italic">The Bill Can Wait.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-            {clinic.name} partners with FuzzyCat to offer easy payment plans. Split your vet bill
-            into {NUM_INSTALLMENTS} biweekly installments &mdash; no credit check, no interest, no
-            surprises.
+            {clinic.name} partners with FuzzyCat so you can pay your vet bill over time. No credit
+            check, no interest &mdash; just a debit card or bank account.
           </p>
         </div>
       </section>
@@ -90,19 +89,19 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
               step={1}
               icon={<PawPrint className="h-6 w-6" />}
               title="Your clinic enrolls you"
-              description={`Your vet enters your bill into FuzzyCat. You'll receive an email with your personalized payment plan.`}
+              description="Your vet enters your bill into FuzzyCat. You receive an email with your personalized payment plan."
             />
             <StepCard
               step={2}
               icon={<CreditCard className="h-6 w-6" />}
-              title={`Pay ${depositPercent}% deposit`}
-              description="Securely pay your deposit with a debit card via Stripe. Your plan is immediately activated."
+              title="Pay a small deposit"
+              description="Securely connect a debit card or bank account. A deposit activates your plan immediately."
             />
             <StepCard
               step={3}
               icon={<Calendar className="h-6 w-6" />}
-              title={`${NUM_INSTALLMENTS} biweekly payments`}
-              description="The rest is split into equal payments, automatically deducted every two weeks. Done in 12 weeks."
+              title="Done in 12 weeks"
+              description="The rest is split into easy biweekly payments, automatically deducted. No lingering debt."
             />
           </div>
         </div>
@@ -112,28 +111,28 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
       <section className="bg-muted/50 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            Why Clients Choose FuzzyCat
+            Care first, cost second
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2">
             <BenefitCard
+              icon={<Stethoscope className="h-5 w-5" />}
+              title="Get care today"
+              description="Don't delay treatment because of cost. Start a plan and get your pet what they need now."
+            />
+            <BenefitCard
               icon={<Shield className="h-5 w-5" />}
               title="No credit check"
-              description="Your credit score is never affected. All you need is a debit card and a bank account."
+              description="Your credit score is never pulled or affected. All you need is a debit card or bank account."
             />
             <BenefitCard
               icon={<BadgeCheck className="h-5 w-5" />}
-              title="No interest"
-              description={`Just a flat ${feePercent}% platform fee. No compounding charges, no hidden costs.`}
+              title="No interest, ever"
+              description="Just a small flat fee. No compounding charges, no hidden costs."
             />
             <BenefitCard
               icon={<Calendar className="h-5 w-5" />}
-              title="Predictable schedule"
+              title="Know what you owe"
               description="See your exact payment dates and amounts before you commit. No surprises."
-            />
-            <BenefitCard
-              icon={<Stethoscope className="h-5 w-5" />}
-              title="Get care today"
-              description="Don't delay treatment because of cost. Start a plan and get your pet the care they need now."
             />
           </div>
         </div>
@@ -182,11 +181,11 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
         <div className="mx-auto max-w-3xl text-center">
           <PawPrint className="mx-auto mb-4 h-10 w-10 text-primary" />
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Ready to set up your payment plan?
+            Don&apos;t put off the care your pet needs
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Ask the front desk at {clinic.name} to enroll you, or sign up for a FuzzyCat account to
-            get started.
+            Ask the front desk at {clinic.name} to enroll you, or create a FuzzyCat account to get
+            started.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/signup/client">

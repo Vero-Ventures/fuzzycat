@@ -61,9 +61,11 @@ export default function ClientSignupPage() {
       <div className="hidden items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 p-12 text-white lg:flex lg:w-[40%]">
         <div className="max-w-sm">
           <div className="mb-6 flex gap-1">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={`star-${i + 1}`} className="h-5 w-5 fill-teal-300 text-teal-300" />
-            ))}
+            <Star className="h-5 w-5 fill-teal-300 text-teal-300" />
+            <Star className="h-5 w-5 fill-teal-300 text-teal-300" />
+            <Star className="h-5 w-5 fill-teal-300 text-teal-300" />
+            <Star className="h-5 w-5 fill-teal-300 text-teal-300" />
+            <Star className="h-5 w-5 fill-teal-300 text-teal-300" />
           </div>
           <blockquote className="text-xl font-semibold leading-relaxed">
             &ldquo;I was able to get my dog the surgery she needed without worrying about the full

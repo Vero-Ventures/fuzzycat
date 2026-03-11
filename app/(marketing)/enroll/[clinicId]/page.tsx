@@ -200,8 +200,12 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
               </Button>
             </Link>
           </div>
-          <p className="mt-6 text-xs text-muted-foreground">
-            FuzzyCat is a payment facilitation platform, not a lender. No credit check. No interest.
+          <p className="mx-auto mt-6 max-w-lg text-xs text-muted-foreground">
+            By enrolling, you authorize FuzzyCat to debit your account on the scheduled dates.
+            Overdraft fees or bank charges from failed debits are your responsibility.{' '}
+            <Link href="/terms" className="underline hover:text-foreground">
+              Terms of Service
+            </Link>
           </p>
         </div>
       </section>

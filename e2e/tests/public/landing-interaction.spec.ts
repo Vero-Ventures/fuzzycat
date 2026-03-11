@@ -36,9 +36,9 @@ test.describe('Landing Page — Interactions', () => {
     await expect(page).toHaveURL(/\/signup\/client/);
   });
 
-  test('"Learn More" bottom CTA navigates to /how-it-works', async ({ page }) => {
+  test('"See How It Works" CTA navigates to /how-it-works', async ({ page }) => {
     const cta = page.locator('a[href="/how-it-works"]', {
-      hasText: /learn more/i,
+      hasText: /see how it works/i,
     });
     await cta.last().scrollIntoViewIfNeeded();
     await expect(cta.last()).toBeVisible();

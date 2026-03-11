@@ -8,8 +8,10 @@ import { db } from '@/server/db';
 import { clients, clinics, payments, payouts, plans, riskPool } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 import {
-  calculateApplicationFee,
-  calculatePayoutBreakdown,
+  calculateDepositApplicationFee,
+  calculateDepositPayoutBreakdown,
+  calculateInstallmentApplicationFee,
+  calculateInstallmentPayoutBreakdown,
   getEffectiveShareRate,
 } from '@/server/services/payout';
 import { createInstallmentPaymentIntent } from '@/server/services/stripe/ach';
@@ -40,6 +42,8 @@ export async function processDeposit(params: {
       clientId: plans.clientId,
       clinicId: plans.clinicId,
       depositCents: plans.depositCents,
+      feeCents: plans.feeCents,
+      totalWithFeeCents: plans.totalWithFeeCents,
       status: plans.status,
     })
     .from(plans)
@@ -133,7 +137,12 @@ export async function processDeposit(params: {
     successUrl: params.successUrl,
     cancelUrl: params.cancelUrl,
     clinicStripeAccountId: clinic.stripeAccountId,
-    applicationFeeCents: calculateApplicationFee(plan.depositCents, clinicShareRate),
+    applicationFeeCents: calculateDepositApplicationFee(
+      plan.depositCents,
+      plan.feeCents,
+      plan.totalWithFeeCents,
+      clinicShareRate,
+    ),
   });
 }
 
@@ -267,13 +276,10 @@ export async function processInstallment(params: {
     throw new Error(`Plan for payment ${params.paymentId} has no clinic`);
   }
 
-  // Fetch the clinic's Stripe Connect account and revenue share info
+  // Fetch the clinic's Stripe Connect account
   const [clinic] = await db
     .select({
       stripeAccountId: clinics.stripeAccountId,
-      revenueShareBps: clinics.revenueShareBps,
-      foundingClinic: clinics.foundingClinic,
-      foundingExpiresAt: clinics.foundingExpiresAt,
     })
     .from(clinics)
     .where(eq(clinics.id, plan.clinicId))
@@ -323,8 +329,7 @@ export async function processInstallment(params: {
     }
   }
 
-  const clinicShareRate = getEffectiveShareRate(clinic);
-
+  // Installment application fee is just the risk pool (1%) — no platform fee or clinic share
   return createInstallmentPaymentIntent({
     paymentId: params.paymentId,
     planId: payment.planId,
@@ -333,7 +338,7 @@ export async function processInstallment(params: {
     paymentMethodId: resolved.paymentMethodId,
     paymentMethodType: resolved.paymentMethodType,
     clinicStripeAccountId: clinic.stripeAccountId,
-    applicationFeeCents: calculateApplicationFee(payment.amountCents, clinicShareRate),
+    applicationFeeCents: calculateInstallmentApplicationFee(payment.amountCents),
   });
 }
 
@@ -461,7 +466,12 @@ async function recordDestinationPayout(
     clinicId: string;
     planId: string;
     paymentId: string;
+    paymentType: 'deposit' | 'installment';
     amountCents: number;
+    /** Required for deposit payouts: the entire plan fee in cents. */
+    totalFeeCents?: number;
+    /** Required for deposit payouts: plan total including fee in cents. */
+    totalWithFeeCents?: number;
     clinicShareRate?: number;
   },
 ): Promise<void> {
@@ -480,7 +490,15 @@ async function recordDestinationPayout(
     return;
   }
 
-  const breakdown = calculatePayoutBreakdown(params.amountCents, params.clinicShareRate);
+  const breakdown =
+    params.paymentType === 'deposit'
+      ? calculateDepositPayoutBreakdown(
+          params.amountCents,
+          params.totalFeeCents ?? 0,
+          params.totalWithFeeCents ?? 0,
+          params.clinicShareRate,
+        )
+      : calculateInstallmentPayoutBreakdown(params.amountCents);
 
   // Record as succeeded — Stripe already transferred the funds via destination charge
   const [payoutRecord] = await tx
@@ -509,6 +527,64 @@ async function recordDestinationPayout(
     },
     tx,
   );
+}
+
+/**
+ * Handle payment-type-specific actions after a successful payment.
+ * Activates plan for deposits, completes plan for final installments,
+ * records risk pool contribution, and records the destination charge payout.
+ */
+async function handlePaymentTypeActions(
+  tx: DrizzleTx,
+  payment: { id: string; planId: string; amountCents: number; type: string },
+  planRow: {
+    clientId: string | null;
+    clinicId: string;
+    status: string;
+    feeCents: number | null;
+    totalWithFeeCents: number | null;
+    stripeCustomerId: string | null;
+    revenueShareBps: number | null;
+    foundingClinic: boolean | null;
+    foundingExpiresAt: Date | null;
+  },
+  stripePaymentMethodId?: string,
+): Promise<void> {
+  // Deposit payment: activate the plan and save card for future use
+  if (payment.type === 'deposit') {
+    await activatePlanForDeposit(tx, payment.planId, planRow.status);
+    await saveCardPaymentMethod(
+      tx,
+      planRow.clientId,
+      stripePaymentMethodId,
+      planRow.stripeCustomerId,
+    );
+  }
+
+  // Installment payment: check if all payments are now succeeded -> complete plan
+  if (payment.type === 'installment') {
+    await completePlanIfAllPaid(tx, payment.planId, planRow.status);
+  }
+
+  // Risk pool contribution: 1% of payment amount
+  await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
+
+  // Record the destination charge payout as succeeded (Stripe already split the funds)
+  const clinicShareRate = getEffectiveShareRate({
+    revenueShareBps: planRow.revenueShareBps ?? 300,
+    foundingClinic: planRow.foundingClinic ?? false,
+    foundingExpiresAt: planRow.foundingExpiresAt,
+  });
+  await recordDestinationPayout(tx, {
+    clinicId: planRow.clinicId,
+    planId: payment.planId,
+    paymentId: payment.id,
+    paymentType: payment.type as 'deposit' | 'installment',
+    amountCents: payment.amountCents,
+    totalFeeCents: planRow.feeCents ?? 0,
+    totalWithFeeCents: planRow.totalWithFeeCents ?? 0,
+    clinicShareRate,
+  });
 }
 
 /**
@@ -585,6 +661,8 @@ export async function handlePaymentSuccess(
         clinicId: plans.clinicId,
         status: plans.status,
         totalBillCents: plans.totalBillCents,
+        feeCents: plans.feeCents,
+        totalWithFeeCents: plans.totalWithFeeCents,
         stripeCustomerId: clients.stripeCustomerId,
         revenueShareBps: clinics.revenueShareBps,
         foundingClinic: clinics.foundingClinic,
@@ -598,38 +676,17 @@ export async function handlePaymentSuccess(
 
     if (!planRow?.clinicId) return;
 
-    // Deposit payment: activate the plan and save card for future use
-    if (payment.type === 'deposit') {
-      await activatePlanForDeposit(tx, payment.planId, planRow.status);
-      await saveCardPaymentMethod(
-        tx,
-        planRow.clientId,
-        stripePaymentMethodId,
-        planRow.stripeCustomerId,
-      );
-    }
-
-    // Installment payment: check if all payments are now succeeded -> complete plan
-    if (payment.type === 'installment') {
-      await completePlanIfAllPaid(tx, payment.planId, planRow.status);
-    }
-
-    // Risk pool contribution: 1% of payment amount
-    await recordRiskPoolContribution(tx, payment.planId, payment.amountCents);
-
-    // Record the destination charge payout as succeeded (Stripe already split the funds)
-    const clinicShareRate = getEffectiveShareRate({
-      revenueShareBps: planRow.revenueShareBps ?? 300,
-      foundingClinic: planRow.foundingClinic ?? false,
-      foundingExpiresAt: planRow.foundingExpiresAt,
-    });
-    await recordDestinationPayout(tx, {
-      clinicId: planRow.clinicId,
-      planId: payment.planId,
-      paymentId: payment.id,
-      amountCents: payment.amountCents,
-      clinicShareRate,
-    });
+    await handlePaymentTypeActions(
+      tx,
+      {
+        id: payment.id,
+        planId: payment.planId,
+        amountCents: payment.amountCents,
+        type: payment.type,
+      },
+      planRow as typeof planRow & { clinicId: string },
+      stripePaymentMethodId,
+    );
   });
 }
 

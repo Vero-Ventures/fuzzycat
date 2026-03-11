@@ -53,11 +53,13 @@ export function PaymentFlowInfo() {
               </ul>
             </div>
             <div>
-              <p className="font-medium text-foreground">Default Risk</p>
+              <p className="font-medium text-foreground">Missed Payments</p>
               <ul className="mt-1 space-y-1 text-xs">
                 <li>FuzzyCat sends automated reminders for missed payments</li>
-                <li>3 failed retries mark a plan as defaulted</li>
-                <li>Clinics are responsible for collecting on defaulted plans</li>
+                <li>
+                  After 3 unsuccessful attempts, the plan is paused and the clinic is notified
+                </li>
+                <li>Clinics are responsible for collecting on paused plans</li>
                 <li>The {depositPercent}% deposit helps reduce your risk exposure</li>
               </ul>
             </div>

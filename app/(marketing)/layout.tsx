@@ -38,11 +38,14 @@ function Header() {
           >
             Support
           </Link>
-          <Link
-            href="/#book-demo"
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Book a Demo
+          <Link href="/#book-demo">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            >
+              Book a Demo
+            </Button>
           </Link>
           <ThemeToggle />
           <Link href="/login">
@@ -57,11 +60,14 @@ function Header() {
           >
             How It Works
           </Link>
-          <Link
-            href="/#book-demo"
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Book a Demo
+          <Link href="/#book-demo">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground text-xs h-8 px-2.5"
+            >
+              Book a Demo
+            </Button>
           </Link>
           <ThemeToggle />
           <Link href="/login">

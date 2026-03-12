@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { convertToModelMessages, streamText, type UIMessage } from 'ai';
@@ -94,6 +94,7 @@ export async function POST(req: Request) {
     const chunks = await findRelevantChunks(query, 5);
     const systemPrompt = buildSystemPrompt(chunks);
 
+    const google = createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY });
     const result = streamText({
       model: google('gemini-2.5-flash-lite'),
       system: systemPrompt,

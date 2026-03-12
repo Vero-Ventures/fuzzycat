@@ -1,4 +1,4 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { embed } from 'ai';
 import { sql } from 'drizzle-orm';
 import { serverEnv } from '@/lib/env';
@@ -15,13 +15,22 @@ export type KnowledgeChunk = {
   similarity?: number;
 };
 
+function getGoogleProvider() {
+  const env = serverEnv();
+  return createGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY });
+}
+
 /**
- * Generate a 768-dimension embedding using Gemini text-embedding-004.
+ * Generate a 768-dimension embedding using Gemini gemini-embedding-001.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
+  const google = getGoogleProvider();
   const { embedding } = await embed({
-    model: google.textEmbeddingModel('text-embedding-004'),
+    model: google.textEmbeddingModel('gemini-embedding-001'),
     value: text,
+    providerOptions: {
+      google: { outputDimensionality: 768 },
+    },
   });
   return embedding;
 }

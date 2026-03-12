@@ -8,7 +8,8 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
   integrations: process.env.NEXT_PUBLIC_SENTRY_DSN
-    ? [
+    ? (defaults) => [
+        ...defaults,
         feedbackIntegration({
           colorScheme: 'system',
           autoInject: true,

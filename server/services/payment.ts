@@ -490,15 +490,22 @@ async function recordDestinationPayout(
     return;
   }
 
-  const breakdown =
-    params.paymentType === 'deposit'
-      ? calculateDepositPayoutBreakdown(
-          params.amountCents,
-          params.totalFeeCents ?? 0,
-          params.totalWithFeeCents ?? 0,
-          params.clinicShareRate,
-        )
-      : calculateInstallmentPayoutBreakdown(params.amountCents);
+  let breakdown: ReturnType<typeof calculateInstallmentPayoutBreakdown>;
+  if (params.paymentType === 'deposit') {
+    if (params.totalFeeCents == null || params.totalWithFeeCents == null) {
+      throw new Error(
+        `Deposit payout for payment ${params.paymentId} requires totalFeeCents and totalWithFeeCents`,
+      );
+    }
+    breakdown = calculateDepositPayoutBreakdown(
+      params.amountCents,
+      params.totalFeeCents,
+      params.totalWithFeeCents,
+      params.clinicShareRate,
+    );
+  } else {
+    breakdown = calculateInstallmentPayoutBreakdown(params.amountCents);
+  }
 
   // Record as succeeded — Stripe already transferred the funds via destination charge
   const [payoutRecord] = await tx
@@ -581,8 +588,18 @@ async function handlePaymentTypeActions(
     paymentId: payment.id,
     paymentType: payment.type as 'deposit' | 'installment',
     amountCents: payment.amountCents,
-    totalFeeCents: planRow.feeCents ?? 0,
-    totalWithFeeCents: planRow.totalWithFeeCents ?? 0,
+    totalFeeCents: (() => {
+      if (planRow.feeCents == null) {
+        throw new Error(`Plan ${payment.planId} has null feeCents — cannot calculate payout`);
+      }
+      return planRow.feeCents;
+    })(),
+    totalWithFeeCents: (() => {
+      if (planRow.totalWithFeeCents == null) {
+        throw new Error(`Plan ${payment.planId} has null totalWithFeeCents — cannot calculate payout`);
+      }
+      return planRow.totalWithFeeCents;
+    })(),
     clinicShareRate,
   });
 }

@@ -86,9 +86,7 @@ export default function SupportPage() {
             </AccordionItem>
 
             <AccordionItem value="missed-payment">
-              <AccordionTrigger>
-                What happens if a payment doesn&apos;t go through?
-              </AccordionTrigger>
+              <AccordionTrigger>What happens if a payment doesn&apos;t go through?</AccordionTrigger>
               <AccordionContent>
                 <p>
                   If a payment doesn&apos;t go through, we&apos;ll automatically retry up to 3
@@ -245,9 +243,7 @@ export default function SupportPage() {
             </AccordionItem>
 
             <AccordionItem value="clinic-api">
-              <AccordionTrigger>
-                Can I integrate FuzzyCat with my practice management software?
-              </AccordionTrigger>
+              <AccordionTrigger>Can I integrate FuzzyCat with my practice management software?</AccordionTrigger>
               <AccordionContent>
                 <p>
                   Yes. FuzzyCat provides a REST API that your practice management software can

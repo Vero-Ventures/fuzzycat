@@ -1,52 +1,52 @@
 import { describe, expect, test } from 'bun:test';
 import { CLINIC_SHARE_RATE } from '@/lib/constants';
-import { calculateClinicRevenue } from './clinic-revenue-calculator';
+import { percentOfCents } from '@/lib/utils/money';
+import {
+  PAYMENT_PLAN_CONVERSION_RATE,
+  TYPICAL_BNPL_MERCHANT_FEE_RATE,
+  calculateClinicRevenue,
+} from './clinic-revenue-calculator';
 
 describe('calculateClinicRevenue', () => {
   test('calculates with default values', () => {
     const result = calculateClinicRevenue(10, 1200);
 
-    // lostRevenue = 10 * $1,200 = $12,000 = 1_200_000 cents
-    expect(result.lostRevenueMonthlyCents).toBe(1_200_000);
-    expect(result.lostRevenueAnnualCents).toBe(1_200_000 * 12);
+    const expectedLost = Math.round(1200 * 100 * 10);
+    const expectedRecaptured = Math.round(expectedLost * PAYMENT_PLAN_CONVERSION_RATE);
 
-    // recaptured = $12,000 * 0.40 = $4,800 = 480_000 cents
-    expect(result.recapturedMonthlyCents).toBe(480_000);
-    expect(result.recapturedAnnualCents).toBe(480_000 * 12);
+    expect(result.lostRevenueMonthlyCents).toBe(expectedLost);
+    expect(result.lostRevenueAnnualCents).toBe(expectedLost * 12);
 
-    // revenueShare = $4,800 * 0.03 = $144 = 14_400 cents
-    expect(result.revenueShareMonthlyCents).toBe(Math.round(480_000 * CLINIC_SHARE_RATE));
+    expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
+    expect(result.recapturedAnnualCents).toBe(expectedRecaptured * 12);
+
+    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
     expect(result.revenueShareAnnualCents).toBe(result.revenueShareMonthlyCents * 12);
 
-    // bnplFee = $4,800 * 0.10 = $480 = 48_000 cents
-    expect(result.bnplFeeMonthlyCents).toBe(48_000);
-    expect(result.bnplFeeAnnualCents).toBe(48_000 * 12);
+    expect(result.bnplFeeMonthlyCents).toBe(percentOfCents(expectedRecaptured, TYPICAL_BNPL_MERCHANT_FEE_RATE));
+    expect(result.bnplFeeAnnualCents).toBe(result.bnplFeeMonthlyCents * 12);
   });
 
   test('calculates with minimum slider values', () => {
     const result = calculateClinicRevenue(1, 500);
 
-    // lostRevenue = 1 * $500 = $500 = 50_000 cents
-    expect(result.lostRevenueMonthlyCents).toBe(50_000);
+    const expectedLost = Math.round(500 * 100 * 1);
+    const expectedRecaptured = Math.round(expectedLost * PAYMENT_PLAN_CONVERSION_RATE);
 
-    // recaptured = $500 * 0.40 = $200 = 20_000 cents
-    expect(result.recapturedMonthlyCents).toBe(20_000);
-
-    // revenueShare = $200 * 0.03 = $6 = 600 cents
-    expect(result.revenueShareMonthlyCents).toBe(600);
+    expect(result.lostRevenueMonthlyCents).toBe(expectedLost);
+    expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
+    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
   });
 
   test('calculates with maximum slider values', () => {
     const result = calculateClinicRevenue(50, 5000);
 
-    // lostRevenue = 50 * $5,000 = $250,000 = 25_000_000 cents
-    expect(result.lostRevenueMonthlyCents).toBe(25_000_000);
+    const expectedLost = Math.round(5000 * 100 * 50);
+    const expectedRecaptured = Math.round(expectedLost * PAYMENT_PLAN_CONVERSION_RATE);
 
-    // recaptured = $250,000 * 0.40 = $100,000 = 10_000_000 cents
-    expect(result.recapturedMonthlyCents).toBe(10_000_000);
-
-    // revenueShare = $100,000 * 0.03 = $3,000 = 300_000 cents
-    expect(result.revenueShareMonthlyCents).toBe(300_000);
+    expect(result.lostRevenueMonthlyCents).toBe(expectedLost);
+    expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
+    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
   });
 
   test('annual values are 12x monthly', () => {

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
-import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
+import { CLINIC_SHARE_PERCENT, DEPOSIT_RATE, NUM_INSTALLMENTS } from '@/lib/constants';
 
 export default function ClinicSignupPage() {
   const router = useRouter();
@@ -224,7 +224,7 @@ export default function ClinicSignupPage() {
                 <li>Clients pay over time &mdash; no credit checks, no high interest</li>
                 <li>Your clinic earns {CLINIC_SHARE_PERCENT}% on every enrollment</li>
                 <li>Secure, encrypted platform with no charge to clinics</li>
-                <li>Clients pay 25% down, then biweekly debits for up to 12 weeks</li>
+                <li>Clients pay {Math.round(DEPOSIT_RATE * 100)}% down, then biweekly debits for up to {NUM_INSTALLMENTS * 2} weeks</li>
                 <li>Higher treatment acceptance and increased revenue</li>
               </ul>
             </div>
@@ -252,7 +252,7 @@ export default function ClinicSignupPage() {
             <FeatureCard
               icon={<Shield className="h-5 w-5" />}
               title="Reduce default risk"
-              description="25% deposit upfront and automated collection protects your revenue."
+              description={`${Math.round(DEPOSIT_RATE * 100)}% deposit upfront and automated collection protects your revenue.`}
             />
             <FeatureCard
               icon={<BadgeCheck className="h-5 w-5" />}

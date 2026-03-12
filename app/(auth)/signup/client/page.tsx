@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
-import { FEE_PERCENT } from '@/lib/constants';
+import { DEPOSIT_RATE, FEE_PERCENT } from '@/lib/constants';
 
 export default function ClientSignupPage() {
   const router = useRouter();
@@ -203,7 +203,7 @@ export default function ClientSignupPage() {
                 <h3 className="text-sm font-semibold">How FuzzyCat works</h3>
                 <p className="text-xs text-muted-foreground">
                   Your clinic must be registered with FuzzyCat. Once registered, you can sign up by
-                  entering your debit card or bank information. You pay a 25% deposit on the total
+                  entering your debit card or bank information. You pay a {Math.round(DEPOSIT_RATE * 100)}% deposit on the total
                   vet bill, and FuzzyCat debits your account for the balance every two weeks in
                   equal amounts. A {FEE_PERCENT}% platform fee applies to the total bill.
                 </p>

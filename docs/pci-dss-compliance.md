@@ -116,7 +116,7 @@ The platform stores only Stripe-issued tokenized references (`pm_*`, `pi_*`, `cu
 | Control | Status | Implementation |
 |---------|--------|----------------|
 | Cloud-hosted | ✅ | Vercel (US) + Supabase (US) — no on-premise servers |
-| Separate DB instances | ✅ | Dev (`nkndduzbzshjaaeicmad`) and prod (`wrqwmpptetipbccxzeai`) |
+| Separate DB instances | ✅ | Dev (`<project-id>`) and prod (`<project-id>`) |
 | No local card data | ✅ | SAQ A — no cardholder data on any FuzzyCat systems |
 
 ### 10. Log and Monitor All Access to System Components and Cardholder Data

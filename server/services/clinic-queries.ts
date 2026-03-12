@@ -219,10 +219,10 @@ export async function getClients(
         ownerName: clients.name,
         ownerEmail: clients.email,
         ownerPhone: clients.phone,
-        planCount: sql<number>`count(distinct ${plans.id})`,
-        activePlanCount: sql<number>`count(distinct ${plans.id}) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
-        totalOutstandingCents: sql<number>`coalesce(sum(${plans.totalWithFeeCents}), 0) - coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
-        totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+        planCount: sql<number>`count(${plans.id})`,
+        activePlanCount: sql<number>`count(${plans.id}) filter (where ${plans.status} in ('active', 'deposit_paid'))`,
+        totalOutstandingCents: sql<number>`coalesce(sum(${plans.totalWithFeeCents}), 0) - coalesce((select sum(p.amount_cents) from ${payments} p where p.plan_id = any(array_agg(${plans.id})) and p.status = 'succeeded'), 0)`,
+        totalPaidCents: sql<number>`coalesce((select sum(p.amount_cents) from ${payments} p where p.plan_id = any(array_agg(${plans.id})) and p.status = 'succeeded'), 0)`,
         latestPlanId: sql<string>`(array_agg(${plans.id} order by ${plans.createdAt} desc))[1]`,
         latestStatus: sql<string>`(array_agg(${plans.status} order by ${plans.createdAt} desc))[1]`,
         nextPaymentAt: sql<Date | null>`min(${plans.nextPaymentAt})`,
@@ -230,7 +230,6 @@ export async function getClients(
       })
       .from(plans)
       .innerJoin(clients, eq(plans.clientId, clients.id))
-      .leftJoin(payments, eq(plans.id, payments.planId))
       .where(whereClause)
       .groupBy(clients.id)
       .orderBy(desc(sql`max(${plans.createdAt})`))

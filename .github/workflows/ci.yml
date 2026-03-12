@@ -275,7 +275,7 @@ jobs:
           E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           NEXT_PUBLIC_SUPABASE_URL: https://wrqwmpptetipbccxzeai.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndycXdtcHB0ZXRpcGJjY3h6ZWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MzIxMzMsImV4cCI6MjA4NjUwODEzM30.PIDQfwr8RNGq9XxdiXcuM2D3qpJD-jBhrjqkDDpttcs
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndycXdtcHB0ZXRpcGJjY3h6ZWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MzIxMzMsImV4cCI6MjA4NjUwODEzM30.PIDQfwr8RNGq9XxdiXcuM2D3qpJD-jBhrjqkDDpttcs # nosemgrep: generic.secrets.security.detected-jwt-token.detected-jwt-token -- Supabase anon key is public by design
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ !cancelled() }}
         with:

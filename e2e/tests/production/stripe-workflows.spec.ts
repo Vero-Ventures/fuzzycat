@@ -280,7 +280,8 @@ test.describe('Clinic Stripe Connect workflows', () => {
     // Wait for one of the expected states rather than a fixed timeout
     await expect(bankStep.or(errorAlert).or(setupBtn).first()).toBeVisible({ timeout: 30_000 });
 
-    await page.waitForLoadState('networkidle');
+    // Allow a brief settle after the initial content appears
+    await page.waitForLoadState('domcontentloaded');
 
     const hasBankStep = await bankStep.isVisible().catch(() => false);
     const hasError = await errorAlert.isVisible().catch(() => false);

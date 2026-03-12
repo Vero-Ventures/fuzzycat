@@ -62,6 +62,8 @@ mock.module('@/server/db/schema', () => ({
     revenueShareBps: 'clinics.revenue_share_bps',
     name: 'clinics.name',
   },
+  knowledgeChunks: {},
+  chatSessions: {},
 }));
 
 // ── Import under test AFTER mocks ───────────────────────────────────

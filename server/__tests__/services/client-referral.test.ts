@@ -57,6 +57,8 @@ mock.module('@/server/db/schema', () => ({
     convertedAt: 'client_referrals.converted_at',
     createdAt: 'client_referrals.created_at',
   },
+  knowledgeChunks: {},
+  chatSessions: {},
 }));
 
 // ── Import under test AFTER mocks ───────────────────────────────────

@@ -113,6 +113,8 @@ mock.module('@/server/db/schema', () => ({
     stage: 'soft_collections.stage',
     nextEscalationAt: 'soft_collections.next_escalation_at',
   },
+  knowledgeChunks: {},
+  chatSessions: {},
 }));
 
 import { createAuditMock } from '../audit-mock';

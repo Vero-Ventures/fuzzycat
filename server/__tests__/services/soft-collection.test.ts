@@ -66,6 +66,8 @@ mock.module('@/server/db/schema', () => ({
   pets: { id: 'pets.id', clientId: 'pets.client_id' },
   petsRelations: {},
   softCollectionStageEnum: mock(),
+  knowledgeChunks: {},
+  chatSessions: {},
 }));
 
 const mockLogAuditEvent = mock();

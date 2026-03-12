@@ -15,6 +15,13 @@
       "when": 1772856000000,
       "tag": "0001_rename_owners_to_clients",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773460800000,
+      "tag": "0002_add_chatbot_tables",
+      "breakpoints": true
     }
   ]
 }

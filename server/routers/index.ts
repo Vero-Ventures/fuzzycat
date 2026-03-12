@@ -1,5 +1,6 @@
 import { publicProcedure, router } from '@/server/trpc';
 import { adminRouter } from './admin';
+import { chatbotRouter } from './chatbot';
 import { clientRouter } from './client';
 import { clinicRouter } from './clinic';
 import { enrollmentRouter } from './enrollment';
@@ -12,6 +13,7 @@ export const appRouter = router({
   health: publicProcedure.query(() => {
     return { status: 'ok' as const, timestamp: new Date() };
   }),
+  chatbot: chatbotRouter,
   clinic: clinicRouter,
   enrollment: enrollmentRouter,
   growth: growthRouter,

@@ -7,7 +7,7 @@ import {
   waitForEmail,
 } from '@/lib/test-utils/mailpit';
 
-const TEST_EMAIL = process.env.E2E_OWNER_EMAIL ?? 'e2e-owner@fuzzycatapp.com';
+const TEST_EMAIL = process.env.E2E_CLIENT_EMAIL ?? 'e2e-client@fuzzycatapp.com';
 
 test.beforeAll(async () => {
   const available = await isMailpitAvailable();

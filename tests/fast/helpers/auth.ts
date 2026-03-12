@@ -3,7 +3,7 @@ const cookieCache = new Map<string, string>();
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'TestPassword123!';
 
 const ROLE_EMAILS: Record<string, string> = {
-  owner: process.env.E2E_OWNER_EMAIL ?? 'e2e-owner@fuzzycatapp.com',
+  client: process.env.E2E_CLIENT_EMAIL ?? 'e2e-client@fuzzycatapp.com',
   clinic: process.env.E2E_CLINIC_EMAIL ?? 'e2e-clinic@fuzzycatapp.com',
   admin: process.env.E2E_ADMIN_EMAIL ?? 'e2e-admin@fuzzycatapp.com',
 };

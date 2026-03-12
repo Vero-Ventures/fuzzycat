@@ -9,7 +9,7 @@ test.describe('Production login flow', () => {
 
   test('login page renders correctly', async ({ page }, testInfo) => {
     // Heading
-    await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /welcome back/i, level: 1 })).toBeVisible();
 
     // Form fields
     await expect(page.locator('input[type="email"]')).toBeVisible();

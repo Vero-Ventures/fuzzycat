@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { CLINIC_SHARE_PERCENT, DEPOSIT_RATE, FEE_PERCENT, NUM_INSTALLMENTS } from '@/lib/constants';
+import { ClinicRevenueCalculator } from './clinic-revenue-calculator';
 import { PaymentCalculator } from './payment-calculator';
 
 export const metadata: Metadata = {
@@ -255,6 +256,10 @@ export default function HowItWorksPage() {
                 </span>
               </li>
             </ol>
+          </div>
+
+          <div className="mx-auto mt-12 max-w-2xl">
+            <ClinicRevenueCalculator />
           </div>
 
           <div className="mt-8 text-center">

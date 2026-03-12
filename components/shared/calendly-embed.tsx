@@ -21,7 +21,7 @@ export function CalendlyEmbed() {
   const src = `${CALENDLY_URL}?${params.toString()}`;
 
   return (
-    <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+    <section id="book-demo" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <Calendar className="mx-auto mb-6 h-12 w-12 text-primary" />

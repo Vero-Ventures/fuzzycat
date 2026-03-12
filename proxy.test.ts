@@ -259,6 +259,10 @@ describe('proxy', () => {
     const response = await proxy(req);
 
     expect(response.status).toBe(200);
+    // Next.js middleware stores modified request headers with the
+    // 'x-middleware-request-' prefix on the response object.
+    expect(response.headers.get('x-middleware-request-x-user-id')).toBe('user-42');
+    expect(response.headers.get('x-middleware-request-x-user-role')).toBe('client');
   });
 
   const roleRedirectCases = [

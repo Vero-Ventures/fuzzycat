@@ -38,6 +38,12 @@ function Header() {
           >
             Support
           </Link>
+          <Link
+            href="/#book-demo"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Book a Demo
+          </Link>
           <ThemeToggle />
           <Link href="/login">
             <Button size="sm">Sign In</Button>
@@ -47,9 +53,15 @@ function Header() {
         <nav className="flex items-center gap-3 md:hidden">
           <Link
             href="/how-it-works"
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="hidden text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
           >
             How It Works
+          </Link>
+          <Link
+            href="/#book-demo"
+            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Book a Demo
           </Link>
           <ThemeToggle />
           <Link href="/login">

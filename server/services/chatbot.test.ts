@@ -9,9 +9,10 @@ mock.module('ai', () => ({
 }));
 
 mock.module('@ai-sdk/google', () => ({
-  google: Object.assign((model: string) => ({ modelId: model }), {
-    textEmbeddingModel: (model: string) => ({ modelId: model }),
-  }),
+  createGoogleGenerativeAI: () =>
+    Object.assign((model: string) => ({ modelId: model }), {
+      textEmbeddingModel: (model: string) => ({ modelId: model }),
+    }),
 }));
 
 // Mock the database — return an array-like (as drizzle postgres-js does)

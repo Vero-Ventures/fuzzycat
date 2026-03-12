@@ -112,71 +112,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  clients: {
-    id: 'clients.id',
-    stripeCustomerId: 'clients.stripe_customer_id',
-    stripeCardPaymentMethodId: 'clients.stripe_card_payment_method_id',
-    stripeAchPaymentMethodId: 'clients.stripe_ach_payment_method_id',
-    paymentMethod: 'clients.payment_method',
-  },
-  clinics: {
-    id: 'clinics.id',
-    stripeAccountId: 'clinics.stripe_account_id',
-    revenueShareBps: 'clinics.revenue_share_bps',
-    foundingClinic: 'clinics.founding_clinic',
-    foundingExpiresAt: 'clinics.founding_expires_at',
-  },
-  plans: {
-    id: 'plans.id',
-    clientId: 'plans.client_id',
-    clinicId: 'plans.clinic_id',
-    depositCents: 'plans.deposit_cents',
-    feeCents: 'plans.fee_cents',
-    totalWithFeeCents: 'plans.total_with_fee_cents',
-    totalBillCents: 'plans.total_bill_cents',
-    remainingCents: 'plans.remaining_cents',
-    status: 'plans.status',
-  },
-  payments: {
-    id: 'payments.id',
-    planId: 'payments.plan_id',
-    amountCents: 'payments.amount_cents',
-    status: 'payments.status',
-    type: 'payments.type',
-    retryCount: 'payments.retry_count',
-    stripePaymentIntentId: 'payments.stripe_payment_intent_id',
-    sequenceNum: 'payments.sequence_num',
-    scheduledAt: 'payments.scheduled_at',
-  },
-  payouts: { id: 'payouts.id' },
-  auditLog: { id: 'auditLog.id' },
-  riskPool: { id: 'riskPool.id' },
-  clinicStatusEnum: {},
-  paymentMethodEnum: {},
-  planStatusEnum: {},
-  paymentTypeEnum: {},
-  paymentStatusEnum: {},
-  payoutStatusEnum: {},
-  riskPoolTypeEnum: {},
-  actorTypeEnum: {},
-  pets: { id: 'pets.id', clientId: 'pets.client_id' },
-  clinicsRelations: {},
-  clientsRelations: {},
-  petsRelations: {},
-  plansRelations: {},
-  paymentsRelations: {},
-  payoutsRelations: {},
-  riskPoolRelations: {},
-  softCollections: {
-    id: 'soft_collections.id',
-    planId: 'soft_collections.plan_id',
-    stage: 'soft_collections.stage',
-    nextEscalationAt: 'soft_collections.next_escalation_at',
-  },
-  knowledgeChunks: {},
-  chatSessions: {},
-}));
+import { schemaMock } from '../stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 import { createAuditMock } from '../audit-mock';
 

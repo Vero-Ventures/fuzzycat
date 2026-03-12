@@ -46,20 +46,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  clientReferrals: {
-    id: 'client_referrals.id',
-    referrerClientId: 'client_referrals.referrer_client_id',
-    referredClientId: 'client_referrals.referred_client_id',
-    referralCode: 'client_referrals.referral_code',
-    status: 'client_referrals.status',
-    creditApplied: 'client_referrals.credit_applied',
-    convertedAt: 'client_referrals.converted_at',
-    createdAt: 'client_referrals.created_at',
-  },
-  knowledgeChunks: {},
-  chatSessions: {},
-}));
+import { schemaMock } from '../stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 // ── Import under test AFTER mocks ───────────────────────────────────
 

@@ -41,8 +41,26 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-// Mock schema to prevent cross-contamination with other test files that mock it
+// Mock schema to prevent cross-contamination with other test files that mock it.
+// Must include ALL exports from the real schema to avoid breaking other tests.
 mock.module('@/server/db/schema', () => ({
+  clinics: {},
+  clients: {},
+  paymentMethods: {},
+  pets: {},
+  plans: {},
+  payments: {},
+  payouts: {},
+  riskPool: {},
+  softCollections: {},
+  apiKeys: {},
+  auditLog: {},
+  idempotencyKeys: {},
+  webhookEndpoints: {},
+  webhookDeliveries: {},
+  clinicRequests: {},
+  clinicReferrals: {},
+  clientReferrals: {},
   knowledgeChunks: {
     id: 'id',
     source: 'source',
@@ -56,6 +74,31 @@ mock.module('@/server/db/schema', () => ({
     messages: 'messages',
     helpful: 'helpful',
   },
+  clinicStatusEnum: {},
+  paymentMethodEnum: {},
+  planStatusEnum: {},
+  paymentTypeEnum: {},
+  paymentStatusEnum: {},
+  payoutStatusEnum: {},
+  riskPoolTypeEnum: {},
+  actorTypeEnum: {},
+  softCollectionStageEnum: {},
+  webhookDeliveryStatusEnum: {},
+  referralStatusEnum: {},
+  clinicsRelations: {},
+  clientsRelations: {},
+  paymentMethodsRelations: {},
+  petsRelations: {},
+  plansRelations: {},
+  paymentsRelations: {},
+  payoutsRelations: {},
+  riskPoolRelations: {},
+  softCollectionsRelations: {},
+  apiKeysRelations: {},
+  webhookEndpointsRelations: {},
+  webhookDeliveriesRelations: {},
+  clinicReferralsRelations: {},
+  clientReferralsRelations: {},
 }));
 
 // Set required env vars for serverEnv() validation

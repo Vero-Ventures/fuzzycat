@@ -62,7 +62,9 @@ export async function findRelevantChunks(query: string, limit = 5): Promise<Know
     }));
   } catch (error) {
     // Fall back to empty chunks if pgvector query fails
-    logger.error('Failed to find relevant chunks', { error: error instanceof Error ? error.message : 'Unknown error' });
+    logger.error('Failed to find relevant chunks', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     return [];
   }
 }

@@ -68,54 +68,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  clients: { id: 'clients.id' },
-  clinics: { id: 'clinics.id' },
-  plans: {
-    id: 'plans.id',
-    status: 'plans.status',
-    remainingCents: 'plans.remaining_cents',
-    clinicId: 'plans.clinic_id',
-  },
-  payments: {
-    id: 'payments.id',
-    planId: 'payments.plan_id',
-    amountCents: 'payments.amount_cents',
-    status: 'payments.status',
-    type: 'payments.type',
-    retryCount: 'payments.retry_count',
-    scheduledAt: 'payments.scheduled_at',
-    sequenceNum: 'payments.sequence_num',
-    failureReason: 'payments.failure_reason',
-  },
-  payouts: { id: 'payouts.id' },
-  auditLog: { id: 'auditLog.id' },
-  riskPool: { id: 'riskPool.id' },
-  clinicStatusEnum: {},
-  paymentMethodEnum: {},
-  planStatusEnum: {},
-  paymentTypeEnum: {},
-  paymentStatusEnum: {},
-  payoutStatusEnum: {},
-  riskPoolTypeEnum: {},
-  actorTypeEnum: {},
-  pets: { id: 'pets.id', clientId: 'pets.client_id' },
-  clinicsRelations: {},
-  clientsRelations: {},
-  petsRelations: {},
-  plansRelations: {},
-  paymentsRelations: {},
-  payoutsRelations: {},
-  riskPoolRelations: {},
-  softCollections: {
-    id: 'soft_collections.id',
-    planId: 'soft_collections.plan_id',
-    stage: 'soft_collections.stage',
-    nextEscalationAt: 'soft_collections.next_escalation_at',
-  },
-  knowledgeChunks: {},
-  chatSessions: {},
-}));
+import { schemaMock } from '../stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 import { createAuditMock } from '../audit-mock';
 

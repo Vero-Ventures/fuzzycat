@@ -2,6 +2,7 @@ import { google } from '@ai-sdk/google';
 import { embed } from 'ai';
 import { sql } from 'drizzle-orm';
 import { serverEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { db } from '@/server/db';
 import { knowledgeChunks } from '@/server/db/schema';
 
@@ -61,7 +62,7 @@ export async function findRelevantChunks(query: string, limit = 5): Promise<Know
     }));
   } catch (error) {
     // Fall back to empty chunks if pgvector query fails
-    console.error('Failed to find relevant chunks:', error);
+    logger.error('Failed to find relevant chunks', { error: error instanceof Error ? error.message : 'Unknown error' });
     return [];
   }
 }

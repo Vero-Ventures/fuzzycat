@@ -103,7 +103,7 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('Chat API error:', error);
+    logger.error('Chat API error', { error: error instanceof Error ? error.message : 'Unknown error' });
     return new Response(
       JSON.stringify({
         error: 'An error occurred processing your request. Please try again.',

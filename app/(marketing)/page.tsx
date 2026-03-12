@@ -12,6 +12,7 @@ import {
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { CalendlyEmbed } from '@/components/shared/calendly-embed';
 import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -234,6 +235,9 @@ export default function LandingPage() {
           <OwnerDisclaimer />
         </div>
       </section>
+
+      {/* Schedule a Demo */}
+      <CalendlyEmbed />
 
       <Separator />
     </>

@@ -82,7 +82,24 @@ describe('createConnectAccount', () => {
         email: 'clinic@example.com',
         metadata: { clinicId: 'clinic-1' },
       }),
+      expect.objectContaining({
+        idempotencyKey: 'create_connect_clinic-1',
+      }),
     );
+  });
+
+  it('passes clinic-specific idempotency key to prevent duplicate accounts', async () => {
+    await createConnectAccount({
+      clinicId: 'clinic-race-test',
+      email: 'race@example.com',
+      businessName: 'Race Vet',
+    });
+
+    const callArgs = mockAccountsCreate.mock.calls[0] as unknown as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(callArgs[1]).toEqual({ idempotencyKey: 'create_connect_clinic-race-test' });
   });
 
   it('stores the Connect account ID in the clinics table', async () => {

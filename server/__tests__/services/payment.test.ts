@@ -26,7 +26,7 @@ const mockCustomersCreate = mock(() =>
 const mockCustomersUpdate = mock(() => Promise.resolve({}));
 
 const mockPaymentMethodsRetrieve = mock((_id: string) =>
-  Promise.resolve({ id: _id, customer: 'cus_test' }),
+  Promise.resolve({ id: _id, customer: 'cus_test', type: 'card' as string }),
 );
 
 mock.module('@/lib/stripe', () => ({
@@ -559,6 +559,13 @@ describe('processInstallment', () => {
   });
 
   it('uses explicit paymentMethodId override over owner preference', async () => {
+    // When admin provides an explicit PM, resolvePaymentMethod retrieves its type from Stripe
+    mockPaymentMethodsRetrieve.mockResolvedValueOnce({
+      id: 'pm_override_123',
+      type: 'us_bank_account',
+      customer: 'cus_456',
+    });
+
     mockSelectLimit
       .mockResolvedValueOnce([
         {
@@ -586,6 +593,47 @@ describe('processInstallment', () => {
       mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
     )[0];
     expect(callArgs.payment_method).toBe('pm_override_123');
+    expect(callArgs.payment_method_types).toEqual(['us_bank_account']);
+  });
+
+  it('resolves card type when admin provides a card payment method ID', async () => {
+    // Admin overrides with a card PM — Stripe retrieve returns type: 'card'
+    mockPaymentMethodsRetrieve.mockResolvedValueOnce({
+      id: 'pm_card_admin',
+      type: 'card',
+      customer: 'cus_456',
+    });
+
+    mockSelectLimit
+      .mockResolvedValueOnce([
+        {
+          id: 'pay-card-admin',
+          planId: 'plan-1',
+          amountCents: 15_900,
+          status: 'pending',
+          type: 'installment',
+        },
+      ])
+      .mockResolvedValueOnce([{ clientId: 'owner-1', clinicId: 'clinic-1', status: 'active' }])
+      .mockResolvedValueOnce([{ stripeAccountId: 'acct_clinic_1' }])
+      .mockResolvedValueOnce([
+        {
+          stripeCustomerId: 'cus_456',
+          paymentMethod: 'bank_account',
+          stripeCardPaymentMethodId: null,
+          stripeAchPaymentMethodId: 'pm_ach_saved',
+        },
+      ]);
+
+    await processInstallment({ paymentId: 'pay-card-admin', paymentMethodId: 'pm_card_admin' });
+
+    expect(mockPaymentMethodsRetrieve).toHaveBeenCalledWith('pm_card_admin');
+    const callArgs = (
+      mockPaymentIntentsCreate.mock.calls[0] as unknown as [Record<string, unknown>]
+    )[0];
+    expect(callArgs.payment_method).toBe('pm_card_admin');
+    expect(callArgs.payment_method_types).toEqual(['card']);
+    expect(callArgs.off_session).toBe(true);
   });
 
   it('throws when owner prefers bank_account but has no saved ACH method', async () => {
@@ -1364,7 +1412,7 @@ describe('processInstallment — payment method validation', () => {
 
   it('proceeds normally when payment method is valid', async () => {
     mockPaymentMethodsRetrieve.mockImplementation((_id: string) =>
-      Promise.resolve({ id: _id, customer: 'cus_456' }),
+      Promise.resolve({ id: _id, customer: 'cus_456', type: 'card' as string }),
     );
 
     mockSelectLimit

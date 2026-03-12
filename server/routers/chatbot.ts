@@ -5,16 +5,16 @@ import { publicProcedure, router } from '@/server/trpc';
 
 const chatMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
-  content: z.string(),
+  content: z.string().max(5000),
 });
 
 export const chatbotRouter = router({
   saveFeedback: publicProcedure
     .input(
       z.object({
-        messageId: z.string().min(1),
+        messageId: z.string().min(1).max(5000),
         helpful: z.boolean(),
-        messages: z.array(chatMessageSchema).optional(),
+        messages: z.array(chatMessageSchema).max(50).optional(),
       }),
     )
     .mutation(async ({ input }) => {

@@ -13,14 +13,17 @@ export async function createConnectAccount(params: {
   email: string;
   businessName: string;
 }): Promise<{ accountId: string }> {
-  const account = await stripe().accounts.create({
-    type: 'standard',
-    email: params.email,
-    business_profile: {
-      name: params.businessName,
+  const account = await stripe().accounts.create(
+    {
+      type: 'standard',
+      email: params.email,
+      business_profile: {
+        name: params.businessName,
+      },
+      metadata: { clinicId: params.clinicId },
     },
-    metadata: { clinicId: params.clinicId },
-  });
+    { idempotencyKey: `create_connect_${params.clinicId}` },
+  );
 
   try {
     await db.transaction(async (tx) => {

@@ -172,8 +172,12 @@ async function validatePaymentMethod(params: {
 /**
  * Resolve which Stripe payment method and type to use for an installment charge.
  * An explicit override takes priority; otherwise the owner's saved preference is used.
+ *
+ * When an explicit payment method ID is provided (e.g. by an admin), we retrieve
+ * the payment method from Stripe to determine its type so the PaymentIntent is
+ * created with the correct `payment_method_types` value.
  */
-function resolvePaymentMethod(
+async function resolvePaymentMethod(
   paymentId: string,
   explicitPaymentMethodId: string | undefined,
   owner: {
@@ -181,9 +185,12 @@ function resolvePaymentMethod(
     stripeCardPaymentMethodId: string | null;
     stripeAchPaymentMethodId: string | null;
   },
-): { paymentMethodId?: string; paymentMethodType?: 'card' | 'us_bank_account' } {
+): Promise<{ paymentMethodId?: string; paymentMethodType?: 'card' | 'us_bank_account' }> {
   if (explicitPaymentMethodId) {
-    return { paymentMethodId: explicitPaymentMethodId };
+    const pm = await stripe().paymentMethods.retrieve(explicitPaymentMethodId);
+    const paymentMethodType: 'card' | 'us_bank_account' =
+      pm.type === 'card' ? 'card' : 'us_bank_account';
+    return { paymentMethodId: explicitPaymentMethodId, paymentMethodType };
   }
 
   if (!owner.paymentMethod) {
@@ -308,7 +315,11 @@ export async function processInstallment(params: {
   }
 
   // Resolve the payment method: explicit override takes priority, then client preference
-  const resolved = resolvePaymentMethod(params.paymentId, params.paymentMethodId, clientRecord);
+  const resolved = await resolvePaymentMethod(
+    params.paymentId,
+    params.paymentMethodId,
+    clientRecord,
+  );
 
   // Validate the payment method still exists in Stripe before charging
   if (resolved.paymentMethodId && resolved.paymentMethodType) {

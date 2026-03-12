@@ -272,6 +272,9 @@ jobs:
         env:
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
           E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+          E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ !cancelled() }}
         with:

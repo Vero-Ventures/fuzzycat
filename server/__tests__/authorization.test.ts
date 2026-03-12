@@ -19,7 +19,9 @@ import { schemaMock } from './stripe/_mock-schema';
 mock.module('@/server/db/schema', () => schemaMock);
 
 // Must be imported AFTER mocks are set up
-const { assertClinicOwnership, assertPlanAccess } = await import('@/server/services/authorization');
+const { assertClinicOwnership, assertPlanAccess, resolveClinicId, resolveClientId } = await import(
+  '@/server/services/authorization'
+);
 
 // ── Test data ────────────────────────────────────────────────────────
 
@@ -57,6 +59,75 @@ function setupSelectChainSequence(results: unknown[][]) {
     }),
   }));
 }
+
+// ── resolveClinicId tests ────────────────────────────────────────────
+
+describe('resolveClinicId', () => {
+  beforeEach(() => {
+    clearAllMocks();
+  });
+
+  afterEach(() => {
+    clearAllMocks();
+  });
+
+  it('returns clinic ID when clinic exists for the user', async () => {
+    setupSelectChainSequence([[{ id: CLINIC_ID }]]);
+
+    // resolveClinicId takes a database instance as first arg
+    const { db } = await import('@/server/db');
+    const result = await resolveClinicId(db, USER_ID);
+    expect(result).toBe(CLINIC_ID);
+  });
+
+  it('throws NOT_FOUND when no clinic found for the user', async () => {
+    setupSelectChainSequence([[]]);
+
+    const { db } = await import('@/server/db');
+    try {
+      await resolveClinicId(db, USER_ID);
+      expect.unreachable('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(TRPCError);
+      expect((error as TRPCError).code).toBe('NOT_FOUND');
+      expect((error as TRPCError).message).toBe('Clinic profile not found');
+    }
+  });
+});
+
+// ── resolveClientId tests ────────────────────────────────────────────
+
+describe('resolveClientId', () => {
+  beforeEach(() => {
+    clearAllMocks();
+  });
+
+  afterEach(() => {
+    clearAllMocks();
+  });
+
+  it('returns client ID when client exists for the user', async () => {
+    setupSelectChainSequence([[{ id: OWNER_ID }]]);
+
+    const { db } = await import('@/server/db');
+    const result = await resolveClientId(db, USER_ID);
+    expect(result).toBe(OWNER_ID);
+  });
+
+  it('throws NOT_FOUND when no client found for the user', async () => {
+    setupSelectChainSequence([[]]);
+
+    const { db } = await import('@/server/db');
+    try {
+      await resolveClientId(db, USER_ID);
+      expect.unreachable('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(TRPCError);
+      expect((error as TRPCError).code).toBe('NOT_FOUND');
+      expect((error as TRPCError).message).toBe('Client profile not found');
+    }
+  });
+});
 
 // ── assertClinicOwnership tests ──────────────────────────────────────
 

@@ -32,6 +32,7 @@ mock.module('@/lib/auth', () => ({
 }));
 
 let envShouldThrow = false;
+let sentryDsn: string | undefined = 'https://abc123@o123456.ingest.sentry.io/789';
 
 mock.module('@/lib/env', () => ({
   publicEnv: () => {
@@ -42,6 +43,7 @@ mock.module('@/lib/env', () => ({
       NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_abc123',
+      NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
     };
   },
   serverEnv: () => ({
@@ -65,6 +67,7 @@ describe('proxy', () => {
 
   beforeEach(() => {
     envShouldThrow = false;
+    sentryDsn = 'https://abc123@o123456.ingest.sentry.io/789';
     mockGetUser.mockImplementation(() => Promise.resolve({ data: { user: null }, error: null }));
     consoleSpy = spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -154,6 +157,42 @@ describe('proxy', () => {
     expect(staticCsp).toEqual(dynamicCsp);
   });
 
+  it('includes report-uri in CSP when Sentry DSN is provided', async () => {
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await proxy(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain('report-uri');
+    expect(csp).toContain('o123456.ingest.sentry.io');
+    expect(csp).toContain('sentry_key=abc123');
+  });
+
+  it('omits report-uri when Sentry DSN is undefined', async () => {
+    sentryDsn = undefined;
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await proxy(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).not.toContain('report-uri');
+  });
+
+  it('omits report-uri when Sentry DSN is an invalid URL', async () => {
+    sentryDsn = 'not-a-valid-url';
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await proxy(req);
+
+    const csp = response.headers.get('Content-Security-Policy');
+    expect(csp).toBeTruthy();
+    expect(csp).not.toContain('report-uri');
+  });
+
   it('sets CSP header even when env validation fails', async () => {
     envShouldThrow = true;
 
@@ -181,6 +220,49 @@ describe('proxy', () => {
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
     expect(location).toContain('/login');
+  });
+
+  it('sets security headers on all responses', async () => {
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/');
+    const response = await proxy(req);
+
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+    expect(response.headers.get('Permissions-Policy')).toBe(
+      'camera=(), geolocation=(), microphone=(), payment=()',
+    );
+    expect(response.headers.get('Server-Timing')).toMatch(/middleware;dur=\d/);
+  });
+
+  it('does not call getUser on public routes', async () => {
+    mockGetUser.mockClear();
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/pricing');
+    await proxy(req);
+
+    // Public route — should NOT call getUser
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  it('injects x-user-id and x-user-role headers for authenticated protected routes', async () => {
+    mockGetUser.mockImplementation(() =>
+      Promise.resolve({
+        data: { user: { id: 'user-42', app_metadata: { role: 'client' } } },
+        error: null,
+      }),
+    );
+
+    const { NextRequest } = await import('next/server');
+    const req = new NextRequest('http://localhost:3000/client/payments');
+    const response = await proxy(req);
+
+    expect(response.status).toBe(200);
+    // Next.js middleware stores modified request headers with the
+    // 'x-middleware-request-' prefix on the response object.
+    expect(response.headers.get('x-middleware-request-x-user-id')).toBe('user-42');
+    expect(response.headers.get('x-middleware-request-x-user-role')).toBe('client');
   });
 
   const roleRedirectCases = [

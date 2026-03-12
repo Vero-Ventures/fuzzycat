@@ -270,6 +270,7 @@ jobs:
       - name: Run production E2E tests
         run: bun run test:e2e:prod
         env:
+          E2E_ENV: production
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
           E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com

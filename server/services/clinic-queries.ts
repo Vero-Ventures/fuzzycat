@@ -7,7 +7,7 @@ import { generateCsv } from '@/lib/utils/csv';
 import { formatCents } from '@/lib/utils/money';
 import { escapeIlike } from '@/lib/utils/sql';
 import { db } from '@/server/db';
-import { clients, clinics, payments, payouts, plans } from '@/server/db/schema';
+import { clients, clinics, payments, payouts, planStatusEnum, plans } from '@/server/db/schema';
 
 // ── Profile ──────────────────────────────────────────────────────────
 
@@ -194,8 +194,11 @@ export async function getClients(
   const conditions = [eq(plans.clinicId, clinicId)];
 
   if (params.status) {
-    // biome-ignore lint/suspicious/noExplicitAny: status is validated at the API layer
-    conditions.push(eq(plans.status, params.status as any));
+    const validStatuses: readonly string[] = planStatusEnum.enumValues;
+    if (!validStatuses.includes(params.status)) {
+      throw new Error(`Invalid plan status filter: ${params.status}`);
+    }
+    conditions.push(eq(plans.status, params.status as (typeof planStatusEnum.enumValues)[number]));
   }
 
   if (params.search) {
@@ -282,41 +285,45 @@ export async function getClientDetails(clinicId: string, planId: string) {
     return null;
   }
 
-  const [owner] = await db
-    .select({
-      id: clients.id,
-      name: clients.name,
-      email: clients.email,
-      phone: clients.phone,
-      petName: clients.petName,
-    })
-    .from(clients)
-    .where(eq(clients.id, seedPlan.ownerId))
-    .limit(1);
+  // Owner and client plans queries are independent — run in parallel
+  const [ownerResult, clientPlans] = await Promise.all([
+    db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        email: clients.email,
+        phone: clients.phone,
+        petName: clients.petName,
+      })
+      .from(clients)
+      .where(eq(clients.id, seedPlan.ownerId))
+      .limit(1),
 
+    db
+      .select({
+        id: plans.id,
+        totalBillCents: plans.totalBillCents,
+        totalWithFeeCents: plans.totalWithFeeCents,
+        depositCents: plans.depositCents,
+        installmentCents: plans.installmentCents,
+        numInstallments: plans.numInstallments,
+        status: plans.status,
+        createdAt: plans.createdAt,
+        petName: clients.petName,
+        totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
+      })
+      .from(plans)
+      .leftJoin(clients, eq(plans.clientId, clients.id))
+      .leftJoin(payments, eq(plans.id, payments.planId))
+      .where(and(eq(plans.clientId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
+      .groupBy(plans.id, clients.id)
+      .orderBy(desc(plans.createdAt)),
+  ]);
+
+  const owner = ownerResult[0];
   if (!owner) {
     return null;
   }
-
-  const clientPlans = await db
-    .select({
-      id: plans.id,
-      totalBillCents: plans.totalBillCents,
-      totalWithFeeCents: plans.totalWithFeeCents,
-      depositCents: plans.depositCents,
-      installmentCents: plans.installmentCents,
-      numInstallments: plans.numInstallments,
-      status: plans.status,
-      createdAt: plans.createdAt,
-      petName: clients.petName,
-      totalPaidCents: sql<number>`coalesce(sum(${payments.amountCents}) filter (where ${payments.status} = 'succeeded'), 0)`,
-    })
-    .from(plans)
-    .leftJoin(clients, eq(plans.clientId, clients.id))
-    .leftJoin(payments, eq(plans.id, payments.planId))
-    .where(and(eq(plans.clientId, seedPlan.ownerId), eq(plans.clinicId, clinicId)))
-    .groupBy(plans.id, clients.id)
-    .orderBy(desc(plans.createdAt));
 
   return {
     owner: {

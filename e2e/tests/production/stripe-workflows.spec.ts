@@ -272,16 +272,16 @@ test.describe('Clinic Stripe Connect workflows', () => {
 
     await expect(page.getByText('Welcome to FuzzyCat')).toBeVisible({ timeout: 15_000 });
 
-    // Wait for checklist data to load (calls getOnboardingStatus which queries Stripe)
-    await page.waitForTimeout(8000);
-
-    // The page shows either:
-    // 1. Checklist steps with setup buttons
-    // 2. Error alert if Stripe account query fails
-    // 3. Skeleton loading placeholders (still resolving)
+    // Wait for checklist content to resolve (Stripe API call can be slow)
     const bankStep = page.getByText(/connect your bank account/i);
     const errorAlert = page.getByText(/unable to load|something went wrong/i);
     const setupBtn = page.getByRole('button', { name: /stripe setup/i });
+
+    // Wait for one of the expected states rather than a fixed timeout
+    await expect(bankStep.or(errorAlert).or(setupBtn).first()).toBeVisible({ timeout: 30_000 });
+
+    // Allow a brief settle after the initial content appears
+    await page.waitForLoadState('domcontentloaded');
 
     const hasBankStep = await bankStep.isVisible().catch(() => false);
     const hasError = await errorAlert.isVisible().catch(() => false);
@@ -303,11 +303,16 @@ test.describe('Clinic Stripe Connect workflows', () => {
     await page.goto('/clinic/onboarding', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByText('Welcome to FuzzyCat')).toBeVisible({ timeout: 15_000 });
-    await page.waitForTimeout(8000);
 
     // Find whichever Stripe setup button is visible
     const startBtn = page.getByRole('button', { name: /start stripe setup/i });
     const continueBtn = page.getByRole('button', { name: /continue stripe setup/i });
+    const onboardingError = page.getByText(/unable to load|something went wrong/i);
+
+    // Wait for onboarding content to resolve (Stripe API call can be slow)
+    await expect(startBtn.or(continueBtn).or(onboardingError).first()).toBeVisible({
+      timeout: 30_000,
+    });
 
     const hasStart = await startBtn.isVisible().catch(() => false);
     const hasContinue = await continueBtn.isVisible().catch(() => false);

@@ -14,107 +14,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-and-format:
-    name: Lint & Format (Biome)
+  quality:
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check
-
-  typecheck:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-
-  type-coverage:
-    name: Type Coverage (≥95%)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check:types
-
-  unused-code:
-    name: Unused Code (Knip)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check:unused
-
-  env-lint:
-    name: No Direct process.env
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun run scripts/check-process-env.ts
-
-  circular-deps:
-    name: Circular Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check:circular
-
-  license-check:
-    name: License Compliance
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bun run check:licenses
-
-  secrets:
-    name: Secret Detection (Gitleaks)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/cache@v4
         with:
-          fetch-depth: 0
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
-        with:
-          go-version: stable
-          cache: false
-      - run: go install github.com/zricethezav/gitleaks/v8@latest
-      - run: gitleaks detect --source . --no-banner
-
-  dependency-audit:
-    name: Dependency Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: 22
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - name: Generate package-lock.json for audit
-        run: npm i --package-lock-only --ignore-scripts
-      - name: Audit dependencies (critical severity blocks, high warns)
-        run: |
-          npm audit --omit=dev 2>&1 || true
-          npm audit --audit-level=critical --omit=dev
-
-  security:
-    name: Security Scan (Semgrep)
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep@sha256:d3d1be3a3770514d16a6a57b9761575d7536d70f45a5220274f4ec7d55c442b9
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - run: semgrep scan --config auto --error --quiet .
+      - name: Lint & Format (Biome)
+        run: bun run check
+      - name: Type Check
+        run: bun run typecheck
+      - name: Type Coverage (>=95%)
+        run: bun run check:types
+      - name: No Direct process.env
+        run: bun run scripts/check-process-env.ts
+      - name: Circular Dependencies
+        run: bun run check:circular
+      - name: Unused Code (Knip)
+        run: bun run check:unused
+      - name: License Compliance
+        run: bun run check:licenses
+      - name: Extract OpenAPI spec
+        run: bun run api:extract
+      - name: Lint OpenAPI spec (Spectral)
+        run: bun run api:lint
 
   test:
     name: Unit Tests
@@ -122,6 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
       - name: Run tests with coverage
         run: |
@@ -157,25 +91,58 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  api-lint:
-    name: API Spec Lint (Spectral)
+  security:
+    name: Security Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version: stable
+          cache: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - name: Extract OpenAPI spec
-        run: bun run api:extract
-      - name: Lint OpenAPI spec
-        run: bun run api:lint
+      - name: Secret Detection (Gitleaks)
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@latest
+          gitleaks detect --source . --no-banner
+      - name: Dependency Audit
+        run: |
+          npm i --package-lock-only --ignore-scripts
+          npm audit --omit=dev 2>&1 || true
+          npm audit --audit-level=critical --omit=dev
+
+  semgrep:
+    name: Security Scan (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep@sha256:d3d1be3a3770514d16a6a57b9761575d7536d70f45a5220274f4ec7d55c442b9
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - run: semgrep scan --config auto --error --quiet .
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint-and-format, typecheck]
+    needs: [quality]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
       - name: Build
         run: bun run build
@@ -186,15 +153,21 @@ jobs:
       - name: Bundle Size Budget
         run: bun run check:bundle
 
-  fast-tests:
-    name: Fast Tests (HTTP + Cheerio)
+  e2e:
+    name: E2E Tests (Playwright + Fast)
     runs-on: ubuntu-latest
     needs: [build]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - name: Start dev server and run fast tests
+      - run: bunx playwright install chromium
+      - name: Run fast tests (HTTP + Cheerio)
         run: bun run test:fast
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
@@ -214,16 +187,6 @@ jobs:
           E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
-
-  e2e:
-    name: E2E Tests (Playwright)
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install chromium
       - name: Run E2E tests (CI-safe projects only)
         run: bunx playwright test --project=public
         env:
@@ -257,6 +220,93 @@ jobs:
           path: test-results/
           retention-days: 14
 
+  # Compatibility aliases — branch protection requires these old check names.
+  # These are lightweight no-op jobs that gate on the consolidated jobs.
+  # Remove after updating branch protection rules to use the new names.
+  lint-compat:
+    name: Lint & Format (Biome)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  typecheck-compat:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  type-coverage-compat:
+    name: "Type Coverage (≥95%)"
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  unused-code-compat:
+    name: Unused Code (Knip)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  env-lint-compat:
+    name: No Direct process.env
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  circular-deps-compat:
+    name: Circular Dependencies
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  license-compat:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  api-lint-compat:
+    name: API Spec Lint (Spectral)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  secrets-compat:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: [security]
+    steps:
+      - run: echo "Consolidated into Security Checks job"
+
+  dep-audit-compat:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    needs: [security]
+    steps:
+      - run: echo "Consolidated into Security Checks job"
+
+  fast-tests-compat:
+    name: Fast Tests (HTTP + Cheerio)
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    steps:
+      - run: echo "Consolidated into E2E Tests (Playwright + Fast) job"
+
+  e2e-compat:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    steps:
+      - run: echo "Renamed to E2E Tests (Playwright + Fast)"
+
   e2e-production:
     name: E2E Production Tests
     runs-on: ubuntu-latest
@@ -265,6 +315,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium
       - name: Run production E2E tests
@@ -272,7 +327,7 @@ jobs:
         env:
           E2E_ENV: production
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
+          E2E_CLIENT_EMAIL: e2e-owner@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           NEXT_PUBLIC_SUPABASE_URL: https://wrqwmpptetipbccxzeai.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndycXdtcHB0ZXRpcGJjY3h6ZWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MzIxMzMsImV4cCI6MjA4NjUwODEzM30.PIDQfwr8RNGq9XxdiXcuM2D3qpJD-jBhrjqkDDpttcs # nosemgrep: generic.secrets.security.detected-jwt-token.detected-jwt-token -- Supabase anon key is public by design

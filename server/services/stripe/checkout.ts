@@ -55,6 +55,11 @@ export async function createDepositCheckoutSession(params: {
       ? session.payment_intent
       : (session.payment_intent?.id ?? null);
 
+  // If the DB update below fails after the Stripe session was already created,
+  // the Stripe session becomes orphaned (exists in Stripe but our DB still shows
+  // 'pending'). This is eventually consistent — Stripe webhooks will reconcile
+  // the state when the session expires (24h) or is completed by the customer.
+  // The webhook handler checks payment status and will process accordingly.
   try {
     await db
       .update(payments)

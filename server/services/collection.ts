@@ -1,3 +1,23 @@
+// ── Collection service ──────────────────────────────────────────────
+// Handles payment collection, retry scheduling, and default escalation.
+//
+// Payment state machine:
+//   pending → processing → succeeded   (happy path)
+//   pending → processing → failed      (payment attempt failed)
+//   failed  → retried    → processing  (retry scheduled on next payday)
+//   failed  → written_off              (max retries exhausted)
+//   retried → processing → succeeded   (retry succeeded)
+//   retried → processing → failed      (retry failed, may retry again)
+//
+// Retry timing: Retries are scheduled on the next likely payday (Friday,
+// 1st, or 15th of the month) at least 2 days out. This payday alignment
+// maximizes the chance the owner has funds available, reducing failed
+// retries and improving collection rates.
+//
+// Default escalation: After MAX_RETRIES (3) failed attempts, the payment
+// is written off and the plan is escalated to 'defaulted'. The clinic is
+// then responsible for collecting from the owner directly.
+
 import { and, eq, inArray, lte, sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { getNextLikelyPaydayAfterDays } from '@/lib/utils/payday';
@@ -5,10 +25,14 @@ import { db } from '@/server/db';
 import { payments, plans } from '@/server/db/schema';
 import { logAuditEvent } from '@/server/services/audit';
 
-/** Maximum number of retry attempts before escalating to default. */
+/**
+ * Maximum number of retry attempts before escalating to default.
+ * After 3 failed retries, the payment is written off and the plan defaults.
+ * Business rule: 3 retries balances collection effort against owner friction.
+ */
 const MAX_RETRIES = 3;
 
-/** Urgency level for escalating notifications on retry attempts. */
+/** Urgency level for escalating notifications on retry attempts (1=friendly, 2=urgent, 3=final). */
 export type UrgencyLevel = 1 | 2 | 3;
 
 /**
@@ -102,10 +126,16 @@ export async function retryFailedPayment(paymentId: string): Promise<boolean> {
 
     const oldStatus = payment.status;
     const now = new Date();
+    // Schedule retry on the next likely payday (Friday, 1st, or 15th) at least 2 days out.
+    // Payday alignment maximizes the chance the owner has funds available.
     const nextRetryDate = getNextLikelyPaydayAfterDays(now, 2);
     const newRetryCount = currentRetryCount + 1;
+    // Urgency level maps 1:1 to retry count (1=friendly, 2=urgent, 3=final notice)
     const urgencyLevel = newRetryCount as UrgencyLevel;
 
+    // Transition: failed → retried. The 'retried' status makes the payment
+    // eligible for pickup by the installment processor on the scheduled date.
+    // Clear failureReason so the next attempt starts fresh.
     await tx
       .update(payments)
       .set({
@@ -180,7 +210,8 @@ export async function escalateDefault(planId: string): Promise<void> {
 
     const oldStatus = plan.status;
 
-    // Calculate remaining unpaid amount from pending/failed/retried payments
+    // Calculate remaining unpaid amount from all non-succeeded payments.
+    // This total is reported to the clinic for their own collection efforts.
     const unpaidPayments = await tx
       .select({
         totalUnpaidCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`,
@@ -195,7 +226,9 @@ export async function escalateDefault(planId: string): Promise<void> {
 
     const unpaidCents = unpaidPayments[0]?.totalUnpaidCents ?? 0;
 
-    // Mark plan as defaulted
+    // Transition: active → defaulted. Once defaulted, the clinic is notified
+    // and becomes responsible for collecting the remaining balance from the owner.
+    // FuzzyCat does not guarantee payment — this is a key legal distinction.
     await tx.update(plans).set({ status: 'defaulted' }).where(eq(plans.id, planId));
 
     // Audit log for plan default
@@ -211,7 +244,8 @@ export async function escalateDefault(planId: string): Promise<void> {
       tx,
     );
 
-    // Mark remaining unpaid payments as written_off
+    // Write off all remaining unpaid payments (pending/failed/retried → written_off).
+    // Written-off payments are no longer eligible for collection by FuzzyCat.
     await tx
       .update(payments)
       .set({ status: 'written_off' })

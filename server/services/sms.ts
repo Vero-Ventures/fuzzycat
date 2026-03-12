@@ -70,6 +70,7 @@ const TCPA_OPT_OUT_NOTICE = '\n\nReply STOP to opt out of FuzzyCat SMS notificat
 // ── Opt-out tracking (in-memory) ──────────────────────────────────────
 // LIMITATION: Resets on server restart. Production should use a database.
 
+// TODO(production): Persist to database. In-memory state resets per serverless invocation on Vercel, providing no protection in production.
 const optedOutPhones = new Set<string>();
 
 /**
@@ -98,6 +99,7 @@ export function isOptedOut(phone: string): boolean {
 // TCPA requires opt-out instructions on first contact.
 // LIMITATION: Resets on server restart. Production should use a database.
 
+// TODO(production): Persist to database. In-memory state resets per serverless invocation on Vercel, providing no protection in production.
 const contactedPhones = new Set<string>();
 
 /** Check if we have previously sent an SMS to this phone number. */
@@ -114,6 +116,7 @@ function markContacted(phone: string): void {
 // LIMITATION: Resets on server restart and is per-instance.
 // Production should use Redis (Upstash) for distributed rate limiting.
 
+// TODO(production): Persist to database. In-memory state resets per serverless invocation on Vercel, providing no protection in production.
 const sendTimestamps = new Map<string, number[]>();
 
 /**

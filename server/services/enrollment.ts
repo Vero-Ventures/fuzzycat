@@ -66,6 +66,50 @@ export interface EnrollmentSummary {
   }[];
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Build the payment insert values for a plan's 7 payments (1 deposit + 6 installments).
+ * When `feeReduction` is provided, the amounts are recalculated with adjusted deposit,
+ * installment, and remaining cents (used for referral discounts where FuzzyCat absorbs
+ * the fee reduction as customer acquisition cost). Otherwise, the schedule amounts are
+ * used as-is.
+ */
+function buildPaymentValues(
+  schedule: {
+    payments: { type: string; sequenceNum: number; amountCents: number; scheduledAt: Date }[];
+    numInstallments: number;
+  },
+  planId: string,
+  feeReduction?: { depositCents: number; remainingCents: number; installmentCents: number },
+) {
+  return schedule.payments.map((p, index) => {
+    let amountCents: number;
+    if (feeReduction) {
+      if (p.type === 'deposit') {
+        amountCents = feeReduction.depositCents;
+      } else if (index === schedule.payments.length - 1) {
+        // Last installment absorbs rounding remainder
+        amountCents =
+          feeReduction.remainingCents -
+          feeReduction.installmentCents * (schedule.numInstallments - 1);
+      } else {
+        amountCents = feeReduction.installmentCents;
+      }
+    } else {
+      amountCents = p.amountCents;
+    }
+    return {
+      planId,
+      type: p.type as 'deposit' | 'installment',
+      sequenceNum: p.sequenceNum,
+      amountCents,
+      status: 'pending' as const,
+      scheduledAt: p.scheduledAt,
+    };
+  });
+}
+
 // ── Service functions ────────────────────────────────────────────────
 
 /**
@@ -190,36 +234,17 @@ export async function createEnrollment(
       .returning({ id: plans.id });
 
     // 4. Create all 7 payment records (1 deposit + 6 installments)
-    const paymentValues =
+    const paymentValues = buildPaymentValues(
+      schedule,
+      plan.id,
       feeReduction > 0
-        ? schedule.payments.map((p, index) => {
-            let amountCents: number;
-            if (p.type === 'deposit') {
-              amountCents = adjustedDepositCents;
-            } else if (index === schedule.payments.length - 1) {
-              // Last installment absorbs rounding remainder
-              amountCents =
-                adjustedRemainingCents - adjustedInstallmentCents * (schedule.numInstallments - 1);
-            } else {
-              amountCents = adjustedInstallmentCents;
-            }
-            return {
-              planId: plan.id,
-              type: p.type as 'deposit' | 'installment',
-              sequenceNum: p.sequenceNum,
-              amountCents,
-              status: 'pending' as const,
-              scheduledAt: p.scheduledAt,
-            };
-          })
-        : schedule.payments.map((p) => ({
-            planId: plan.id,
-            type: p.type as 'deposit' | 'installment',
-            sequenceNum: p.sequenceNum,
-            amountCents: p.amountCents,
-            status: 'pending' as const,
-            scheduledAt: p.scheduledAt,
-          }));
+        ? {
+            depositCents: adjustedDepositCents,
+            remainingCents: adjustedRemainingCents,
+            installmentCents: adjustedInstallmentCents,
+          }
+        : undefined,
+    );
 
     const insertedPayments = await tx
       .insert(payments)

@@ -29,6 +29,7 @@ Payment plan platform for veterinary clinics. Pet owners split vet bills into bi
 | Linting | Biome (not ESLint/Prettier) |
 | Testing | Bun test runner (not Jest/Vitest), Playwright E2E |
 | Email / SMS | Resend / Twilio |
+| AI Chatbot | Vercel AI SDK + Gemini 2.5 Flash-Lite + pgvector (RAG) |
 | Monitoring | Sentry + PostHog + Vercel Analytics |
 | Hosting | Vercel + Supabase |
 
@@ -74,6 +75,17 @@ bunx drizzle-kit generate        # Generate SQL migrations
 - **Never access `process.env` directly** in application code (CI enforced).
 - New env vars must also be added to `.env.example`.
 - Required env vars must be configured in Vercel before merging.
+
+## AI Support Chatbot
+
+RAG-powered chatbot on marketing pages using Vercel AI SDK + Gemini 2.5 Flash-Lite + pgvector.
+
+- **Feature flag**: `NEXT_PUBLIC_ENABLE_CHATBOT=true` to show the chat widget
+- **API key**: `GEMINI_API_KEY` (optional, chatbot degrades gracefully without it)
+- **Knowledge base**: `knowledge_chunks` table with pgvector embeddings, seeded via `bun run scripts/seed-knowledge-base.ts`
+- **Chat sessions**: `chat_sessions` table for feedback analytics
+- **Key files**: `server/services/chatbot.ts`, `app/api/chat/route.ts`, `components/shared/chat-widget.tsx`, `server/routers/chatbot.ts`
+- **System prompt guardrails**: Never disclose clinic revenue share or platform reserve to pet owners
 
 ## Database
 

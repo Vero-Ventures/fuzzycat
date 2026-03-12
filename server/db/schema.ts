@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  customType,
   index,
   inet,
   integer,
@@ -14,6 +15,19 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
+
+// ── Custom types ────────────────────────────────────────────────────
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'vector(768)';
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value: string): number[] {
+    return value.replace(/^\[/, '').replace(/\]$/, '').split(',').map(Number);
+  },
+});
 
 // ── Enums ───────────────────────────────────────────────────────────
 export const clinicStatusEnum = pgEnum('clinic_status', ['pending', 'active', 'suspended']);
@@ -437,6 +451,31 @@ export const clientReferrals = pgTable(
     index('idx_client_referrals_code').on(table.referralCode),
   ],
 );
+
+// ── Knowledge base (RAG chatbot) ─────────────────────────────────────
+export const knowledgeChunks = pgTable('knowledge_chunks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  source: text('source').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  embedding: vector('embedding').notNull(),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── Chat sessions (chatbot analytics) ────────────────────────────────
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id'),
+  userRole: text('user_role'),
+  messages: jsonb('messages').notNull().default([]),
+  helpful: boolean('helpful'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
 // ── Relations (for db.query API — no SQL impact) ────────────────────
 

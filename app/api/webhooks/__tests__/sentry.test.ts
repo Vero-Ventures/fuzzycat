@@ -25,6 +25,9 @@ mock.module('@/lib/logger', () => ({
 }));
 
 const { POST } = await import('@/app/api/webhooks/sentry/route');
+// Re-import the mocked logger to ensure our assertions target the same object
+// the route handler uses, even under mock.module cross-contamination.
+const loggerModule = await import('@/lib/logger');
 
 /** Compute HMAC-SHA256 hex digest matching Sentry's signing. */
 async function sign(body: string, secret: string = TEST_SECRET): Promise<string> {
@@ -141,9 +144,11 @@ describe('POST /api/webhooks/sentry', () => {
     mockEnvValues.GITHUB_TOKEN = undefined;
     mockEnvValues.GITHUB_REPO = undefined;
     globalThis.fetch = originalFetch;
-    mockLogger.info.mockClear();
-    mockLogger.warn.mockClear();
-    mockLogger.error.mockClear();
+    // Clear the resolved logger (handles mock.module cross-contamination)
+    const lg = loggerModule.logger as unknown as typeof mockLogger;
+    (lg.info as ReturnType<typeof mock>).mockClear();
+    (lg.warn as ReturnType<typeof mock>).mockClear();
+    (lg.error as ReturnType<typeof mock>).mockClear();
   });
 
   it('returns 400 when signature is missing', async () => {
@@ -199,7 +204,7 @@ describe('POST /api/webhooks/sentry', () => {
 
     expect(response.status).toBe(200);
     expect(githubCalled).toBe(false);
-    expect(mockLogger.info).toHaveBeenCalledWith(
+    expect(loggerModule.logger.info).toHaveBeenCalledWith(
       'Sentry issue skipped (non-critical)',
       expect.objectContaining({ level: 'warning' }),
     );
@@ -212,7 +217,7 @@ describe('POST /api/webhooks/sentry', () => {
     const response = await makeRequest(body, 'issue');
 
     expect(response.status).toBe(200);
-    expect(mockLogger.warn).toHaveBeenCalledWith(
+    expect(loggerModule.logger.warn).toHaveBeenCalledWith(
       'Sentry webhook received but SENTRY_WEBHOOK_SECRET not configured',
     );
   });
@@ -229,7 +234,7 @@ describe('POST /api/webhooks/sentry', () => {
     const response = await makeRequest(body, 'issue', sig);
 
     expect(response.status).toBe(200);
-    expect(mockLogger.error).toHaveBeenCalledWith(
+    expect(loggerModule.logger.error).toHaveBeenCalledWith(
       'Sentry webhook handler error',
       expect.objectContaining({ resource: 'issue' }),
     );
@@ -242,7 +247,7 @@ describe('POST /api/webhooks/sentry', () => {
     const response = await makeRequest(body, 'installation', sig);
 
     expect(response.status).toBe(200);
-    expect(mockLogger.info).toHaveBeenCalledWith(
+    expect(loggerModule.logger.info).toHaveBeenCalledWith(
       'Sentry webhook: installation verification received',
     );
   });

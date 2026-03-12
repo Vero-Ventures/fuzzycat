@@ -31,6 +31,7 @@ const serverSchema = z.object({
   SENTRY_WEBHOOK_SECRET: z.string().optional(),
   GITHUB_TOKEN: z.string().optional(),
   GITHUB_REPO: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 /**
@@ -48,6 +49,7 @@ const publicSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
+  NEXT_PUBLIC_ENABLE_CHATBOT: z.string().optional(),
 });
 
 /** @internal Exported for testing. */
@@ -92,6 +94,7 @@ export function publicEnv() {
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
       NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
       NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+      NEXT_PUBLIC_ENABLE_CHATBOT: process.env.NEXT_PUBLIC_ENABLE_CHATBOT,
     };
     _publicEnv = validateEnv(publicSchema, typeof window === 'undefined' ? process.env : envObj);
   }

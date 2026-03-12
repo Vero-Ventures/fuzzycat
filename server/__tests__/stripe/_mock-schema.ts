@@ -144,4 +144,23 @@ export const schemaMock = {
   webhookDeliveriesRelations: {},
   clinicReferralsRelations: {},
   clientReferralsRelations: {},
+  knowledgeChunks: {
+    id: 'knowledge_chunks.id',
+    source: 'knowledge_chunks.source',
+    title: 'knowledge_chunks.title',
+    content: 'knowledge_chunks.content',
+    embedding: 'knowledge_chunks.embedding',
+    metadata: 'knowledge_chunks.metadata',
+    createdAt: 'knowledge_chunks.created_at',
+    updatedAt: 'knowledge_chunks.updated_at',
+  },
+  chatSessions: {
+    id: 'chat_sessions.id',
+    userId: 'chat_sessions.user_id',
+    userRole: 'chat_sessions.user_role',
+    messages: 'chat_sessions.messages',
+    helpful: 'chat_sessions.helpful',
+    createdAt: 'chat_sessions.created_at',
+    updatedAt: 'chat_sessions.updated_at',
+  },
 };

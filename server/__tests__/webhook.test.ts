@@ -99,72 +99,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  clients: {
-    id: 'clients.id',
-    stripeCustomerId: 'clients.stripe_customer_id',
-    stripeCardPaymentMethodId: 'clients.stripe_card_payment_method_id',
-    stripeAchPaymentMethodId: 'clients.stripe_ach_payment_method_id',
-  },
-  clinics: {
-    id: 'clinics.id',
-    stripeAccountId: 'clinics.stripe_account_id',
-    status: 'clinics.status',
-    revenueShareBps: 'clinics.revenue_share_bps',
-    foundingClinic: 'clinics.founding_clinic',
-    foundingExpiresAt: 'clinics.founding_expires_at',
-  },
-  plans: {
-    id: 'plans.id',
-    status: 'plans.status',
-    clinicId: 'plans.clinic_id',
-    clientId: 'plans.client_id',
-    totalBillCents: 'plans.total_bill_cents',
-    depositCents: 'plans.deposit_cents',
-    remainingCents: 'plans.remaining_cents',
-  },
-  payments: {
-    id: 'payments.id',
-    status: 'payments.status',
-    planId: 'payments.plan_id',
-    amountCents: 'payments.amount_cents',
-    type: 'payments.type',
-    stripePaymentIntentId: 'payments.stripe_payment_intent_id',
-    retryCount: 'payments.retry_count',
-    sequenceNum: 'payments.sequence_num',
-    scheduledAt: 'payments.scheduled_at',
-  },
-  payouts: { id: 'payouts.id', paymentId: 'payouts.payment_id' },
-  auditLog: {
-    id: 'auditLog.id',
-    entityType: 'auditLog.entity_type',
-    entityId: 'auditLog.entity_id',
-    createdAt: 'auditLog.created_at',
-  },
-  riskPool: { id: 'riskPool.id' },
-  clinicStatusEnum: {},
-  paymentMethodEnum: {},
-  planStatusEnum: {},
-  paymentTypeEnum: {},
-  paymentStatusEnum: {},
-  payoutStatusEnum: {},
-  pets: { id: 'pets.id', clientId: 'pets.client_id' },
-  riskPoolTypeEnum: {},
-  actorTypeEnum: {},
-  clinicsRelations: {},
-  clientsRelations: {},
-  petsRelations: {},
-  plansRelations: {},
-  paymentsRelations: {},
-  payoutsRelations: {},
-  riskPoolRelations: {},
-  softCollections: {
-    id: 'soft_collections.id',
-    planId: 'soft_collections.plan_id',
-    stage: 'soft_collections.stage',
-    nextEscalationAt: 'soft_collections.next_escalation_at',
-  },
-}));
+import { schemaMock } from './stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 import { createAuditMock } from './audit-mock';
 

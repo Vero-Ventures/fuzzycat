@@ -54,15 +54,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  clinics: {
-    id: 'clinics.id',
-    foundingClinic: 'clinics.founding_clinic',
-    foundingExpiresAt: 'clinics.founding_expires_at',
-    revenueShareBps: 'clinics.revenue_share_bps',
-    name: 'clinics.name',
-  },
-}));
+import { schemaMock } from '../stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 // ── Import under test AFTER mocks ───────────────────────────────────
 

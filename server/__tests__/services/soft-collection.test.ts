@@ -37,36 +37,9 @@ mock.module('@/server/db', () => ({
   },
 }));
 
-mock.module('@/server/db/schema', () => ({
-  softCollections: {
-    id: 'soft_collections.id',
-    planId: 'soft_collections.plan_id',
-    stage: 'soft_collections.stage',
-    startedAt: 'soft_collections.started_at',
-    lastEscalatedAt: 'soft_collections.last_escalated_at',
-    nextEscalationAt: 'soft_collections.next_escalation_at',
-    notes: 'soft_collections.notes',
-    createdAt: 'soft_collections.created_at',
-    updatedAt: 'soft_collections.updated_at',
-  },
-  plans: {
-    id: 'plans.id',
-    clientId: 'plans.client_id',
-    clinicId: 'plans.clinic_id',
-    remainingCents: 'plans.remaining_cents',
-    status: 'plans.status',
-  },
-  clients: {
-    id: 'clients.id',
-    name: 'clients.name',
-    email: 'clients.email',
-    phone: 'clients.phone',
-    petName: 'clients.pet_name',
-  },
-  pets: { id: 'pets.id', clientId: 'pets.client_id' },
-  petsRelations: {},
-  softCollectionStageEnum: mock(),
-}));
+import { schemaMock } from '../stripe/_mock-schema';
+
+mock.module('@/server/db/schema', () => schemaMock);
 
 const mockLogAuditEvent = mock();
 mock.module('@/server/services/audit', () => ({

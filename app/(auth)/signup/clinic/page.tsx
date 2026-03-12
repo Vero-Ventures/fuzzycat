@@ -224,7 +224,10 @@ export default function ClinicSignupPage() {
                 <li>Clients pay over time &mdash; no credit checks, no high interest</li>
                 <li>Your clinic earns {CLINIC_SHARE_PERCENT}% on every enrollment</li>
                 <li>Secure, encrypted platform with no charge to clinics</li>
-                <li>Clients pay {Math.round(DEPOSIT_RATE * 100)}% down, then biweekly debits for up to {NUM_INSTALLMENTS * 2} weeks</li>
+                <li>
+                  Clients pay {Math.round(DEPOSIT_RATE * 100)}% down, then biweekly debits for up to{' '}
+                  {NUM_INSTALLMENTS * 2} weeks
+                </li>
                 <li>Higher treatment acceptance and increased revenue</li>
               </ul>
             </div>

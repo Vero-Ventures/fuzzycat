@@ -12,11 +12,11 @@ import {
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { CLINIC_SHARE_PERCENT } from '@/lib/constants';
 
 export const metadata: Metadata = {

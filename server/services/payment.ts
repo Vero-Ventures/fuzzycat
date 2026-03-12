@@ -596,7 +596,9 @@ async function handlePaymentTypeActions(
     })(),
     totalWithFeeCents: (() => {
       if (planRow.totalWithFeeCents == null) {
-        throw new Error(`Plan ${payment.planId} has null totalWithFeeCents — cannot calculate payout`);
+        throw new Error(
+          `Plan ${payment.planId} has null totalWithFeeCents — cannot calculate payout`,
+        );
       }
       return planRow.totalWithFeeCents;
     })(),

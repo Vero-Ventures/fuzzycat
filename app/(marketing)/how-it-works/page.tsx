@@ -13,11 +13,11 @@ import {
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { CLINIC_SHARE_PERCENT, DEPOSIT_RATE, FEE_PERCENT, NUM_INSTALLMENTS } from '@/lib/constants';
 import { ClinicRevenueCalculator } from './clinic-revenue-calculator';
 import { PaymentCalculator } from './payment-calculator';

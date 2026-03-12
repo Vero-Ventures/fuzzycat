@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { CLINIC_SHARE_RATE } from '@/lib/constants';
 import { percentOfCents } from '@/lib/utils/money';
 import {
+  calculateClinicRevenue,
   PAYMENT_PLAN_CONVERSION_RATE,
   TYPICAL_BNPL_MERCHANT_FEE_RATE,
-  calculateClinicRevenue,
 } from './clinic-revenue-calculator';
 
 describe('calculateClinicRevenue', () => {
@@ -20,10 +20,14 @@ describe('calculateClinicRevenue', () => {
     expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
     expect(result.recapturedAnnualCents).toBe(expectedRecaptured * 12);
 
-    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
+    expect(result.revenueShareMonthlyCents).toBe(
+      percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE),
+    );
     expect(result.revenueShareAnnualCents).toBe(result.revenueShareMonthlyCents * 12);
 
-    expect(result.bnplFeeMonthlyCents).toBe(percentOfCents(expectedRecaptured, TYPICAL_BNPL_MERCHANT_FEE_RATE));
+    expect(result.bnplFeeMonthlyCents).toBe(
+      percentOfCents(expectedRecaptured, TYPICAL_BNPL_MERCHANT_FEE_RATE),
+    );
     expect(result.bnplFeeAnnualCents).toBe(result.bnplFeeMonthlyCents * 12);
   });
 
@@ -35,7 +39,9 @@ describe('calculateClinicRevenue', () => {
 
     expect(result.lostRevenueMonthlyCents).toBe(expectedLost);
     expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
-    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
+    expect(result.revenueShareMonthlyCents).toBe(
+      percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE),
+    );
   });
 
   test('calculates with maximum slider values', () => {
@@ -46,7 +52,9 @@ describe('calculateClinicRevenue', () => {
 
     expect(result.lostRevenueMonthlyCents).toBe(expectedLost);
     expect(result.recapturedMonthlyCents).toBe(expectedRecaptured);
-    expect(result.revenueShareMonthlyCents).toBe(percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE));
+    expect(result.revenueShareMonthlyCents).toBe(
+      percentOfCents(expectedRecaptured, CLINIC_SHARE_RATE),
+    );
   });
 
   test('annual values are 12x monthly', () => {

@@ -76,6 +76,7 @@ const {
   generateClinicReferralCode,
   getClinicReferralCode,
   getClinicReferrals,
+  createClinicReferral,
   convertClinicReferral,
 } = await import('@/server/services/clinic-referral');
 
@@ -319,6 +320,83 @@ describe('clinic-referral service', () => {
 
       const result = await convertClinicReferral('FC-INVALID-0000', 'clinic-referred');
       expect(result.success).toBe(false);
+    });
+
+    it('succeeds without applying bonus when referrer clinic not found', async () => {
+      let txSelectCallCount = 0;
+      mockTxSelectWhere.mockImplementation(() => {
+        txSelectCallCount++;
+        if (txSelectCallCount === 1) {
+          return {
+            limit: () => [{ id: 'ref-1', referrerClinicId: 'clinic-gone', status: 'pending' }],
+          };
+        }
+        // Referrer clinic lookup returns empty (clinic deleted or not found)
+        return { limit: () => [] };
+      });
+      mockTxSelectFrom.mockReturnValue({ where: mockTxSelectWhere });
+      mockTxSelect.mockReturnValue({ from: mockTxSelectFrom });
+
+      const result = await convertClinicReferral('FC-CODE-1234', 'clinic-referred');
+      expect(result.success).toBe(true);
+
+      // Should have updated the referral status but NOT updated BPS
+      const setCalls = mockTxUpdateSet.mock.calls;
+      const bpsUpdate = setCalls.find(
+        (call: unknown[]) =>
+          typeof call[0] === 'object' &&
+          call[0] !== null &&
+          'revenueShareBps' in (call[0] as Record<string, unknown>),
+      );
+      expect(bpsUpdate).toBeUndefined();
+    });
+  });
+
+  // ── createClinicReferral ────────────────────────────────────────
+
+  describe('createClinicReferral', () => {
+    it('creates a referral and returns id, code, and shareUrl', async () => {
+      // Wire getClinicReferralCode to return existing code
+      mockSelectLimit.mockReturnValue([{ referralCode: 'FC-TEST-ABCD', name: 'Test Vet' }]);
+      mockSelectWhere.mockReturnValue({ limit: mockSelectLimit });
+      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
+      mockSelect.mockReturnValue({ from: mockSelectFrom });
+
+      mockInsertReturning.mockResolvedValue([{ id: 'ref-new-1' }]);
+      mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
+      mockInsert.mockReturnValue({ values: mockInsertValues });
+
+      const result = await createClinicReferral('clinic-1', 'newclinic@example.com');
+      expect(result.id).toBe('ref-new-1');
+      expect(result.referralCode).toBe('FC-TEST-ABCD');
+      expect(result.shareUrl).toContain('FC-TEST-ABCD');
+      expect(result.shareUrl).toStartWith('https://www.fuzzycatapp.com/signup/clinic?ref=');
+
+      // Verify insert was called with correct values
+      expect(mockInsert).toHaveBeenCalled();
+      expect(mockInsertValues).toHaveBeenCalledWith({
+        referrerClinicId: 'clinic-1',
+        referredEmail: 'newclinic@example.com',
+        referralCode: 'FC-TEST-ABCD',
+      });
+    });
+
+    it('generates a new code if clinic has none, then creates referral', async () => {
+      mockSelectLimit.mockReturnValue([{ referralCode: null, name: 'No Code Vet' }]);
+      mockSelectWhere.mockReturnValue({ limit: mockSelectLimit });
+      mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
+      mockSelect.mockReturnValue({ from: mockSelectFrom });
+
+      mockInsertReturning.mockResolvedValue([{ id: 'ref-new-2' }]);
+      mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
+      mockInsert.mockReturnValue({ values: mockInsertValues });
+
+      const result = await createClinicReferral('clinic-2', 'other@example.com');
+      expect(result.id).toBe('ref-new-2');
+      expect(result.referralCode).toMatch(/^FC-NOCODEVET-[A-F0-9]{4}$/);
+
+      // Should have called update to persist the new code
+      expect(mockUpdate).toHaveBeenCalled();
     });
   });
 });

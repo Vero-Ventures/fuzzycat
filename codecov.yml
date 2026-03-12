@@ -14,8 +14,11 @@ comment:
 
 ignore:
   - "**/*.config.ts"
+  - "app/**/*.tsx"           # React components tested by fast tests + E2E, not unit tests
   - "components/ui/**"
   - "drizzle/migrations"
   - "e2e"
+  - "instrumentation*.ts"    # Sentry instrumentation
+  - "middleware.ts"           # Next.js middleware (tested by E2E)
   - "scripts"
   - "server/emails/**"

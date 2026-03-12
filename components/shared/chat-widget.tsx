@@ -59,22 +59,30 @@ function ChatWidgetInner() {
     [inputValue, isLoading, sendMessage],
   );
 
-  const handleFeedback = useCallback(async (messageId: string, helpful: boolean) => {
-    setFeedbackGiven((prev) => ({
-      ...prev,
-      [messageId]: helpful ? 'up' : 'down',
-    }));
-    try {
-      // Fire-and-forget feedback save
-      await fetch('/api/trpc/chatbot.saveFeedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ json: { messageId, helpful } }),
-      });
-    } catch {
-      // Feedback is best-effort, don't block UX
-    }
-  }, []);
+  const handleFeedback = useCallback(
+    async (messageId: string, helpful: boolean) => {
+      setFeedbackGiven((prev) => ({
+        ...prev,
+        [messageId]: helpful ? 'up' : 'down',
+      }));
+      try {
+        const chatMessages = messages.map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: getMessageText(m),
+        }));
+        // Fire-and-forget feedback save
+        await fetch('/api/trpc/chatbot.saveFeedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ json: { messageId, helpful, messages: chatMessages } }),
+        });
+      } catch (error) {
+        // Feedback is best-effort, don't block UX
+        console.error('Failed to save chat feedback:', error);
+      }
+    },
+    [messages],
+  );
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {

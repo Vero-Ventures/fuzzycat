@@ -1,24 +1,49 @@
 import { google } from '@ai-sdk/google';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 import { convertToModelMessages, streamText, type UIMessage } from 'ai';
 import { serverEnv } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { buildSystemPrompt, findRelevantChunks } from '@/server/services/chatbot';
 
-// Simple in-memory rate limiter (per IP, 10 req/min)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 10;
+// Upstash Redis rate limiter (per IP, 10 req/60s sliding window)
+let chatRatelimit: Ratelimit | null = null;
 
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
+function getChatRatelimit(): Ratelimit | null {
+  if (chatRatelimit) return chatRatelimit;
 
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
+  const env = serverEnv();
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    return null;
   }
 
-  entry.count++;
-  return entry.count > RATE_LIMIT_MAX;
+  chatRatelimit = new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(10, '60 s'),
+    analytics: true,
+    prefix: 'fuzzycat:chat-ratelimit',
+  });
+
+  return chatRatelimit;
+}
+
+async function isRateLimited(ip: string): Promise<boolean> {
+  const limiter = getChatRatelimit();
+  if (!limiter) return false; // fail-open when Redis unavailable
+
+  try {
+    const result = await limiter.limit(ip);
+    return !result.success;
+  } catch (error) {
+    logger.error('Chat rate limit check failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    // Fail open — don't block users if Redis is down
+    return false;
+  }
 }
 
 /** Extract text content from a UIMessage parts array. */
@@ -44,7 +69,7 @@ export async function POST(req: Request) {
   // Rate limiting
   const forwarded = req.headers.get('x-forwarded-for');
   const ip = forwarded?.split(',')[0]?.trim() ?? 'unknown';
-  if (isRateLimited(ip)) {
+  if (await isRateLimited(ip)) {
     return new Response(
       JSON.stringify({
         error: 'Too many requests. Please try again in a moment.',
@@ -77,7 +102,8 @@ export async function POST(req: Request) {
     });
 
     return result.toUIMessageStreamResponse();
-  } catch {
+  } catch (error) {
+    console.error('Chat API error:', error);
     return new Response(
       JSON.stringify({
         error: 'An error occurred processing your request. Please try again.',

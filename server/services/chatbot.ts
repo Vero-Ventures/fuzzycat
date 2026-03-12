@@ -59,8 +59,9 @@ export async function findRelevantChunks(query: string, limit = 5): Promise<Know
       metadata: row.metadata,
       similarity: row.similarity as number,
     }));
-  } catch {
+  } catch (error) {
     // Fall back to empty chunks if pgvector query fails
+    console.error('Failed to find relevant chunks:', error);
     return [];
   }
 }

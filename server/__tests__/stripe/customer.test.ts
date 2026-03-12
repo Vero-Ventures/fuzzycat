@@ -123,4 +123,97 @@ describe('getOrCreateCustomer', () => {
     expect(mockUpdate).toHaveBeenCalled();
     expect(mockUpdateSet).toHaveBeenCalledWith({ stripeCustomerId: 'cus_new_123' });
   });
+
+  it('handles race condition by re-reading existing customer ID', async () => {
+    // First select: no existing customer
+    let selectCallCount = 0;
+    mockSelect.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: () => {
+            selectCallCount++;
+            if (selectCallCount === 1) {
+              // Initial lookup — no customer
+              return Promise.resolve([{ stripeCustomerId: null }]);
+            }
+            // Re-read after race — winner's customer ID
+            return Promise.resolve([{ stripeCustomerId: 'cus_winner_789' }]);
+          },
+        }),
+      }),
+    }));
+
+    // Conditional update returns empty (another call won the race)
+    mockUpdateReturning.mockResolvedValue([]);
+
+    const result = await getOrCreateCustomer({
+      clientId: 'client-1',
+      email: 'owner@example.com',
+      name: 'Jane Doe',
+    });
+
+    // Should return the winner's customer ID from the re-read
+    expect(result).toBe('cus_winner_789');
+    expect(mockCustomersCreate).toHaveBeenCalled();
+  });
+
+  it('falls back to orphaned customer ID when re-read returns null', async () => {
+    let selectCallCount = 0;
+    mockSelect.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: () => {
+            selectCallCount++;
+            if (selectCallCount === 1) {
+              return Promise.resolve([{ stripeCustomerId: null }]);
+            }
+            // Re-read returns null (edge case)
+            return Promise.resolve([{ stripeCustomerId: null }]);
+          },
+        }),
+      }),
+    }));
+
+    // Conditional update returns empty (race condition)
+    mockUpdateReturning.mockResolvedValue([]);
+
+    const result = await getOrCreateCustomer({
+      clientId: 'client-1',
+      email: 'owner@example.com',
+      name: 'Jane Doe',
+    });
+
+    // Falls back to the orphaned customer ID (cus_new_123)
+    expect(result).toBe('cus_new_123');
+  });
+
+  it('falls back to orphaned customer ID when re-read returns empty', async () => {
+    let selectCallCount = 0;
+    mockSelect.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: () => {
+            selectCallCount++;
+            if (selectCallCount === 1) {
+              return Promise.resolve([{ stripeCustomerId: null }]);
+            }
+            // Re-read returns empty (no record found)
+            return Promise.resolve([]);
+          },
+        }),
+      }),
+    }));
+
+    // Conditional update returns empty (race condition)
+    mockUpdateReturning.mockResolvedValue([]);
+
+    const result = await getOrCreateCustomer({
+      clientId: 'client-1',
+      email: 'owner@example.com',
+      name: 'Jane Doe',
+    });
+
+    // Falls back to the orphaned customer ID
+    expect(result).toBe('cus_new_123');
+  });
 });

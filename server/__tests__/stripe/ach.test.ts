@@ -193,4 +193,30 @@ describe('createInstallmentPaymentIntent', () => {
     )[0];
     expect(callArgs.payment_method_types).toEqual(['us_bank_account']);
   });
+
+  it('throws and logs when DB update fails after Stripe PaymentIntent creation', async () => {
+    mockUpdate.mockReturnValue({
+      set: () => ({
+        where: () => Promise.reject(new Error('DB write failed')),
+      }),
+    });
+
+    await expect(createInstallmentPaymentIntent(defaultParams)).rejects.toThrow('DB write failed');
+  });
+
+  it('returns empty string for client_secret when Stripe returns null', async () => {
+    mockPaymentIntentsCreate.mockResolvedValue({
+      id: 'pi_no_secret',
+      client_secret: null as unknown as string,
+      status: 'requires_payment_method',
+    });
+
+    // Restore normal DB mocks
+    mockUpdateWhere.mockResolvedValue([]);
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
+    mockUpdate.mockReturnValue({ set: mockUpdateSet });
+
+    const result = await createInstallmentPaymentIntent(defaultParams);
+    expect(result.clientSecret).toBe('');
+  });
 });

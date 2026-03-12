@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import type { User } from '@supabase/supabase-js';
-import { getUserRole, ROLE_HOME, SAFE_REDIRECT_PREFIXES } from '@/lib/auth';
+import {
+  getUserRole,
+  ROLE_HOME,
+  ROLE_PREFIXES,
+  roleToActorType,
+  SAFE_REDIRECT_PREFIXES,
+} from '@/lib/auth';
 
 function makeUser(role?: string): User {
   return {
@@ -58,11 +64,27 @@ describe('ROLE_HOME', () => {
   });
 });
 
+describe('ROLE_PREFIXES', () => {
+  it('maps each role to its allowed route prefixes', () => {
+    expect(ROLE_PREFIXES.clinic).toEqual(['/clinic']);
+    expect(ROLE_PREFIXES.admin).toEqual(['/admin']);
+    expect(ROLE_PREFIXES.client).toEqual(['/client']);
+  });
+});
+
 describe('SAFE_REDIRECT_PREFIXES', () => {
   it('includes the four expected prefixes', () => {
     expect(SAFE_REDIRECT_PREFIXES).toContain('/clinic');
     expect(SAFE_REDIRECT_PREFIXES).toContain('/client');
     expect(SAFE_REDIRECT_PREFIXES).toContain('/admin');
     expect(SAFE_REDIRECT_PREFIXES).toContain('/mfa');
+  });
+});
+
+describe('roleToActorType', () => {
+  it('returns the role itself as the actor type', () => {
+    expect(roleToActorType('client')).toBe('client');
+    expect(roleToActorType('clinic')).toBe('clinic');
+    expect(roleToActorType('admin')).toBe('admin');
   });
 });

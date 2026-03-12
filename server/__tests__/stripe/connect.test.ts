@@ -111,6 +111,29 @@ describe('createConnectAccount', () => {
       }),
     );
   });
+
+  it('throws and logs when DB transaction fails', async () => {
+    mockTransaction.mockImplementation(async () => {
+      throw new Error('DB connection lost');
+    });
+
+    await expect(
+      createConnectAccount({
+        clinicId: 'clinic-1',
+        email: 'clinic@example.com',
+        businessName: 'Happy Paws Vet',
+      }),
+    ).rejects.toThrow('DB connection lost');
+
+    // Restore normal transaction behavior for subsequent tests
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        update: mockUpdate,
+        insert: mockInsert,
+      };
+      return fn(tx);
+    });
+  });
 });
 
 describe('createOnboardingLink', () => {

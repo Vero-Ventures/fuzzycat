@@ -65,9 +65,9 @@ describe('calculatePaymentSchedule', () => {
       const schedule = calculatePaymentSchedule(120_000, ENROLLMENT_DATE);
 
       const installments = schedule.payments.filter((p) => p.type === 'installment');
-      // All installments should be the same (or last differs by remainder)
+      // All installments should be the same when evenly divisible
       const baseAmount = installments[0].amountCents;
-      for (const p of installments.slice(0, -1)) {
+      for (const p of installments) {
         expect(p.amountCents).toBe(baseAmount);
       }
     });

@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CLINIC_SHARE_PERCENT, CLINIC_SHARE_RATE } from '@/lib/constants';
 import { formatCents, percentOfCents } from '@/lib/utils/money';
 
-const PAYMENT_PLAN_CONVERSION_RATE = 0.4;
-const TYPICAL_BNPL_MERCHANT_FEE_RATE = 0.1;
+export const PAYMENT_PLAN_CONVERSION_RATE = 0.4;
+export const TYPICAL_BNPL_MERCHANT_FEE_RATE = 0.1;
 
 interface SliderConfig {
   id: string;
@@ -67,8 +67,12 @@ export function calculateClinicRevenue(declinedClientsPerMonth: number, avgBillD
 }
 
 export function ClinicRevenueCalculator() {
-  const [declinedClients, setDeclinedClients] = useState(10);
-  const [avgBill, setAvgBill] = useState(1200);
+  const [declinedClients, setDeclinedClients] = useState(
+    sliders.find((s) => s.id === 'declinedClients')?.defaultValue ?? 10,
+  );
+  const [avgBill, setAvgBill] = useState(
+    sliders.find((s) => s.id === 'avgBill')?.defaultValue ?? 1200,
+  );
 
   const setters: Record<string, (v: number) => void> = {
     declinedClients: setDeclinedClients,
@@ -84,7 +88,10 @@ export function ClinicRevenueCalculator() {
   // Calculate proportional bar widths (lost revenue is 100%)
   const maxCents = result.lostRevenueMonthlyCents || 1;
   const recapturedPercent = Math.round((result.recapturedMonthlyCents / maxCents) * 100);
-  const sharePercent = Math.max(1, Math.round((result.revenueShareMonthlyCents / maxCents) * 100));
+  const sharePercent =
+    result.revenueShareMonthlyCents === 0
+      ? 0
+      : Math.max(1, Math.round((result.revenueShareMonthlyCents / maxCents) * 100));
 
   return (
     <Card className="w-full">
@@ -155,8 +162,8 @@ export function ClinicRevenueCalculator() {
 
         {/* Assumption note */}
         <p className="text-xs text-muted-foreground italic">
-          Assumes about 4 in 10 clients who currently decline would proceed if offered a payment
-          plan.
+          Assumes about {Math.round(PAYMENT_PLAN_CONVERSION_RATE * 10)} in 10 clients who currently
+          decline would proceed if offered a payment plan.
         </p>
 
         {/* BNPL Comparison */}

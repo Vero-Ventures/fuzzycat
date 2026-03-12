@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ClinicDisclaimer, OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -129,13 +130,7 @@ export default function HowItWorksPage() {
             </ul>
           </div>
 
-          <p className="mt-6 text-xs text-muted-foreground">
-            By enrolling, you authorize FuzzyCat to debit your account on the scheduled dates.
-            Overdraft fees or bank charges from failed debits are your responsibility.{' '}
-            <Link href="/terms" className="underline hover:text-foreground">
-              Terms of Service
-            </Link>
-          </p>
+          <OwnerDisclaimer className="mt-6 text-xs text-muted-foreground" />
         </div>
       </section>
 
@@ -269,14 +264,7 @@ export default function HowItWorksPage() {
                 <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </Link>
-            <p className="mx-auto mt-4 max-w-lg text-xs text-muted-foreground">
-              FuzzyCat is a payment service, not a collection agency. If a client&apos;s payment
-              plan defaults after automated retries, the clinic is responsible for any remaining
-              balance.{' '}
-              <Link href="/terms" className="underline hover:text-foreground">
-                Terms of Service
-              </Link>
-            </p>
+            <ClinicDisclaimer />
           </div>
         </div>
       </section>

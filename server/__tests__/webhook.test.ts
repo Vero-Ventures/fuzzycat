@@ -326,7 +326,12 @@ describe('Stripe webhook handler', () => {
             clinicId: 'clinic-1',
             status: 'pending',
             totalBillCents: 106_000,
+            feeCents: 6_000,
+            totalWithFeeCents: 106_000,
             stripeCustomerId: 'cus_owner_123',
+            revenueShareBps: 300,
+            foundingClinic: false,
+            foundingExpiresAt: null,
           },
         ])
         // 3. payout duplicate check
@@ -406,7 +411,12 @@ describe('Stripe webhook handler', () => {
             clinicId: 'clinic-1',
             status: 'active',
             totalBillCents: 106_000,
+            feeCents: 6_000,
+            totalWithFeeCents: 106_000,
             stripeCustomerId: 'cus_owner_1',
+            revenueShareBps: 300,
+            foundingClinic: false,
+            foundingExpiresAt: null,
           },
         ])
         // completePlanIfAllPaid select (not all succeeded)
@@ -674,6 +684,11 @@ describe('Stripe webhook handler', () => {
             clinicId: 'clinic-1',
             status: 'active',
             totalBillCents: 106_000,
+            feeCents: 6_000,
+            totalWithFeeCents: 106_000,
+            revenueShareBps: 300,
+            foundingClinic: false,
+            foundingExpiresAt: null,
           },
         ])
         .mockResolvedValueOnce([{ status: 'succeeded' }, { status: 'pending' }])

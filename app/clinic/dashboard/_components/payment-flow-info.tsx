@@ -41,7 +41,10 @@ export function PaymentFlowInfo() {
               <ul className="mt-1 space-y-1 text-xs">
                 <li>Pet owner pays {FEE_PERCENT}% platform fee on their bill</li>
                 <li>{depositPercent}% deposit collected up front via debit card</li>
-                <li>Remaining 75% split into {NUM_INSTALLMENTS} biweekly ACH payments</li>
+                <li>
+                  Remaining {100 - Math.round(DEPOSIT_RATE * 100)}% split into {NUM_INSTALLMENTS}{' '}
+                  biweekly ACH payments
+                </li>
               </ul>
             </div>
             <div>

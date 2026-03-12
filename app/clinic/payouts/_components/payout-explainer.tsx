@@ -2,15 +2,19 @@ import { Info } from 'lucide-react';
 import {
   CLINIC_SHARE_PERCENT,
   FEE_PERCENT,
+  NUM_INSTALLMENTS,
   PLATFORM_FEE_RATE,
   PLATFORM_RESERVE_RATE,
 } from '@/lib/constants';
 
+const NUM_TOTAL_PAYMENTS = NUM_INSTALLMENTS + 1; // deposit + installments
 const reservePercent = Math.round(PLATFORM_RESERVE_RATE * 100);
 const exampleBill = 1_000;
 const exampleTotal = exampleBill + Math.round(exampleBill * PLATFORM_FEE_RATE * 100) / 100;
-const exampleInstallment = (exampleTotal / 7).toFixed(2);
-const exampleShare = ((exampleTotal / 7) * (CLINIC_SHARE_PERCENT / 100)).toFixed(2);
+const exampleInstallment = (exampleTotal / NUM_TOTAL_PAYMENTS).toFixed(2);
+const exampleShare = ((exampleTotal / NUM_TOTAL_PAYMENTS) * (CLINIC_SHARE_PERCENT / 100)).toFixed(
+  2,
+);
 
 export function PayoutExplainer() {
   return (
@@ -35,8 +39,8 @@ export function PayoutExplainer() {
                 {exampleTotal.toLocaleString()} total
               </li>
               <li>
-                Each installment: ${exampleTotal.toLocaleString()} &divide; 7 payments &asymp; $
-                {exampleInstallment}
+                Each installment: ${exampleTotal.toLocaleString()} &divide; {NUM_TOTAL_PAYMENTS}{' '}
+                payments &asymp; ${exampleInstallment}
               </li>
               <li>
                 Your {CLINIC_SHARE_PERCENT}% share per payment: ${exampleInstallment} &times;{' '}

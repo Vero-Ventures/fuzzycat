@@ -11,11 +11,14 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { OwnerDisclaimer } from '@/components/shared/disclaimers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DEPOSIT_RATE, FEE_PERCENT, NUM_INSTALLMENTS } from '@/lib/constants';
+import { formatCents } from '@/lib/utils/money';
+import { calculatePaymentSchedule } from '@/lib/utils/schedule';
 import { db } from '@/server/db';
 import { clinics } from '@/server/db/schema';
 
@@ -52,6 +55,13 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
 
   const feePercent = FEE_PERCENT;
   const depositPercent = Math.round(DEPOSIT_RATE * 100);
+
+  // Derive example amounts from constants to stay in sync with fee changes
+  const example = calculatePaymentSchedule(200_000); // $2,000 bill
+  const exampleFee = formatCents(example.feeCents);
+  const exampleTotal = formatCents(example.totalWithFeeCents);
+  const exampleDeposit = formatCents(example.depositCents);
+  const exampleInstallment = formatCents(example.installmentCents);
 
   return (
     <>
@@ -155,21 +165,21 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Platform fee ({feePercent}%)</span>
-                <span className="font-medium">$160</span>
+                <span className="font-medium">{exampleFee}</span>
               </div>
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span>$2,160</span>
+                <span>{exampleTotal}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-primary">
                 <span>Deposit ({depositPercent}%)</span>
-                <span className="font-medium">$540 today</span>
+                <span className="font-medium">{exampleDeposit} today</span>
               </div>
               <div className="flex justify-between text-primary">
                 <span>{NUM_INSTALLMENTS} biweekly payments</span>
-                <span className="font-medium">$270 each</span>
+                <span className="font-medium">{exampleInstallment} each</span>
               </div>
             </CardContent>
           </Card>
@@ -200,13 +210,7 @@ export default async function ClinicEnrollLandingPage({ params }: PageProps) {
               </Button>
             </Link>
           </div>
-          <p className="mx-auto mt-6 max-w-lg text-xs text-muted-foreground">
-            By enrolling, you authorize FuzzyCat to debit your account on the scheduled dates.
-            Overdraft fees or bank charges from failed debits are your responsibility.{' '}
-            <Link href="/terms" className="underline hover:text-foreground">
-              Terms of Service
-            </Link>
-          </p>
+          <OwnerDisclaimer />
         </div>
       </section>
     </>

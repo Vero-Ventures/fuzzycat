@@ -9,7 +9,7 @@ test.describe('Production login flow', () => {
 
   test('login page renders correctly', async ({ page }, testInfo) => {
     // Heading
-    await expect(page.getByRole('heading', { name: /log in to fuzzycat/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
 
     // Form fields
     await expect(page.locator('input[type="email"]')).toBeVisible();

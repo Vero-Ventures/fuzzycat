@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CLINIC_SHARE_PERCENT, CLINIC_SHARE_RATE } from '@/lib/constants';
 import { formatCents, percentOfCents } from '@/lib/utils/money';
 
+const PAYMENT_PLAN_CONVERSION_RATE = 0.4;
 const TYPICAL_BNPL_MERCHANT_FEE_RATE = 0.1;
 
 interface SliderConfig {
@@ -20,6 +21,15 @@ interface SliderConfig {
 
 const sliders: SliderConfig[] = [
   {
+    id: 'declinedClients',
+    label: 'Clients who decline due to cost per month',
+    min: 1,
+    max: 50,
+    step: 1,
+    defaultValue: 10,
+    format: (v) => `${v}`,
+  },
+  {
     id: 'avgBill',
     label: 'Average treatment cost',
     min: 500,
@@ -28,50 +38,16 @@ const sliders: SliderConfig[] = [
     defaultValue: 1200,
     format: (v) => `$${v.toLocaleString()}`,
   },
-  {
-    id: 'patients',
-    label: 'Patients per month',
-    min: 10,
-    max: 200,
-    step: 5,
-    defaultValue: 80,
-    format: (v) => `${v}`,
-  },
-  {
-    id: 'declineRate',
-    label: '% who decline treatment due to cost',
-    min: 5,
-    max: 40,
-    step: 1,
-    defaultValue: 20,
-    format: (v) => `${v}%`,
-  },
-  {
-    id: 'conversionRate',
-    label: '% of decliners who would proceed with a payment plan',
-    min: 20,
-    max: 80,
-    step: 5,
-    defaultValue: 40,
-    format: (v) => `${v}%`,
-  },
 ];
 
 /**
  * Calculate clinic revenue estimates. All monetary values in integer cents.
  */
-export function calculateClinicRevenue(
-  avgBillDollars: number,
-  patientsPerMonth: number,
-  declinePercent: number,
-  conversionPercent: number,
-) {
+export function calculateClinicRevenue(declinedClientsPerMonth: number, avgBillDollars: number) {
   const avgBillCents = Math.round(avgBillDollars * 100);
-  const declineRate = declinePercent / 100;
-  const conversionRate = conversionPercent / 100;
 
-  const lostRevenueMonthlyCents = Math.round(avgBillCents * patientsPerMonth * declineRate);
-  const recapturedMonthlyCents = Math.round(lostRevenueMonthlyCents * conversionRate);
+  const lostRevenueMonthlyCents = Math.round(avgBillCents * declinedClientsPerMonth);
+  const recapturedMonthlyCents = Math.round(lostRevenueMonthlyCents * PAYMENT_PLAN_CONVERSION_RATE);
   const revenueShareMonthlyCents = percentOfCents(recapturedMonthlyCents, CLINIC_SHARE_RATE);
   const bnplFeeMonthlyCents = percentOfCents(
     recapturedMonthlyCents,
@@ -91,25 +67,19 @@ export function calculateClinicRevenue(
 }
 
 export function ClinicRevenueCalculator() {
+  const [declinedClients, setDeclinedClients] = useState(10);
   const [avgBill, setAvgBill] = useState(1200);
-  const [patients, setPatients] = useState(80);
-  const [declineRate, setDeclineRate] = useState(20);
-  const [conversionRate, setConversionRate] = useState(40);
 
   const setters: Record<string, (v: number) => void> = {
+    declinedClients: setDeclinedClients,
     avgBill: setAvgBill,
-    patients: setPatients,
-    declineRate: setDeclineRate,
-    conversionRate: setConversionRate,
   };
   const values: Record<string, number> = {
+    declinedClients,
     avgBill,
-    patients,
-    declineRate,
-    conversionRate,
   };
 
-  const result = calculateClinicRevenue(avgBill, patients, declineRate, conversionRate);
+  const result = calculateClinicRevenue(declinedClients, avgBill);
 
   // Calculate proportional bar widths (lost revenue is 100%)
   const maxCents = result.lostRevenueMonthlyCents || 1;
@@ -158,30 +128,36 @@ export function ClinicRevenueCalculator() {
 
         {/* Visual Bars */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold">Monthly Impact</h4>
+          <h4 className="text-sm font-semibold">Your Estimated Impact</h4>
 
           <BarRow
-            label="Revenue currently lost"
+            label="Revenue you're losing"
             monthlyCents={result.lostRevenueMonthlyCents}
             annualCents={result.lostRevenueAnnualCents}
             widthPercent={100}
             color="bg-red-400 dark:bg-red-500"
           />
           <BarRow
-            label="Revenue recaptured with FuzzyCat"
+            label="Revenue you could recapture"
             monthlyCents={result.recapturedMonthlyCents}
             annualCents={result.recapturedAnnualCents}
             widthPercent={recapturedPercent}
             color="bg-teal-500 dark:bg-teal-400"
           />
           <BarRow
-            label={`${CLINIC_SHARE_PERCENT}% revenue share earned`}
+            label={`Your ${CLINIC_SHARE_PERCENT}% revenue share`}
             monthlyCents={result.revenueShareMonthlyCents}
             annualCents={result.revenueShareAnnualCents}
             widthPercent={sharePercent}
             color="bg-primary"
           />
         </div>
+
+        {/* Assumption note */}
+        <p className="text-xs text-muted-foreground italic">
+          Assumes about 4 in 10 clients who currently decline would proceed if offered a payment
+          plan.
+        </p>
 
         {/* BNPL Comparison */}
         <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 dark:border-teal-800 dark:bg-teal-950/50">

@@ -11,16 +11,34 @@
     "*.test.ts"
   ],
   "project": ["**/*.{ts,tsx}"],
-  "ignore": ["drizzle.config.ts"],
-  "ignoreBinaries": ["gitleaks", "semgrep"],
+  "ignore": ["drizzle.config.ts", "scripts/qa-local.ts"],
+  "ignoreBinaries": [
+    "gitleaks",
+    "semgrep",
+    "tsc",
+    "biome",
+    "madge",
+    "knip",
+    "type-coverage",
+    "license-checker-rseidelsohn",
+    "playwright",
+    "drizzle-kit",
+    "next"
+  ],
   "drizzle": false,
   "ignoreDependencies": [
     "@commitlint/cli",
     "@next/env",
-    "@stripe/stripe-js",
-    "playwright",
     "postcss",
     "shadcn",
-    "tw-animate-css"
+    "tw-animate-css",
+    "react-dom",
+    "@biomejs/biome",
+    "@stoplight/spectral-cli",
+    "@types/react-dom",
+    "drizzle-kit",
+    "license-checker-rseidelsohn",
+    "madge",
+    "type-coverage"
   ]
 }

@@ -211,7 +211,7 @@ jobs:
           TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
           E2E_TEST_PASSWORD: placeholder_password
-          E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
 
@@ -241,7 +241,7 @@ jobs:
           TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
           E2E_TEST_PASSWORD: placeholder_password
-          E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -272,7 +272,7 @@ jobs:
         env:
           E2E_ENV: production
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          E2E_OWNER_EMAIL: e2e-owner@fuzzycatapp.com
+          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
           E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
           NEXT_PUBLIC_SUPABASE_URL: https://wrqwmpptetipbccxzeai.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndycXdtcHB0ZXRpcGJjY3h6ZWFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MzIxMzMsImV4cCI6MjA4NjUwODEzM30.PIDQfwr8RNGq9XxdiXcuM2D3qpJD-jBhrjqkDDpttcs # nosemgrep: generic.secrets.security.detected-jwt-token.detected-jwt-token -- Supabase anon key is public by design

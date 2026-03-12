@@ -221,7 +221,8 @@ jobs:
           retention-days: 14
 
   # Compatibility aliases — branch protection requires these old check names.
-  # Remove after updating branch protection rules to use new names.
+  # These are lightweight no-op jobs that gate on the consolidated jobs.
+  # Remove after updating branch protection rules to use the new names.
   lint-compat:
     name: Lint & Format (Biome)
     runs-on: ubuntu-latest
@@ -235,6 +236,69 @@ jobs:
     needs: [quality]
     steps:
       - run: echo "Consolidated into Code Quality job"
+
+  type-coverage-compat:
+    name: "Type Coverage (≥95%)"
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  unused-code-compat:
+    name: Unused Code (Knip)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  env-lint-compat:
+    name: No Direct process.env
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  circular-deps-compat:
+    name: Circular Dependencies
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  license-compat:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  api-lint-compat:
+    name: API Spec Lint (Spectral)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - run: echo "Consolidated into Code Quality job"
+
+  secrets-compat:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: [security]
+    steps:
+      - run: echo "Consolidated into Security Checks job"
+
+  dep-audit-compat:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    needs: [security]
+    steps:
+      - run: echo "Consolidated into Security Checks job"
+
+  fast-tests-compat:
+    name: Fast Tests (HTTP + Cheerio)
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    steps:
+      - run: echo "Consolidated into E2E Tests (Playwright + Fast) job"
 
   e2e-compat:
     name: E2E Tests (Playwright)

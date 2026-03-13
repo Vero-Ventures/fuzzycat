@@ -16,7 +16,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isProduction ? 1 : isCI ? 2 : 0,
-  workers: isProduction ? 8 : isCI ? 1 : 4,
+  workers: isProduction ? 8 : isCI ? 2 : 4,
   reporter: isProduction
     ? [
         ['html', { open: 'never', outputFolder: 'playwright-report' }],
@@ -162,7 +162,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: isCI ? 'bun run build && bun run start' : 'bun run dev',
+          command: isCI ? 'bun run start' : 'bun run dev',
           url: 'http://localhost:3000',
           reuseExistingServer: !isCI,
           timeout: 120_000,

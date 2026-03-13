@@ -180,13 +180,14 @@ jobs:
         run: bun run build
       - name: Bundle Size Budget
         run: bun run check:bundle
+      - name: Package build artifact
+        run: tar cf nextjs-build.tar .next
       - name: Upload build artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: nextjs-build
-          path: .next/
+          path: nextjs-build.tar
           retention-days: 1
-          include-hidden-files: true
 
   e2e:
     name: E2E Tests
@@ -218,7 +219,8 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: nextjs-build
-          path: .next/
+      - name: Extract build artifact
+        run: tar xf nextjs-build.tar
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4

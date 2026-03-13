@@ -13,6 +13,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Shared placeholder env vars used by build, test, and e2e jobs
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+  TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+
 jobs:
   quality:
     name: Code Quality
@@ -61,7 +69,7 @@ jobs:
         run: |
           count=$(find . -path ./node_modules -prune -o -path ./e2e -prune -o \( -name '*.test.*' -o -name '*.spec.*' \) -print | head -1)
           if [ -n "$count" ]; then
-            TURNSTILE_SECRET_KEY='1x0000000000000000000000000000000AA' NEXT_PUBLIC_TURNSTILE_SITE_KEY='1x00000000000000000000AA' bun test lib server app --coverage --coverage-reporter=lcov
+            bun test lib server app --coverage --coverage-reporter=lcov
           else
             echo "No test files found, skipping."
           fi
@@ -75,7 +83,7 @@ jobs:
           i=0
           for f in tests/isolated/*.test.ts; do
             echo "=== Running $f ==="
-            TURNSTILE_SECRET_KEY='1x0000000000000000000000000000000AA' NEXT_PUBLIC_TURNSTILE_SITE_KEY='1x00000000000000000000AA' bun test "$f" --coverage --coverage-reporter=lcov --coverage-dir="coverage-isolated/run-$i" || exit 1
+            bun test "$f" --coverage --coverage-reporter=lcov --coverage-dir="coverage-isolated/run-$i" || exit 1
             i=$((i + 1))
           done
       - name: Merge isolated coverage reports
@@ -98,24 +106,21 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
-        with:
-          go-version: stable
-          cache: false
+      - name: Secret Detection (Gitleaks)
+        run: |
+          GITLEAKS_VERSION=8.30.0
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz
+          ./gitleaks detect --source . --no-banner
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
+      - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
       - uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
           key: bun-${{ hashFiles('bun.lock') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - name: Secret Detection (Gitleaks)
-        run: |
-          go install github.com/zricethezav/gitleaks/v8@latest
-          gitleaks detect --source . --no-banner
       - name: Dependency Audit
         run: |
           npm i --package-lock-only --ignore-scripts
@@ -134,7 +139,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [quality]
+    # No dependency on quality — runs in parallel to cut ~1.3m off critical path
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
@@ -146,10 +151,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Build
         run: bun run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
       - name: Bundle Size Budget
         run: bun run check:bundle
 
@@ -157,6 +158,19 @@ jobs:
     name: E2E Tests (Playwright + Fast)
     runs-on: ubuntu-latest
     needs: [build]
+    env:
+      SUPABASE_SERVICE_ROLE_KEY: placeholder
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_placeholder
+      RESEND_API_KEY: re_placeholder
+      TWILIO_ACCOUNT_SID: ACplaceholder
+      TWILIO_AUTH_TOKEN: placeholder
+      TWILIO_PHONE_NUMBER: '+10000000000'
+      E2E_TEST_PASSWORD: placeholder_password
+      E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
+      E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
+      E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
@@ -166,47 +180,20 @@ jobs:
           key: bun-${{ hashFiles('bun.lock') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install chromium
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: playwright-
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install chromium
       - name: Run fast tests (HTTP + Cheerio)
         run: bun run test:fast
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
-          SUPABASE_SERVICE_ROLE_KEY: placeholder
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
-          STRIPE_SECRET_KEY: sk_test_placeholder
-          STRIPE_WEBHOOK_SECRET: whsec_placeholder
-          RESEND_API_KEY: re_placeholder
-          TWILIO_ACCOUNT_SID: ACplaceholder
-          TWILIO_AUTH_TOKEN: placeholder
-          TWILIO_PHONE_NUMBER: '+10000000000'
-          TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-          E2E_TEST_PASSWORD: placeholder_password
-          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
-          E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
-          E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
       - name: Run E2E tests (CI-safe projects only)
         run: bunx playwright test --project=public
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
-          SUPABASE_SERVICE_ROLE_KEY: placeholder
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
-          STRIPE_SECRET_KEY: sk_test_placeholder
-          STRIPE_WEBHOOK_SECRET: whsec_placeholder
-          RESEND_API_KEY: re_placeholder
-          TWILIO_ACCOUNT_SID: ACplaceholder
-          TWILIO_AUTH_TOKEN: placeholder
-          TWILIO_PHONE_NUMBER: '+10000000000'
-          TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-          E2E_TEST_PASSWORD: placeholder_password
-          E2E_CLIENT_EMAIL: e2e-client@fuzzycatapp.com
-          E2E_CLINIC_EMAIL: e2e-clinic@fuzzycatapp.com
-          E2E_ADMIN_EMAIL: e2e-admin@fuzzycatapp.com
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ !cancelled() }}
         with:
@@ -222,7 +209,7 @@ jobs:
 
   # Compatibility aliases — branch protection requires these old check names.
   # These are lightweight no-op jobs that gate on the consolidated jobs.
-  # Remove after updating branch protection rules to use the new names.
+  # TODO: Remove after updating branch protection rules to use the new names.
   lint-compat:
     name: Lint & Format (Biome)
     runs-on: ubuntu-latest
@@ -321,7 +308,16 @@ jobs:
           key: bun-${{ hashFiles('bun.lock') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install chromium
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('bun.lock') }}
+          restore-keys: playwright-
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install chromium
       - name: Run production E2E tests
         run: bun run test:e2e:prod
         env:

@@ -19,13 +19,20 @@ jobs:
       - name: Check /api/health
         run: |
           url="https://fuzzycatapp.com"
-          status=$(curl -sL -o /dev/null -w '%{http_code}' "${url}/api/health")
-          echo "GET /api/health → HTTP $status"
-          if [ "$status" -ne 200 ]; then
-            echo "::error::Health check failed with HTTP $status"
-            curl -sL "${url}/api/health" | head -c 500
-            exit 1
-          fi
+          for attempt in 1 2 3; do
+            status=$(curl -sL -o /dev/null -w '%{http_code}' "${url}/api/health")
+            echo "Attempt $attempt: GET /api/health → HTTP $status"
+            if [ "$status" -eq 200 ]; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Retrying in 10s..."
+              sleep 10
+            fi
+          done
+          echo "::error::Health check failed after 3 attempts (last HTTP $status)"
+          curl -sL "${url}/api/health" | head -c 500
+          exit 1
 
       - name: Check / (landing page)
         run: |
